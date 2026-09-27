@@ -1,0 +1,40 @@
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+env/
+
+# ---- AccessPilot 运行时数据 ----
+# 这里会有 external-controller 的 secret、订阅链接、节点列表、设备标识，
+# 绝对不能提交。
+runtime/
+logs/
+*.log
+*.dmp
+
+# ---- 测试 / 调试产物 ----
+.cache/
+tests/.cache/
+tuntest/
+htmlcov/
+.coverage
+.pytest_cache/
+
+# ---- 本地私有配置 ----
+config.local.yaml
+secrets.yaml
+*.secret
+*.key
+
+# ---- 编辑器 / 系统 ----
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+desktop.ini

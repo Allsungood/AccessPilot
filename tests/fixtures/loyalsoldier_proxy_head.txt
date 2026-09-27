@@ -1,0 +1,6 @@
+payload:
+  - '1password.drift.click'
+  - '3dns-1.adobe.com'
+  - '3dns-2.adobe.com'
+  - '+.google.com'
+  - '+.gstatic.com'

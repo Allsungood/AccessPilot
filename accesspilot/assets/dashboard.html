@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AccessPilot 控制台</title>
+<style>
+  :root{
+    --bg:#0f1115; --panel:#171a21; --panel2:#1e222b; --line:#2a2f3a;
+    --fg:#e6e9ef; --muted:#8b93a7; --accent:#4c8dff; --ok:#3fb950;
+    --warn:#d29922; --err:#f85149; --radius:12px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);
+    font:14px/1.6 -apple-system,"Segoe UI","Microsoft YaHei",system-ui,sans-serif}
+  a{color:var(--accent)}
+  header{display:flex;align-items:center;gap:14px;padding:16px 22px;
+    border-bottom:1px solid var(--line);background:var(--panel);position:sticky;top:0;z-index:5}
+  header h1{font-size:16px;margin:0;font-weight:600;letter-spacing:.3px}
+  .dot{width:9px;height:9px;border-radius:50%;background:var(--err);display:inline-block;
+    box-shadow:0 0 8px currentColor;color:var(--err)}
+  .dot.on{background:var(--ok);color:var(--ok)}
+  .grow{flex:1}
+  .muted{color:var(--muted)}
+  main{padding:20px 22px 60px;display:grid;gap:16px;
+    grid-template-columns:repeat(auto-fit,minmax(340px,1fr));max-width:1500px;margin:0 auto}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+    padding:16px 18px;min-width:0}
+  .card h2{margin:0 0 12px;font-size:13px;font-weight:600;color:var(--muted);
+    text-transform:uppercase;letter-spacing:.8px;display:flex;align-items:center;gap:8px}
+  .row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:6px 0;
+    border-bottom:1px dashed rgba(255,255,255,.05)}
+  .row:last-child{border-bottom:none}
+  .row .k{color:var(--muted)}
+  .row .v{font-variant-numeric:tabular-nums;text-align:right;word-break:break-all}
+  button{background:var(--panel2);color:var(--fg);border:1px solid var(--line);
+    border-radius:8px;padding:7px 13px;cursor:pointer;font-size:13px;transition:.15s}
+  button:hover:not(:disabled){border-color:var(--accent);color:#fff}
+  button:disabled{opacity:.45;cursor:not-allowed}
+  button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  button.danger{border-color:#5a2b2b}
+  button.sm{padding:4px 9px;font-size:12px}
+  select,input{background:var(--panel2);color:var(--fg);border:1px solid var(--line);
+    border-radius:8px;padding:7px 10px;font-size:13px;min-width:0;width:100%}
+  .btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+  .tag{display:inline-block;padding:1px 8px;border-radius:20px;font-size:12px;
+    border:1px solid var(--line);color:var(--muted)}
+  .tag.ok{color:var(--ok);border-color:rgba(63,185,80,.4);background:rgba(63,185,80,.08)}
+  .tag.err{color:var(--err);border-color:rgba(248,81,73,.4);background:rgba(248,81,73,.08)}
+  .tag.warn{color:var(--warn);border-color:rgba(210,153,34,.4);background:rgba(210,153,34,.08)}
+  .group{border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:10px;
+    background:var(--panel2)}
+  .group .gh{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+  .group .gh strong{font-size:13px}
+  .switch{position:relative;width:44px;height:24px;flex:none}
+  .switch input{opacity:0;width:0;height:0;position:absolute}
+  .slider{position:absolute;inset:0;background:#39404d;border-radius:24px;transition:.2s;cursor:pointer}
+  .slider:before{content:"";position:absolute;width:18px;height:18px;left:3px;top:3px;
+    background:#fff;border-radius:50%;transition:.2s}
+  .switch input:checked + .slider{background:var(--accent)}
+  .switch input:checked + .slider:before{transform:translateX(20px)}
+  pre{background:#0b0d11;border:1px solid var(--line);border-radius:8px;padding:10px;
+    max-height:260px;overflow:auto;font-size:12px;margin:0;white-space:pre-wrap}
+  #toast{position:fixed;right:18px;bottom:18px;display:flex;flex-direction:column;gap:8px;z-index:20}
+  .toast{background:var(--panel2);border:1px solid var(--line);border-left:3px solid var(--accent);
+    padding:10px 14px;border-radius:8px;max-width:380px;box-shadow:0 8px 24px rgba(0,0,0,.45)}
+  .toast.err{border-left-color:var(--err)}
+  .toast.ok{border-left-color:var(--ok)}
+  .sites{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+  .site{border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:var(--panel2)}
+  .site .n{font-size:12px;color:var(--muted)}
+  .site .s{font-weight:600}
+  code{background:#0b0d11;padding:1px 6px;border-radius:5px;font-size:12px}
+</style>
+</head>
+<body>
+<header>
+  <h1>AccessPilot</h1>
+  <span class="dot" id="dot"></span>
+  <span class="muted" id="headText">正在连接内核 ...</span>
+  <span class="grow"></span>
+  <button id="btnStart" class="primary">启动</button>
+  <button id="btnRestart">重启</button>
+  <button id="btnStop" class="danger">停止</button>
+</header>
+
+<main>
+  <section class="card">
+    <h2>运行状态</h2>
+    <div class="row"><span class="k">内核版本</span><span class="v" id="sVersion">-</span></div>
+    <div class="row"><span class="k">进程 PID</span><span class="v" id="sPid">-</span></div>
+    <div class="row"><span class="k">代理端口</span><span class="v" id="sPort">-</span></div>
+    <div class="row"><span class="k">活动连接</span><span class="v" id="sConns">-</span></div>
+    <div class="row"><span class="k">累计流量</span><span class="v" id="sTraffic">-</span></div>
+    <div class="row">
+      <span class="k">系统代理</span>
+      <label class="switch"><input type="checkbox" id="cbProxy"><span class="slider"></span></label>
+    </div>
+    <div class="row">
+      <span class="k">TUN 全局模式 <span class="muted" id="tunNote"></span></span>
+      <label class="switch"><input type="checkbox" id="cbTun"><span class="slider"></span></label>
+    </div>
+    <div class="btns"><button id="btnLog" class="sm">查看日志</button></div>
+  </section>
+
+  <section class="card">
+    <h2>出口与站点诊断 <button id="btnDiag" class="sm" style="margin-left:auto">开始检测</button></h2>
+    <div class="row"><span class="k">出口 IP</span><span class="v" id="dIp">-</span></div>
+    <div class="row"><span class="k">归属地</span><span class="v" id="dLoc">-</span></div>
+    <div class="row"><span class="k">ChatGPT 可用性</span><span class="v" id="dGpt">-</span></div>
+    <div class="sites" id="sites" style="margin-top:12px"></div>
+  </section>
+
+  <section class="card">
+    <h2>策略组 <button id="btnDelayAll" class="sm" style="margin-left:auto">全部测速</button></h2>
+    <div id="groups" class="muted">等待内核 ...</div>
+  </section>
+
+  <section class="card">
+    <h2>订阅管理</h2>
+    <div class="row"><span class="k">当前配置档</span><span class="v" id="pName">-</span></div>
+    <div class="row"><span class="k">节点数量</span><span class="v" id="pNodes">-</span></div>
+    <div class="row"><span class="k">流量</span><span class="v" id="pTraffic">-</span></div>
+    <div class="row"><span class="k">到期时间</span><span class="v" id="pExpire">-</span></div>
+    <div style="margin-top:12px"><select id="pSelect"></select></div>
+    <div class="btns">
+      <button id="btnUseSub" class="sm">切换</button>
+      <button id="btnUpdateSub" class="sm">更新订阅</button>
+      <button id="btnRmSub" class="sm danger">删除</button>
+    </div>
+    <div style="margin-top:12px;display:flex;gap:8px">
+      <input id="newSub" placeholder="粘贴订阅链接 (http/https 或节点分享链接)">
+      <button id="btnAddSub" class="primary" style="flex:none">添加</button>
+    </div>
+    <p class="muted" style="font-size:12px;margin:10px 0 0">
+      没有订阅? 也可以直接运行 <code>accesspilot node groups</code> 查看内核自带面板
+      <a href="#" id="linkUI">/ui</a>。
+    </p>
+  </section>
+
+  <section class="card" style="grid-column:1/-1">
+    <h2>内核日志 <button id="btnLogRefresh" class="sm" style="margin-left:auto">刷新</button></h2>
+    <pre id="log">点击上方按钮查看日志</pre>
+  </section>
+</main>
+
+<div id="toast"></div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const api = async (path, opts = {}) => {
+  const init = { method: opts.method || "GET", headers: {} };
+  if (opts.body !== undefined) {
+    init.method = "POST";
+    init.headers["Content-Type"] = "application/json";
+    init.headers["X-AccessPilot"] = "1";
+    init.body = JSON.stringify(opts.body);
+  }
+  const res = await fetch(path, init);
+  let data = null;
+  try { data = await res.json(); } catch (e) { data = {}; }
+  if (!res.ok || (data && data.error)) throw new Error((data && data.error) || ("HTTP " + res.status));
+  return data;
+};
+const toast = (msg, kind = "") => {
+  const el = document.createElement("div");
+  el.className = "toast " + kind;
+  el.textContent = msg;
+  $("toast").appendChild(el);
+  setTimeout(() => el.remove(), kind === "err" ? 6000 : 3200);
+};
+const fmtBytes = (n) => {
+  if (!n) return "0 B";
+  const u = ["B","KB","MB","GB","TB"]; let i = 0;
+  while (n >= 1024 && i < u.length - 1) { n /= 1024; i++; }
+  return n.toFixed(i ? 1 : 0) + " " + u[i];
+};
+const esc = (s) => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+let GROUP_CACHE = [];
+
+async function refreshStatus() {
+  try {
+    const d = await api("/api/status");
+    const st = d.status, s = d.state;
+    $("dot").className = "dot" + (st.running ? " on" : "");
+    $("headText").textContent = st.running
+      ? `内核运行中 · ${st.core_version || ""} · 代理 127.0.0.1:${s.mixed_port}`
+      : "内核未运行";
+    $("sVersion").textContent = st.core_version || "-";
+    $("sPid").textContent = st.pid || "-";
+    $("sPort").textContent = `127.0.0.1:${s.mixed_port} (socks5+http)`;
+    $("sConns").textContent = st.running ? d.traffic.active : "-";
+    $("sTraffic").textContent = st.running
+      ? `↑ ${fmtBytes(d.traffic.upload)}  ↓ ${fmtBytes(d.traffic.download)}` : "-";
+    $("cbProxy").checked = !!st.system_proxy;
+    $("cbTun").checked = !!s.tun;
+    $("cbTun").disabled = !d.tun_available;
+    $("tunNote").textContent = d.tun_available ? "" : "(需管理员)";
+    $("pName").textContent = (d.profile_info && d.profile_info.name) || "(未选择)";
+    $("pNodes").textContent = (d.profile_info && d.profile_info.nodes) || 0;
+    $("pTraffic").textContent = (d.profile_info && d.profile_info.traffic) || "-";
+    $("pExpire").textContent = (d.profile_info && d.profile_info.expire) || "-";
+    $("btnStart").disabled = st.running;
+    $("btnStop").disabled = !st.running;
+  } catch (e) { $("headText").textContent = "无法连接本地服务: " + e.message; }
+}
+
+async function refreshSubs() {
+  try {
+    const d = await api("/api/subs");
+    const sel = $("pSelect");
+    sel.innerHTML = d.profiles.map(p =>
+      `<option value="${esc(p.name)}" ${p.active ? "selected" : ""}>${esc(p.name)} · ${p.nodes} 节点</option>`
+    ).join("") || `<option value="">(暂无配置档)</option>`;
+  } catch (e) { /* 忽略 */ }
+}
+
+async function refreshGroups() {
+  try {
+    const d = await api("/api/groups");
+    if (!d.running) { $("groups").innerHTML = '<span class="muted">内核未运行</span>'; return; }
+    GROUP_CACHE = d.groups;
+    $("groups").innerHTML = d.groups.map(g => `
+      <div class="group">
+        <div class="gh">
+          <strong>${esc(g.name)}</strong>
+          <span class="tag">${esc(g.type)}</span>
+          <span class="grow"></span>
+          <button class="sm" data-delay="${esc(g.name)}">测速</button>
+        </div>
+        <select data-group="${esc(g.name)}">
+          ${g.all.map(n => `<option ${n === g.now ? "selected" : ""}>${esc(n)}</option>`).join("")}
+        </select>
+      </div>`).join("");
+    document.querySelectorAll("select[data-group]").forEach(sel => {
+      sel.onchange = async () => {
+        try {
+          await api("/api/select", { body: { group: sel.dataset.group, node: sel.value } });
+          toast(`${sel.dataset.group} → ${sel.value}`, "ok");
+        } catch (e) { toast(e.message, "err"); }
+      };
+    });
+    document.querySelectorAll("button[data-delay]").forEach(btn => {
+      btn.onclick = async () => {
+        btn.disabled = true; btn.textContent = "测速中";
+        try {
+          const r = await api("/api/delay?group=" + encodeURIComponent(btn.dataset.delay));
+          const entries = Object.entries(r.delays || {}).sort((a, b) => a[1] - b[1]);
+          toast(entries.slice(0, 5).map(([n, v]) => `${n.slice(0, 18)} ${v}ms`).join("  ") || "无可用节点");
+          await refreshGroups();
+        } catch (e) { toast(e.message, "err"); }
+        btn.disabled = false; btn.textContent = "测速";
+      };
+    });
+  } catch (e) { /* 忽略 */ }
+}
+
+async function runDiag() {
+  const btn = $("btnDiag"); btn.disabled = true; btn.textContent = "检测中 ...";
+  try {
+    const d = await api("/api/test");
+    $("sites").innerHTML = d.results.map(r => `
+      <div class="site">
+        <div class="n">${esc(r.name)}</div>
+        <div class="s" style="color:${r.ok ? "var(--ok)" : "var(--err)"}">
+          ${r.ok ? "通过" : "失败"} <span class="muted" style="font-weight:400">${r.latency_ms}ms</span>
+        </div>
+        <div class="n">${esc(r.detail)}</div>
+      </div>`).join("");
+    const ip = await api("/api/ip");
+    const e2 = ip.exit || {}, t = ip.trace || {};
+    $("dIp").textContent = e2.query || t.ip || "-";
+    $("dLoc").textContent = e2.error ? t.loc || "-" :
+      `${e2.country || ""} ${e2.city || ""} · ${e2.isp || ""}`;
+    const loc = t.loc || e2.countryCode;
+    const blocked = t.openai_blocked || e2.openai_blocked;
+    $("dGpt").innerHTML = blocked
+      ? `<span class="tag err">不支持 (${esc(loc || "?")})</span>`
+      : `<span class="tag ok">可用 (${esc(loc || "?")})</span>`;
+    if (e2.hosting) toast("出口是机房 IP, ChatGPT 风控可能更严格", "");
+  } catch (e) { toast(e.message, "err"); }
+  btn.disabled = false; btn.textContent = "开始检测";
+}
+
+async function loadLog() {
+  try {
+    const d = await api("/api/log?lines=200");
+    $("log").textContent = d.log || "(空)";
+    $("log").scrollTop = $("log").scrollHeight;
+  } catch (e) { toast(e.message, "err"); }
+}
+
+$("cbProxy").onchange = async (e) => {
+  try {
+    await api("/api/proxy", { body: { enable: e.target.checked } });
+    toast("系统代理已" + (e.target.checked ? "开启" : "关闭"), "ok");
+  } catch (err) { toast(err.message, "err"); }
+  refreshStatus();
+};
+$("cbTun").onchange = async (e) => {
+  e.target.disabled = true;
+  try {
+    await api("/api/tun", { body: { enable: e.target.checked } });
+    toast("TUN 模式已" + (e.target.checked ? "开启" : "关闭"), "ok");
+  } catch (err) { toast(err.message, "err"); }
+  e.target.disabled = false;
+  setTimeout(refreshStatus, 800);
+};
+$("btnStart").onclick = async () => {
+  $("btnStart").disabled = true;
+  try { await api("/api/start", { body: {} }); toast("内核已启动", "ok"); }
+  catch (e) { toast(e.message, "err"); }
+  refreshStatus(); refreshGroups();
+};
+$("btnStop").onclick = async () => {
+  try { await api("/api/stop", { body: {} }); toast("内核已停止", "ok"); }
+  catch (e) { toast(e.message, "err"); }
+  refreshStatus();
+};
+$("btnRestart").onclick = async () => {
+  try { await api("/api/restart", { body: {} }); toast("内核已重启", "ok"); }
+  catch (e) { toast(e.message, "err"); }
+  refreshStatus(); refreshGroups();
+};
+$("btnDiag").onclick = runDiag;
+$("btnDelayAll").onclick = async () => {
+  for (const g of GROUP_CACHE.filter(x => x.is_group && x.type !== "select")) {
+    try { await api("/api/delay?group=" + encodeURIComponent(g.name)); } catch (e) {}
+  }
+  toast("测速完成"); refreshGroups();
+};
+$("btnLog").onclick = loadLog;
+$("btnLogRefresh").onclick = loadLog;
+$("btnUpdateSub").onclick = async () => {
+  try {
+    const r = await api("/api/sub/update", { body: { name: $("pSelect").value } });
+    toast(`订阅已更新: ${r.nodes} 个节点`, "ok");
+  } catch (e) { toast(e.message, "err"); }
+  refreshStatus(); refreshSubs();
+};
+$("btnUseSub").onclick = async () => {
+  try {
+    await api("/api/sub/use", { body: { name: $("pSelect").value } });
+    toast("已切换配置档", "ok");
+  } catch (e) { toast(e.message, "err"); }
+  refreshStatus(); refreshGroups();
+};
+$("btnRmSub").onclick = async () => {
+  const name = $("pSelect").value;
+  if (!name || !confirm(`确认删除配置档 ${name}?`)) return;
+  try { await api("/api/sub/rm", { body: { name } }); toast("已删除", "ok"); }
+  catch (e) { toast(e.message, "err"); }
+  refreshStatus(); refreshSubs();
+};
+$("btnAddSub").onclick = async () => {
+  const url = $("newSub").value.trim();
+  if (!url) return toast("请填写订阅链接", "err");
+  $("btnAddSub").disabled = true;
+  try {
+    const r = await api("/api/sub/add", { body: { url } });
+    toast(`已添加 ${r.name}: ${r.nodes} 个节点`, "ok");
+    $("newSub").value = "";
+  } catch (e) { toast(e.message, "err"); }
+  $("btnAddSub").disabled = false;
+  refreshStatus(); refreshSubs(); refreshGroups();
+};
+$("linkUI").onclick = (e) => {
+  e.preventDefault();
+  api("/api/status").then(d => { location.href = `http://127.0.0.1:${d.state.api_port}/ui`; });
+};
+
+refreshStatus(); refreshSubs(); refreshGroups();
+setInterval(refreshStatus, 3000);
+setInterval(refreshGroups, 6000);
+</script>
+</body>
+</html>

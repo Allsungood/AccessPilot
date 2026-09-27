@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "accesspilot"
+version = "1.0.0"
+description = "加速访问并正常使用 ChatGPT / Discord / X 等平台的客户端管理器"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "AccessPilot Contributors" }]
+keywords = ["proxy", "clash", "mihomo", "chatgpt", "discord", "tun", "gfw"]
+classifiers = [
+  "Environment :: Console",
+  "Operating System :: Microsoft :: Windows",
+  "Operating System :: POSIX :: Linux",
+  "Operating System :: MacOS",
+  "Programming Language :: Python :: 3",
+  "Topic :: Internet :: Proxy Servers",
+]
+# 刻意不依赖任何第三方库: 目标机器常常无法访问 PyPI
+dependencies = []
+
+[project.scripts]
+accesspilot = "accesspilot.cli:main"
+
+[tool.setuptools]
+packages = ["accesspilot"]
+
+[tool.setuptools.package-data]
+accesspilot = ["assets/*.html"]
