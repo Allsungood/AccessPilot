@@ -26,17 +26,60 @@ class YamlError(ValueError):
 _NUM_RE = re.compile(r"^[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?$")
 
 
+#: 双引号标量里的简单转义(YAML 1.2 的 c-ns-esc-char)。
+_SIMPLE_UNESCAPE = {
+    "0": "\0", "a": "\a", "b": "\b", "t": "\t", "n": "\n",
+    "v": "\v", "f": "\f", "r": "\r", "e": "\x1b", " ": " ",
+    '"': '"', "/": "/", "\\": "\\",
+    "N": "\x85", "_": "\xa0", "L": "\u2028", "P": "\u2029",
+}
+
+_HEX = set("0123456789abcdefABCDEF")
+
+
+def _unescape_double(body: str) -> str:
+    """按 YAML 双引号规则反转义, **单趟扫描**.
+
+    不能像以前那样链式 replace —— 顺序本身就会出错:
+    `\\\\n`(反斜杠 + 字面 n)会被先行的 `.replace("\\\\n", "\\n")` 吃成
+    "反斜杠 + 换行", 语义直接反了。
+    """
+    out: list[str] = []
+    i = 0
+    n = len(body)
+    while i < n:
+        ch = body[i]
+        if ch != "\\" or i + 1 >= n:
+            out.append(ch)
+            i += 1
+            continue
+        e = body[i + 1]
+        if e in ("x", "u", "U"):
+            width = {"x": 2, "u": 4, "U": 8}[e]
+            digits = body[i + 2 : i + 2 + width]
+            if len(digits) == width and all(c in _HEX for c in digits):
+                out.append(chr(int(digits, 16)))
+                i += 2 + width
+                continue
+            out.append(ch)  # 残缺的转义: 原样保留, 不吞字符
+            i += 1
+            continue
+        rep = _SIMPLE_UNESCAPE.get(e)
+        if rep is None:
+            out.append(ch)  # 未知转义同样保留
+            i += 1
+            continue
+        out.append(rep)
+        i += 2
+    return "".join(out)
+
+
 def _unquote(s: str) -> str:
     if len(s) >= 2 and s[0] == s[-1] and s[0] in ("'", '"'):
         body = s[1:-1]
         if s[0] == "'":
             return body.replace("''", "'")
-        return (
-            body.replace("\\n", "\n")
-            .replace("\\t", "\t")
-            .replace('\\"', '"')
-            .replace("\\\\", "\\")
-        )
+        return _unescape_double(body)
     return s
 
 
@@ -277,9 +320,49 @@ def _needs_quote(s: str) -> bool:
         return True
     if "\n" in s or "\t" in s:
         return True
+    if _CTRL_RE.search(s):
+        return True
     if not _PLAIN_OK.match(s):
         return True
     return False
+
+
+#: YAML 标量里**禁止出现**的字符。
+#:
+#: 真实事故(2026-09): 某个免费节点的 `sni` 字段里带了 `ð\x9f\x87` ——
+#: 那是 UTF-8 的 emoji 字节被按 Latin-1 解码的产物, 落在 C1 区
+#: (U+0080~U+009F)。旧版转义只处理 `\` `"` 和换行, 于是原样写进 YAML,
+#: 内核直接报 `yaml: control characters are not allowed`, **整份 6000 个
+#: 节点的配置**因此加载失败; free auto 也在校验那一步中断, 连"抓完节点
+#: 立刻测速 + 清理"都没跑到, 配置档被留在了 2.6 MB 的中间状态。
+#:
+#: 范围依据 Go yaml.v3 的 c-printable: C0(除 \t \n \r) + DEL + C1。
+_CTRL_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]")
+
+#: 双引号标量支持的简短转义(其余控制字符走 \xNN / \uNNNN)。
+_ESCAPES = {
+    "\0": "\\0", "\a": "\\a", "\b": "\\b", "\t": "\\t", "\n": "\\n",
+    "\v": "\\v", "\f": "\\f", "\r": "\\r", "\x1b": "\\e",
+    '"': '\\"', "\\": "\\\\",
+}
+
+
+def _escape_double(s: str) -> str:
+    """把字符串转成 YAML 双引号标量安全的形态(控制字符一律转义)."""
+    out: list[str] = []
+    for ch in s:
+        esc = _ESCAPES.get(ch)
+        if esc is not None:
+            out.append(esc)
+            continue
+        o = ord(ch)
+        if o < 0x20 or 0x7F <= o <= 0x9F:
+            out.append(f"\\x{o:02x}")
+        elif o in (0xFFFE, 0xFFFF):
+            out.append(f"\\u{o:04x}")
+        else:
+            out.append(ch)
+    return "".join(out)
 
 
 def _emit_scalar(v: Any) -> str:
@@ -293,9 +376,22 @@ def _emit_scalar(v: Any) -> str:
         return repr(v)
     s = str(v)
     if _needs_quote(s):
-        escaped = s.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n")
-        return f'"{escaped}"'
+        return f'"{_escape_double(s)}"'
     return s
+
+
+def has_control_chars(s: str) -> bool:
+    """字符串里有没有 YAML 禁止的控制字符."""
+    return bool(_CTRL_RE.search(s))
+
+
+def strip_control_chars(s: str) -> str:
+    """把 YAML 禁止的控制字符去掉(数据层清洗, 与 _escape_double 互补).
+
+    转义能保证配置**能加载**; 清洗能保证字段值**有意义** ——
+    例如一个被 Latin-1 污染的 SNI, 转义后语法合法但握手指令仍然是垃圾。
+    """
+    return _CTRL_RE.sub("", s)
 
 
 def _emit(obj: Any, indent: int, out: list[str]) -> None:

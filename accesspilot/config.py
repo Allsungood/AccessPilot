@@ -343,8 +343,24 @@ def sanitize_proxies(proxies: list[dict[str, Any]]) -> list[dict[str, Any]]:
             continue
         if t in ("vmess", "ss") and isinstance(p.get("port"), str) and p["port"].isdigit():
             p["port"] = int(p["port"])
+        # 清洗控制字符。订阅源把 UTF-8 的 emoji 按 Latin-1 解码时会产出
+        # U+0080~U+009F, YAML 不接受 —— 一个坏节点就能让整份配置加载失败
+        # (真实事故: 某个节点的 sni 带了 ð\x9f\x87, 6000 个节点全部作废)。
+        for k, v in list(p.items()):
+            if not isinstance(v, str) or not miniyaml.has_control_chars(v):
+                continue
+            cleaned = miniyaml.strip_control_chars(v)
+            if k in ("sni", "servername", "host") and not _is_hostname(cleaned):
+                p.pop(k)  # 洗出来也不是合法主机名(如 sni=https://t.me/xxx) -> 丢掉该字段
+            else:
+                p[k] = cleaned
         out.append(p)
     return out
+
+
+def _is_hostname(s: str) -> bool:
+    """够用的主机名判断: 只允许字母数字和 . _ -"""
+    return bool(s) and all(c.isalnum() or c in "._-" for c in s)
 
 
 def build_config(sub: Subscription, st: AppState, *, tun: bool | None = None) -> dict[str, Any]:
