@@ -3,10 +3,13 @@
 现实情况(本机实测, 2026-09):
   * 从 8 个公开源抓到 369 个去重节点, **只有 13 个真正可用(3.5%)**;
   * 这 13 个里, Discord 与 X 都能打开 ✅;
-  * 但 ChatGPT 全军覆没 ❌ —— 它们要么出口其实在中国(节点标签是假的),
-    要么是韩国机房的共享 IP, 被 OpenAI 以 HTTP 403 直接拒绝(IP 信誉封禁)。
-  * 结论: 免费节点可以用来上 Discord / X / Google / YouTube,
-    **但不能用来上 ChatGPT**; ChatGPT 需要你自己的、没被滥用的出口 IP。
+  * ChatGPT 绝大多数打不开 ❌, 但**并非全军覆没**: 实测确实存在能用的免费
+    节点(如韩国 KT 出口, chatgpt.com 返回 200 + loc=KR)。失败的原因有两类,
+    必须分开看: (a) 出口地区不在 OpenAI 支持列表(香港/大陆 → HTTP 403
+    "Unable to load site"); (b) 节点自身连不通。
+  * 结论: 免费节点上 Discord / X / Google / YouTube 很稳; ChatGPT 能用但要
+    **逐个实测 + 钉住**, 且会随节点池刷新而失效 —— 所以 AccessPilot 在
+    `free auto` 里自动挑出能上 ChatGPT 的节点并把它钉进 🤖 AI 服务 组。
 
 安全提醒: 这些节点由陌生人运营, 对方能看到你的流量去向(HTTPS 内容看不到)。
 不要在用它们时登录银行、邮箱等敏感账号。AccessPilot 会在使用时提示这一点。
@@ -393,28 +396,65 @@ X_CHECK_URLS = (
 )
 DISCORD_CHECK_URL = "https://discord.com/api/v9/gateway"
 
+#: 探测 ChatGPT **真实可用性**的地址。
+#:
+#: 为什么必须是 `/cdn-cgi/trace` 而不是 `https://chatgpt.com/`:
+#:   * 它是 Cloudflare 的明文回显, 只有几百字节, 但**只在被允许的地区才 200**;
+#:     不受支持的地区 OpenAI 直接回 403 ("Unable to load site")。
+#:     所以一次请求同时给出两个关键信息: 能不能用 + 出口落在哪个国家(loc=XX)。
+#:   * 实测(2026-09): 香港节点 -> 403; 韩国节点 -> 200 + loc=KR。
+#:
+#: 血泪教训: **内核的 url-test 健康检查把 403 当成"通"** —— 实测把探测地址
+#: 换成 chatgpt.com 后, 香港节点依然报 "121 ms 成功"。所以"让 AI 组用
+#: chatgpt.com 做 url-test 就能自动跳过被封地区"是**错的**, 必须显式读状态码。
+CHATGPT_TRACE_URL = "https://chatgpt.com/cdn-cgi/trace"
+
+#: 已知**不受支持**的地区(命中时给出人话解释, 而不是只说"失败")。
+#: 判据始终以 trace 的 200/403 为准, 这张表只用于把原因说清楚。
+CHATGPT_BLOCKED_REGIONS: dict[str, str] = {
+    "CN": "中国大陆",
+    "HK": "中国香港",
+    "MO": "中国澳门",
+    "RU": "俄罗斯",
+    "IR": "伊朗",
+    "KP": "朝鲜",
+    "CU": "古巴",
+    "SY": "叙利亚",
+    "SD": "苏丹",
+    "VE": "委内瑞拉",
+    "BY": "白俄罗斯",
+}
+
 
 def verify_node(
     st: Any, node: str, *, timeout: float = 10.0
 ) -> dict[str, Any]:
-    """把一个节点切到 AI/社交组, 实测它能否真正服务 X 与 Discord.
+    """把一个节点切到 AI/社交组, 实测它能否真正服务 X、Discord 与 ChatGPT.
 
-    返回 {name, latency_ms, x_ok, x_asset_ok, discord_ok, detail}。
+    返回 {name, latency_ms, x_ok, x_asset_ok, discord_ok,
+          chatgpt_ok, chatgpt_loc, chatgpt_status, detail}。
+
+    为什么要连 ChatGPT 一起测: X 能打开**不代表** ChatGPT 能打开 ——
+    ChatGPT 额外受"出口国家是否在 OpenAI 支持列表"限制。香港节点 X/Discord
+    全绿、ChatGPT 却是 403 "Unable to load site", 这是真实踩过的坑。
     """
     from . import api
     from .util import http_request
+
+    failed = {"name": node, "latency_ms": -1, "x_ok": False,
+              "x_asset_ok": False, "discord_ok": False,
+              "chatgpt_ok": False, "chatgpt_loc": "", "chatgpt_status": 0,
+              "detail": ""}
 
     proxy = f"http://127.0.0.1:{st.mixed_port}"
     try:
         api.select(st, "💬 社交平台", node)
         api.select(st, "🤖 AI 服务", node)
     except Exception as e:  # noqa: PERF203
-        return {"name": node, "latency_ms": -1, "x_ok": False,
-                "x_asset_ok": False, "discord_ok": False, "detail": f"选择失败: {e}"}
+        failed["detail"] = f"选择失败: {e}"
+        return failed
 
-    results: dict[str, Any] = {"name": node, "latency_ms": -1,
-                               "x_ok": False, "x_asset_ok": False,
-                               "discord_ok": False, "detail": ""}
+    results: dict[str, Any] = dict(failed)
     t0 = time.time()
     try:
         s, _, _ = http_request(X_CHECK_URLS[0], timeout=timeout, proxy=proxy)
@@ -432,7 +472,50 @@ def verify_node(
         results["discord_ok"] = s in (200, 429)
     except Exception:  # noqa: PERF203
         pass
+
+    # ChatGPT: 只有 200 才算数。403 = 出口地区不受支持, 网页会显示
+    # "Unable to load site", 这正是用户截图里的那个报错。
+    try:
+        s, _, body = http_request(CHATGPT_TRACE_URL, timeout=timeout, proxy=proxy)
+        results["chatgpt_status"] = s
+        results["chatgpt_ok"] = s == 200
+        if s == 200:
+            m = re.search(rb"loc=([A-Za-z]{2})", body or b"")
+            if m:
+                results["chatgpt_loc"] = m.group(1).decode().upper()
+    except Exception:  # noqa: PERF203
+        pass
+
     return results
+
+
+def chatgpt_usable(r: dict[str, Any]) -> bool:
+    """这个节点能否真正打开 ChatGPT(而不只是"连得上")。"""
+    return bool(r.get("chatgpt_ok"))
+
+
+def chatgpt_reason(r: dict[str, Any]) -> str:
+    """给"ChatGPT 用不了"一个能看懂的原因。"""
+    st = int(r.get("chatgpt_status") or 0)
+    loc = str(r.get("chatgpt_loc") or "")
+    if st == 403:
+        where = CHATGPT_BLOCKED_REGIONS.get(loc)
+        return f"地区不受支持{f'({where})' if where else ''} - HTTP 403"
+    if st == 0:
+        return "连接失败/超时"
+    if st == 200:
+        return f"可用 (出口 {loc or '?'})"
+    return f"HTTP {st}"
+
+
+def current_selection(st: Any, group: str) -> str:
+    """读内核里某个策略组当前选中的节点名(读不到返回空串)."""
+    from . import api
+
+    try:
+        return str((api.proxies(st).get(group) or {}).get("now") or "")
+    except Exception:  # noqa: PERF203
+        return ""
 
 
 def verify_many(

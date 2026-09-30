@@ -549,25 +549,33 @@ def cmd_test(args: argparse.Namespace) -> int:
 
     print()
     print(bold("出口信息"))
+    print(dim("  通用流量与 ChatGPT 走不同的策略组, 出口很可能是两个国家 —— 分开看"))
     if exit_ip.get("error"):
-        print(f"  {red('查询失败')}: {exit_ip['error']}")
+        print(f"  通用流量     : {red('查询失败')}: {exit_ip['error']}")
     else:
-        flag = red("不受支持") if exit_ip.get("openai_blocked") else green("可用")
         print(
-            f"  IP      : {exit_ip.get('query')}  "
+            f"  通用流量     : {exit_ip.get('query')}  "
             f"{exit_ip.get('country')} {exit_ip.get('city') or ''}"
         )
-        print(f"  运营商  : {exit_ip.get('isp')}")
-        print(
-            f"  ChatGPT : {flag}{(' - ' + exit_ip['region_note']) if exit_ip.get('region_note') else ''}"
-        )
+        print(f"                 {exit_ip.get('isp')}")
         if exit_ip.get("hosting"):
             warn("该 IP 属于数据中心/机房, ChatGPT 风控可能更严, 住宅 IP 成功率更高")
+
+    # ChatGPT 的出口必须以 CF trace 为准: 它经 🤖 AI 服务 组出去, 和通用流量
+    # 落在不同国家是常态。以前这里只打通用出口, 于是会看到
+    # "ChatGPT: 不受支持 - 中国香港" 紧挨着 "ChatGPT 网页版 通过" 的矛盾输出,
+    # 让人误以为 ChatGPT 走的是香港(用户截图里那个香港 IPv6 就是这么来的)。
     if trace and not trace.get("error"):
-        print(
-            f"  CF trace: ip={trace.get('ip')} loc={trace.get('loc')} "
-            f"warp={trace.get('warp', '-')}"
+        loc = str(trace.get("loc") or "?").upper()
+        verdict = (
+            red("不受支持") + f" - {trace.get('region_note')}"
+            if trace.get("openai_blocked")
+            else green("可用")
         )
+        print(f"  ChatGPT 出口 : {trace.get('ip')}  {loc}")
+        print(f"                 {verdict}   (warp={trace.get('warp', '-')})")
+    elif trace:
+        print(f"  ChatGPT 出口 : {red('读取失败')}: {trace['error']}")
 
     print()
     print(bold("目标平台连通性"))
@@ -1018,6 +1026,7 @@ def cmd_free(args: argparse.Namespace) -> int:
         # "延迟快"不等于"能用": 对最快的若干节点做真实平台验证
         keep: dict[str, int] = dict(alive)
         verified_ok = False  # 是否有节点通过"平台级验证"(能真正打开 X/Discord)
+        ai_node: str = ""    # 实测能真正打开 ChatGPT 的最快节点(钉进 🤖 AI 服务)
         if args.action == "auto":
             candidates = [n for n, d in alive.items() if d <= args.min_ms][: args.verify_top]
             if candidates:
@@ -1044,6 +1053,7 @@ def cmd_free(args: argparse.Namespace) -> int:
                     }
                     keep = dict(sorted(keep.items(), key=lambda kv: kv[1]))
                     verified_ok = True
+
                     vrows = []
                     for r in sorted(good, key=lambda r: r.get("latency_ms") or 99999):
                         vrows.append([
@@ -1052,15 +1062,60 @@ def cmd_free(args: argparse.Namespace) -> int:
                             green("V") if r["x_ok"] else red("x"),
                             green("V") if r["x_asset_ok"] else red("x"),
                             green("V") if r["discord_ok"] else red("x"),
+                            (green("V") + dim(f" {r.get('chatgpt_loc') or ''}")
+                             if freenodes.chatgpt_usable(r) else red("x")),
                         ])
-                    print(table(["节点", "X主页", "X静态", "Discord"],
-                                [[r[0], r[2], r[3], r[4]] for r in vrows]))
+                    print(table(["节点", "X主页", "X静态", "Discord", "ChatGPT"],
+                                [[r[0], r[2], r[3], r[4], r[5]] for r in vrows]))
                     ok(f"平台验证: {len(good)}/{len(candidates)} 个节点真正可用")
+
+                    # ChatGPT 走独立的出口要求(X/Discord 全绿**不代表**能上
+                    # ChatGPT: 香港节点就是 X/Discord 全过、ChatGPT 403)。
+                    # 挑最快的可用节点钉进 AI 组。
+                    ai_capable = sorted(
+                        (r for r in good if freenodes.chatgpt_usable(r)),
+                        key=lambda r: r.get("latency_ms") or 99999,
+                    )
+                    if ai_capable:
+                        ai_node = ai_capable[0]["name"]
+                        ok(f"ChatGPT 可用节点: {ai_node} "
+                           f"(出口 {ai_capable[0].get('chatgpt_loc') or '?'}, "
+                           f"{ai_capable[0].get('latency_ms')} ms) -> 将钉进 🤖 AI 服务")
+                    else:
+                        warn("这批节点里没有一个能打开 ChatGPT(出口地区不受支持)")
+                        for r in sorted(good, key=lambda r: r.get("latency_ms") or 99999)[:3]:
+                            warn(f"  {r['name'][:40]} -> {freenodes.chatgpt_reason(r)}")
                 else:
                     warn("平台验证无一通过: 当前这批免费节点只能连上, 不能真正使用")
                     warn("将保留纯测速结果; 建议过几小时再 accesspilot free auto")
+
+                # 即使 X/Discord 没过, 只要 ChatGPT 实测可用也要留下来 ——
+                # 否则下一步 prune 会把它删掉, 钉进 AI 组的选择就失效了。
+                for r in results:
+                    if freenodes.chatgpt_usable(r) and r["name"] not in keep:
+                        keep[r["name"]] = 99999
+                        if not ai_node:
+                            ai_node = r["name"]
             else:
                 warn(f"没有延迟低于 {args.min_ms}ms 的节点, 免费节点当前整体很慢, 建议稍后再试")
+
+        # 保护: 本批没有一个能上 ChatGPT 时, 如果**当前钉住的**那个节点还能用,
+        # 就留着它 —— 每小时一次的自动刷新不该把本来能用的东西弄坏。
+        # (用户遇到的故障正是这个形态: 刷新把可用的 AI 节点换成了香港节点。)
+        if args.action == "auto" and process.is_running() and not ai_node:
+            pinned = freenodes.current_selection(st, rules.G_AI)
+            try:
+                known = {str(p.get("name")) for p in load_profile("free").proxies}
+            except Exception:  # noqa: PERF203
+                known = set()
+            if pinned and pinned in known:
+                r = freenodes.verify_node(st, pinned, timeout=args.verify_timeout)
+                if freenodes.chatgpt_usable(r):
+                    ai_node = pinned
+                    keep.setdefault(pinned, 99998)
+                    verified_ok = True
+                    ok(f"本批没有更好的 ChatGPT 节点, 保留现有的: {pinned[:44]} "
+                       f"(出口 {r.get('chatgpt_loc') or '?'})")
 
         if args.action == "auto" or args.prune:
             before, after = freenodes.prune_profile("free", keep)
@@ -1080,24 +1135,48 @@ def cmd_free(args: argparse.Namespace) -> int:
 
         if args.action == "auto" and process.is_running() and keep:
             best = next(iter(keep))
-            # 顶层组指向 url-test(自动选择), 它会每 5 分钟重新选最快的;
-            # 子组跟随顶层, 形成"总是走当前最快验证节点"的链条。
+            # 先热重载让内核拿到新节点列表, 再做选择 —— 反过来的话选择会被重载冲掉。
+            process.reload_config(load_profile(st.active_profile), st)
+
+            # 顶层组指向 url-test(自动选择), 它每 5 分钟重新选最快的;
+            # 社交/流媒体跟随顶层, 形成"总是走当前最快验证节点"的链条。
             for group in (rules.G_SELECT,):
                 try:
                     api.select(st, group, rules.G_AUTO)
                 except Exception:
                     continue
-            for group in (rules.G_AI, rules.G_SOCIAL, rules.G_MEDIA):
+            for group in (rules.G_SOCIAL, rules.G_MEDIA):
                 try:
                     api.select(st, group, rules.G_SELECT)
                 except Exception:
                     continue
+
+            # 🤖 AI 服务 **绝不能**跟随自动选择: url-test 只挑最快, 完全不看
+            # 出口地区。真实故障: AI 组跟着自动选择 -> 选中香港节点 ->
+            # ChatGPT 403 "Unable to load site"(用户截图里就是这个)。
+            if not ai_node:
+                try:
+                    api.select(st, rules.G_AI, rules.G_SELECT)
+                except Exception:
+                    pass
+                warn("没有实测能打开 ChatGPT 的节点, 🤖 AI 服务 暂时跟随自动选择")
+                warn("  (自动选择只保证最快, 不保证出口地区在 OpenAI 支持列表里)")
+            else:
+                try:
+                    api.select(st, rules.G_AI, ai_node)
+                    ok(f"🤖 AI 服务 已钉住 ChatGPT 可用节点: {ai_node[:48]}")
+                except Exception as e:  # noqa: PERF203
+                    warn(f"钉住 AI 节点失败({e}), 回退到自动选择")
+                    ai_node = ""
+
             ok(f"策略组已指向自动选择(当前最快: {best}, {keep[best]} ms, 每 5 分钟重选)")
-            process.reload_config(load_profile(st.active_profile), st)
 
         print()
         print(dim(f"  安全提醒: {freenodes.SECURITY_NOTICE}"))
-        print(dim("  实测: 免费节点可上 Discord / X / Google, 但上不了 ChatGPT(IP 被 OpenAI 403)"))
+        if ai_node:
+            print(dim(f"  ChatGPT: 走 {ai_node[:44]} (已钉住; 该节点失效时重跑 free auto)"))
+        else:
+            print(dim("  ChatGPT: 本批节点都打不开(出口地区不受支持), 需等下一批节点"))
         return 0
 
     if args.action == "clean":
