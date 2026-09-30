@@ -85,6 +85,35 @@ def proxies(st: AppState) -> dict[str, Any]:
     return data.get("proxies", {}) if isinstance(data, dict) else {}
 
 
+def proxy(st: AppState, name: str) -> dict[str, Any]:
+    """读**单个**策略组/节点.
+
+    界面每 1~2 秒刷新一次状态, 而 `/proxies` 会把全部节点都返回 ——
+    免费节点池动辄六千个, 那个响应有几 MB, 轮询它会把界面拖死。
+    只想知道"当前选的是哪个节点"时用这个。
+    """
+    return _call(st, f"/proxies/{urllib.parse.quote(name, safe='')}") or {}
+
+
+#: 内核工作模式。rule = 智能分流(国内直连/国外走代理), global = 全部走代理,
+#: direct = 全部直连。界面上对应"智能分流 / 全局 / 直连"三档。
+MODES = ("rule", "global", "direct")
+
+
+def mode(st: AppState) -> str:
+    """当前内核工作模式(读不到时返回 'rule')."""
+    try:
+        return str((configs(st) or {}).get("mode") or "rule")
+    except Exception:  # noqa: PERF203
+        return "rule"
+
+
+def set_mode(st: AppState, value: str) -> None:
+    if value not in MODES:
+        raise ValueError(f"未知模式: {value} (可选: {', '.join(MODES)})")
+    _call(st, "/configs", method="PATCH", body={"mode": value})
+
+
 def select(st: AppState, group: str, node: str) -> None:
     _call(
         st,

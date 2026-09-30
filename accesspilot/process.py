@@ -20,10 +20,59 @@ def _read_pid() -> dict[str, object] | None:
     return None
 
 
+def _win_pid_alive(pid: int) -> bool | None:
+    """直接问 Windows 内核"这个 pid 还活着吗".
+
+    为什么不用 tasklist: 它要**起一个进程**, 实测一次约 80ms; 而
+    `running_pid()` 在 `stop()` 的等待循环里会被反复调用, 界面刷新状态时
+    每 1~2 秒也要问一次 —— 实测让一次只读快照从 <20ms 变成 165ms。
+    这里是一次内核调用, 微秒级。
+
+    返回 True/False = 确定的答案; None = 问不出来(调用方自己兜底)。
+    """
+    try:
+        import ctypes
+        from ctypes import wintypes
+    except Exception:  # noqa: PERF203
+        return None
+    try:
+        k32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        k32.OpenProcess.restype = wintypes.HANDLE
+        k32.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+        k32.GetExitCodeProcess.argtypes = [
+            wintypes.HANDLE, ctypes.POINTER(wintypes.DWORD)]
+        k32.CloseHandle.argtypes = [wintypes.HANDLE]
+
+        # PROCESS_QUERY_LIMITED_INFORMATION: 权限要求最低, 足够问退出码
+        handle = k32.OpenProcess(0x1000, False, int(pid))
+        if not handle:
+            err = ctypes.get_last_error()
+            # 5 = ERROR_ACCESS_DENIED -> 进程在, 只是不让我们打开(受保护进程)
+            # 87 = ERROR_INVALID_PARAMETER -> pid 不存在
+            if err == 5:
+                return True
+            if err == 87:
+                return False
+            return None
+        try:
+            code = wintypes.DWORD()
+            if not k32.GetExitCodeProcess(handle, ctypes.byref(code)):
+                return None
+            return code.value == 259  # STILL_ACTIVE
+        finally:
+            k32.CloseHandle(handle)
+    except Exception:  # noqa: PERF203
+        return None
+
+
 def _pid_alive(pid: int) -> bool:
     if pid <= 0:
         return False
     if sys.platform == "win32":
+        fast = _win_pid_alive(pid)
+        if fast is not None:
+            return fast
+        # 极少数情况问不出来才退回老办法(慢, 但只在这条路径上)
         code, out = run_hidden(
             ["tasklist", "/FI", f"PID eq {pid}", "/NH", "/FO", "CSV"], timeout=15
         )
