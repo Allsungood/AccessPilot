@@ -363,7 +363,11 @@ def turn_on(*, tun: bool | None = None, system_proxy: bool = True) -> Status:
         else:
             process.start(st=st, tun=bool(st.tun_enable if tun is None else tun),
                           system_proxy=system_proxy)
-        st.last_start = st.last_start or time.time()
+        # 计时起点由 process.start() 自己写(见 process.py 里 st.last_start)。
+        # 这里只在"内核早就在跑、但状态里没有起点"时补一个, 免得界面上的
+        # "已用 N 天"显示成空白或负数。
+        if not st.last_start:
+            st.last_start = time.time()
         save_state(st)
     except Exception as e:  # noqa: PERF203
         return _fail(str(e) or type(e).__name__)
