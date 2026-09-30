@@ -739,6 +739,19 @@ def cmd_dashboard(args: argparse.Namespace) -> int:
     return webgui.serve(port=args.port, open_browser=args.open)
 
 
+def cmd_gui(args: argparse.Namespace) -> int:
+    """红杏: 桌面客户端(主窗口 + 系统托盘).
+
+    和 `dashboard` 的区别: dashboard 是本地网页控制台(要自己开浏览器),
+    gui 是双击就能用的原生客户端 —— 一个大开关、一个托盘图标, 面向
+    不懂代理的用户。托盘挂不起来时会自动退化成普通窗口, 不会启动失败。
+    """
+    from . import gui
+
+    argv = ["--no-tray"] if getattr(args, "no_tray", False) else []
+    return gui.main(argv)
+
+
 def cmd_accel(args: argparse.Namespace) -> int:
     """免节点直连加速: 靠 IP 优选救回被 DNS 污染/丢包的资源(GitHub 系)."""
     from . import accel
@@ -1524,6 +1537,11 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--port", type=int, default=9099)
     sp.add_argument("--open", action="store_true", help="自动打开浏览器")
     sp.set_defaults(func=cmd_dashboard)
+
+    sp = sub.add_parser("gui", help="红杏: 桌面客户端(窗口 + 系统托盘)")
+    sp.add_argument("--no-tray", action="store_true",
+                    help="不挂系统托盘, 只开窗口(排错用)")
+    sp.set_defaults(func=cmd_gui)
 
     sp = sub.add_parser("ui", help="内核自带面板(metacubexd)")
     sp.add_argument("action", choices=["install", "open"])
