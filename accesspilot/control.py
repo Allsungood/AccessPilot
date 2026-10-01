@@ -57,15 +57,24 @@ BRAND_VERSION = "1.0.0"
 TASK_ENSURE = "AccessPilotEnsure"
 TASK_REFRESH = "AccessPilotRefresh"
 
-#: 内核策略组里"真正承载流量的节点"之外的条目 —— 这些是组, 不是节点
+#: 内核 `/proxies` 里**不是真节点**的条目类型 —— 策略组 + 内建特殊出口。
+#:
+#: 真实事故(2026-10-01): 这里原来只写了 "Pass", 而内核给内建的 PASS-RULE
+#: 报的 type 是 **"PassRule"**。于是 `PASS-RULE` 被当成一个节点显示在红杏的
+#: 节点列表里; 用户双击它, 内核回
+#:     Selector update error: proxy not exist   (HTTP 400)
+#: 界面上就是一个看得见、点不动的死条目。
+#: 教训: 这份名单要按内核实际返回的 type 字符串来写, 别按直觉拼。
 _GROUP_TYPES = frozenset({
     "Selector", "URLTest", "Fallback", "LoadBalance",
-    "Direct", "Reject", "RejectDrop", "Compatible", "Pass", "Dns",
+    "Direct", "Reject", "RejectDrop", "Pass", "PassRule",
+    "Compatible", "Dns",
 })
 _GROUP_NAMES = frozenset({
     rules.G_SELECT, rules.G_AUTO, rules.G_AI, rules.G_SOCIAL,
     rules.G_MEDIA, rules.G_DIRECT, rules.G_REJECT, rules.G_FINAL,
-    "GLOBAL", "DIRECT", "REJECT", rules.ACCEL_PROXY_NAME,
+    "GLOBAL", "DIRECT", "REJECT", "REJECT-DROP", "PASS", "PASS-RULE",
+    "COMPATIBLE", rules.ACCEL_PROXY_NAME,
 })
 
 MODES: dict[str, str] = {

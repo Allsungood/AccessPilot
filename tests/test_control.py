@@ -296,6 +296,37 @@ class BrandTests(unittest.TestCase):
         self.assertEqual(set(control.MODES), {"rule", "global", "direct"})
 
 
+    def test_excludes_kernel_builtin_entries(self) -> None:
+        """内核内建的特殊出口不是节点, 不能出现在列表里。
+
+        真实事故: PASS-RULE 的 type 是 "PassRule"(不是 "Pass"), 过滤名单漏了它,
+        于是界面上多出一个看得见、点不动的死条目 —— 双击它内核回
+        "Selector update error: proxy not exist" (HTTP 400)。
+        """
+        fake = {
+            "PASS-RULE": {"type": "PassRule"},
+            "REJECT-DROP": {"type": "RejectDrop"},
+            "PASS": {"type": "Pass"},
+            "REJECT": {"type": "Reject"},
+            "DIRECT": {"type": "Direct"},
+            "COMPATIBLE": {"type": "Compatible"},
+            "GLOBAL": {"type": "Selector"},
+            "真节点": {"type": "Vless", "history": [{"delay": 42}]},
+        }
+        st = _state()
+        with mock.patch("accesspilot.control.load_state", return_value=st), \
+             mock.patch("accesspilot.control.api.proxies", return_value=fake):
+            nodes = control.list_nodes()
+        self.assertEqual([n.name for n in nodes], ["真节点"],
+                         "内建条目漏进来了, 用户会看到点不动的死条目")
+
+    def test_is_real_node_rejects_builtins(self) -> None:
+        for name in ("PASS-RULE", "REJECT-DROP", "GLOBAL", "DIRECT",
+                     rules.G_SELECT, rules.G_AUTO):
+            self.assertFalse(control._is_real_node(name), f"{name} 不该被当成节点")
+        self.assertTrue(control._is_real_node("🇰🇷 韩国 | KOR #2"))
+
+
 class TurnOnUsesLiveProxyState(unittest.TestCase):
     """回归: turn_on 必须看**实时**的注册表状态, 不能信 state.json 里的缓存。
 
