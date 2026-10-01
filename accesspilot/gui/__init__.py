@@ -71,6 +71,24 @@ def _start_tray(app: Any) -> Any:
         return None
 
 
+def _acquire_single_instance() -> bool:
+    """抢单实例锁。拿不到就把已经在跑的那个窗口叫到前台。
+
+    为什么要做: 用户双击两次图标是很自然的事, 但两个客户端会同时去改系统
+    代理设置和策略组 —— 真的会互相打架, 而且界面上完全看不出发生了什么。
+    (实现见 health.py: 命名互斥体 + 激活已有窗口。)
+
+    单实例是**增强而不是前提**: 拿不到锁只该安静退出, 而互斥体本身出问题
+    (权限、非 Windows、ctypes 异常)绝不能连累到"客户端打不开"。
+    """
+    try:
+        from .. import health
+
+        return bool(health.acquire_single_instance("hongxing"))
+    except Exception:  # noqa: PERF203
+        return True
+
+
 def main(argv: list[str] | None = None) -> int:
     """红杏 GUI 入口。返回进程退出码。
 
@@ -80,28 +98,40 @@ def main(argv: list[str] | None = None) -> int:
     argv = list(argv or [])
     want_tray = "--no-tray" not in argv
 
-    try:
-        from .app import App
-    except Exception as e:  # noqa: PERF203
-        print(f"[x] 红杏界面加载失败: {type(e).__name__}: {e}")
-        print("    (如果是在源码目录外运行, 请确认当前目录或 PYTHONPATH 里有 accesspilot 包)")
-        return 2
+    if not _acquire_single_instance():
+        print("红杏已经在运行, 已把它的窗口叫到前台。")
+        return 0
 
     try:
-        app = App()
-    except Exception as e:  # noqa: PERF203
-        print(f"[x] 红杏启动失败: {type(e).__name__}: {e}")
-        return 2
+        try:
+            from .app import App
+        except Exception as e:  # noqa: PERF203
+            print(f"[x] 红杏界面加载失败: {type(e).__name__}: {e}")
+            print("    (如果是在源码目录外运行, 请确认当前目录或 PYTHONPATH 里有 accesspilot 包)")
+            return 2
 
-    tray = _start_tray(app) if want_tray else None
-    try:
-        return int(app.run(tray=tray) or 0)
+        try:
+            app = App()
+        except Exception as e:  # noqa: PERF203
+            print(f"[x] 红杏启动失败: {type(e).__name__}: {e}")
+            return 2
+
+        tray = _start_tray(app) if want_tray else None
+        try:
+            return int(app.run(tray=tray) or 0)
+        finally:
+            if tray is not None:
+                try:
+                    tray.stop()
+                except Exception:  # noqa: PERF203
+                    pass
     finally:
-        if tray is not None:
-            try:
-                tray.stop()
-            except Exception:  # noqa: PERF203
-                pass
+        try:
+            from .. import health
+
+            health.release_single_instance()
+        except Exception:  # noqa: PERF203
+            pass
 
 
 #: `accesspilot gui` 走这个别名, 免得命令行层直接依赖 .app

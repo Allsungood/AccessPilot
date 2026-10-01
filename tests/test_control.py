@@ -296,5 +296,55 @@ class BrandTests(unittest.TestCase):
         self.assertEqual(set(control.MODES), {"rule", "global", "direct"})
 
 
+class TurnOnUsesLiveProxyState(unittest.TestCase):
+    """回归: turn_on 必须看**实时**的注册表状态, 不能信 state.json 里的缓存。
+
+    真实事故(2026-10-01): 本机上 FastGithub / 蓝灯都会去改系统代理。它们把
+    ProxyServer 改成自己的端口、退出后 ProxyEnable 留在 0 —— 而我们的
+    state.json 还记着"上次是我开的"(system_proxy_on=True)。
+    旧写法 `if system_proxy and not st.system_proxy_on` 于是在用户点「打开」
+    时**直接跳过**, 大圆钮点了没反应, 而且不报任何错。
+    """
+
+    def setUp(self) -> None:
+        self.st = _state(system_proxy_on=True)
+        for target, value in (
+            ("accesspilot.control.load_state", lambda: self.st),
+            ("accesspilot.control.process.is_running", lambda: True),
+            ("accesspilot.control.save_state", lambda _st: None),
+            ("accesspilot.control.api.mode", lambda _st: "rule"),
+            ("accesspilot.control.api.proxy", lambda _st, _n: {}),
+            ("accesspilot.control.api.version", lambda _st: "x"),
+            ("accesspilot.control._task_exists", lambda _n: False),
+            ("accesspilot.control._load_ai_cache", lambda: control.AiStatus()),
+        ):
+            p = mock.patch(target, side_effect=value)
+            self.addCleanup(p.stop)
+            p.start()
+
+    def test_reenables_when_registry_off_but_state_says_on(self) -> None:
+        with mock.patch("accesspilot.control.sysproxy.status",
+                        return_value=(False, "127.0.0.1:38457")), \
+             mock.patch("accesspilot.control.sysproxy.enable") as enable:
+            control.turn_on()
+        enable.assert_called_once_with(self.st)
+        self.assertTrue(self.st.system_proxy_on)
+
+    def test_does_nothing_when_already_on(self) -> None:
+        with mock.patch("accesspilot.control.sysproxy.status",
+                        return_value=(True, "127.0.0.1:7890")), \
+             mock.patch("accesspilot.control.sysproxy.enable") as enable:
+            control.turn_on()
+        enable.assert_not_called()
+
+    def test_clears_proxy_when_asked_not_to_use_it(self) -> None:
+        with mock.patch("accesspilot.control.sysproxy.status",
+                        return_value=(True, "127.0.0.1:7890")), \
+             mock.patch("accesspilot.control.sysproxy.disable") as disable:
+            control.turn_on(system_proxy=False)
+        disable.assert_called_once()
+        self.assertFalse(self.st.system_proxy_on)
+
+
 if __name__ == "__main__":
     unittest.main()

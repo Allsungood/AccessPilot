@@ -19,6 +19,32 @@ python packaging/smoke_test.py     # 验证: 真的把 exe 跑起来逐项核对
 
 ---
 
+## 0.1 本次实测结果（2026-09-30，可复现的命令都列在下面）
+
+| 项 | 结果 |
+|---|---|
+| 构建机 | Windows 10 10.0.19045 x64 / Python 3.11.9 / PyInstaller 6.22.3 |
+| 发布版产物 | `C:\Users\Administrator\AccessPilot\dist\红杏.exe` |
+| 体积 | **12,970,181 字节**（12.37 MiB） |
+| SHA256 | `b9a5f93a72c8c7c0f812ee7ad5a7298b6d0434bd26792785eceac768183972db` |
+| PE 子系统 | `IMAGE_SUBSYSTEM_WINDOWS_GUI`(2) → 双击**不弹黑框** |
+| 排错版产物 | `dist\红杏-debug.exe`，12,976,802 字节，子系统 `WINDOWS_CUI`(3) → 有控制台 |
+| 构建耗时 | 发布版 24.8s / 排错版 30.8s（增量；`--clean` 首次约 65s） |
+| 冒烟测试 | `python packaging/smoke_test.py` → **7/7 全部通过** |
+| 源码测试 | `python runtests.py` → `Ran 219 tests ... OK`，退出码 0 |
+| GUI 实测 | 双击等价方式启动后，窗口正常出现：标题 `红杏 · 一键通行`，主界面渲染完整 |
+| 构建所用源码快照 | `accesspilot/` 下 31 个文件（路径+大小+mtime）的 SHA256 = `ACA24099CF5D36C8F6A727D44E5A2BED0DAE2800D4C7D9455236C8B9AED6FCF7` |
+
+复现命令：
+
+```powershell
+python packaging/build.py            # -> dist\红杏.exe
+python packaging/smoke_test.py       # -> 7/7
+python runtests.py                   # -> OK
+```
+
+---
+
 ## 1. 为什么"运行时零依赖"和"打包期用 PyInstaller"不矛盾
 
 这是本项目最容易被误解的一点，先把话说清楚。
@@ -104,9 +130,10 @@ python packaging/build.py --no-icon    # 不尝试生成图标
 ### 产物
 
 ```
-dist\红杏.exe         <- 给用户的最终产物（单文件）
-dist\hongxing.exe     <- PyInstaller 的原始产物，与上面是同一份二进制
-build\                <- 中间缓存，可随时删除；build\pyinstaller.log 里有完整日志
+dist\红杏.exe         <- 给用户的最终产物（单文件, 12,970,181 字节）
+dist\红杏-debug.exe   <- 只有带 --debug 构建时才有（12,976,802 字节, 带控制台）
+dist\hongxing.exe     <- PyInstaller 的原始产物, 与 红杏.exe 是同一份二进制
+build\                <- 中间缓存(约 28 MB), 可随时删除；build\pyinstaller.log 里有完整日志
 ```
 
 `dist/` 和 `build/` 都在 `.gitignore` 里，不会进版本库。
@@ -364,9 +391,9 @@ cmd /c "dist\红杏.exe" doctor
 python runtests.py
 ```
 
-> 实测：`Ran 216 tests ... OK`。任务下达时是 156 个测试，期间其它 teammate
-> 往 `tests/` 里加了新的（`test_health.py`、`test_control.py` 等），
-> 打包改动没有让任何一个失败。
+> 实测：`Ran 219 tests ... OK`（退出码 0）。任务下达时是 156 个测试，期间其它
+> teammate 往 `tests/` 里加了新的（`test_health.py`、`test_control.py` 等），
+> 打包改动没有让任何一个失败 —— 因为打包链路完全没有碰 `accesspilot/`。
 
 ---
 

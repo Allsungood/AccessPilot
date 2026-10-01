@@ -356,10 +356,19 @@ def turn_on(*, tun: bool | None = None, system_proxy: bool = True) -> Status:
     st = load_state()
     try:
         if process.is_running():
-            if system_proxy and not st.system_proxy_on:
+            # 必须看**实时**的注册表状态, 不能信 st.system_proxy_on。
+            # 真实事故: FastGithub / 蓝灯这类程序会把系统代理改成自己的端口;
+            # 它们退出后 ProxyEnable 留在 0, 而我们的 state.json 还记着
+            # "上次是我开的"。旧写法 `not st.system_proxy_on` 因此在用户点
+            # 「打开」时直接跳过 —— 界面上的大圆钮点了没反应, 而且看不出原因。
+            live_on, _ = sysproxy.status()
+            if system_proxy and not live_on:
                 sysproxy.enable(st)
                 st.system_proxy_on = True
-                save_state(st)
+            elif not system_proxy and live_on:
+                sysproxy.disable(st)
+                st.system_proxy_on = False
+            save_state(st)
         else:
             process.start(st=st, tun=bool(st.tun_enable if tun is None else tun),
                           system_proxy=system_proxy)
