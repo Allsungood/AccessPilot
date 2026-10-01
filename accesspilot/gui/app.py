@@ -98,6 +98,9 @@ class App:
     """红杏主窗口。构造不阻塞、不进 mainloop, 慢操作全部丢后台。"""
 
     def __init__(self) -> None:
+        # DPI 感知必须在**建根窗口之前**声明: 建完再声明系统会拒绝, 窗口就
+        # 一直是位图拉伸的糊字。声明失败也不影响能不能打开(见 theme 里说明)。
+        theme.enable_dpi_awareness()
         self.root = tk.Tk()
         self.root.title(f"{control.BRAND_NAME} · {control.BRAND_TAGLINE}")
         self.root.configure(bg=theme.BG)
@@ -123,6 +126,10 @@ class App:
         self._node_latency: dict[str, int] = {}
         self._current_iid: str | None = None
         self._switch_key: tuple[bool, bool, str] | None = None
+        self._switch_hover = False
+        self._switch_pressed = False
+        self._spin_angle = 0
+        self._spin_job: str | None = None
         self._topmost_until = 0.0
         self._retry_until = 0.0
         self._fg_since = 0.0
@@ -131,6 +138,8 @@ class App:
         self._health_note = ""
         #: 自动切换已经帮用户换过几次节点(health_state 的 switches)
         self._health_switches = 0
+        #: 当前窗口图标对应的连接状态(None = 还没设过)
+        self._icon_state: bool | None = None
         #: 程序化改控件时置位, 防止把自己的更新当成用户操作又回调一次。
         self._syncing = False
 
@@ -155,11 +164,12 @@ class App:
         self.var_tun = tk.BooleanVar(master=self.root, value=False)
         self.var_failover = tk.BooleanVar(master=self.root, value=False)
 
-        outer = ttk.Frame(self.root, style="App.TFrame", padding=(14, 12, 14, 10))
+        outer = ttk.Frame(self.root, style="App.TFrame",
+                          padding=theme.pxs(16, 14, 16, 12))
         outer.grid(row=0, column=0, sticky="nsew")
         self.root.rowconfigure(0, weight=1)
         self.root.columnconfigure(0, weight=1)
-        outer.columnconfigure(0, minsize=336)
+        outer.columnconfigure(0, minsize=theme.px(340))
         outer.columnconfigure(1, weight=1)
         outer.rowconfigure(1, weight=1)
         self._outer = outer
@@ -171,7 +181,7 @@ class App:
         self._build_header(outer)
         self._build_left(outer)
         placeholder = ttk.Label(outer, text="正在载入节点列表…", style="Hint.TLabel")
-        placeholder.grid(row=1, column=1, sticky="w", padx=(8, 0))
+        placeholder.grid(row=1, column=1, sticky="w", padx=(theme.px(10), 0))
         self._placeholder = placeholder
         self._build_error_bar(outer)
         self._build_status_bar(outer)
@@ -199,34 +209,40 @@ class App:
 
     def _build_header(self, outer: ttk.Frame) -> None:
         head = ttk.Frame(outer, style="App.TFrame")
-        head.grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, 10))
+        head.grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, theme.px(12)))
         head.columnconfigure(2, weight=1)
         ttk.Label(head, text=control.BRAND_NAME, style="Brand.TLabel").grid(
             row=0, column=0, sticky="w")
         ttk.Label(head, text=control.BRAND_TAGLINE, style="Hint.TLabel").grid(
-            row=0, column=1, sticky="w", padx=(8, 0), pady=(8, 0))
+            row=0, column=1, sticky="w", padx=(theme.px(9), 0), pady=(theme.px(10), 0))
         ttk.Label(head, text=f"v{control.BRAND_VERSION}", style="Hint.TLabel").grid(
-            row=0, column=3, sticky="e", pady=(8, 0))
+            row=0, column=3, sticky="e", pady=(theme.px(10), 0))
 
     def _build_left(self, outer: ttk.Frame) -> None:
         left = ttk.Frame(outer, style="App.TFrame")
-        left.grid(row=1, column=0, sticky="nsew", padx=(0, 12))
+        left.grid(row=1, column=0, sticky="nsew", padx=(0, theme.px(14)))
         left.columnconfigure(0, weight=1)
         # 内容固定在顶部, 多出来的高度给空白, 免得控件被拉得东一块西一块。
         left.rowconfigure(4, weight=1)
         self._left = left
 
         # ---- 大圆钮 ----
-        self.switch = tk.Canvas(left, width=106, height=106, highlightthickness=0,
+        # 画布尺寸按设计稿写, 由 theme.px 换算 —— Canvas 坐标是纯像素, 不换算
+        # 的话 150% 屏上圆钮会只有字的一半大。
+        size = theme.px(112)
+        self.switch = tk.Canvas(left, width=size, height=size, highlightthickness=0,
                                 bg=theme.BG, takefocus=1, cursor="hand2")
         self.switch.grid(row=0, column=0)
-        self.switch.bind("<Button-1>", lambda _e: self._on_switch_click())
+        self.switch.bind("<Button-1>", lambda _e: self._on_switch_press())
+        self.switch.bind("<ButtonRelease-1>", lambda _e: self._on_switch_release())
+        self.switch.bind("<Enter>", lambda _e: self._on_switch_hover(True))
+        self.switch.bind("<Leave>", lambda _e: self._on_switch_hover(False))
         self.switch.bind("<Return>", lambda _e: self._on_switch_click())
         self.switch.bind("<space>", lambda _e: self._on_switch_click())
         self.switch_hint = ttk.Label(left, text="正在读取状态…", style="Hint.TLabel",
-                                     anchor="center", wraplength=320,
+                                     anchor="center", wraplength=theme.px(330),
                                      justify="center")
-        self.switch_hint.grid(row=1, column=0, sticky="ew", pady=(0, 6))
+        self.switch_hint.grid(row=1, column=0, sticky="ew", pady=(theme.px(8), 0))
 
     def _build_left_lower(self) -> None:
         """左列下半部分(当前状态 + 工作模式 + 设置)。
@@ -236,8 +252,9 @@ class App:
         实测把这一堆卡片挪出首帧, 首屏可见时间从 1.9s 提前到 1.0s 上下。
         """
         left = self._left
+        card_pad = theme.pxs(12, 4, 12, 10)
         # ---- 当前状态 ----
-        card = ttk.Labelframe(left, text=" 当前状态 ", padding=(10, 3, 10, 7))
+        card = ttk.Labelframe(left, text=" 当前状态 ", padding=card_pad)
         card.grid(row=2, column=0, sticky="ew")
         self.lbl_node = ttk.Label(card, text="—", style="Value.TLabel")
         self.lbl_latency = ttk.Label(card, text="—", style="Value.TLabel")
@@ -249,8 +266,8 @@ class App:
         self._grid_kv(card, 2, "ChatGPT", self.lbl_ai, span=3)
 
         # ---- 工作模式 ----
-        mode = ttk.Labelframe(left, text=" 工作模式 ", padding=(10, 3, 10, 7))
-        mode.grid(row=3, column=0, sticky="ew", pady=(6, 0))
+        mode = ttk.Labelframe(left, text=" 工作模式 ", padding=card_pad)
+        mode.grid(row=3, column=0, sticky="ew", pady=(theme.px(10), 0))
         mode.columnconfigure(0, weight=1)
         self.radios: list[ttk.Radiobutton] = []
         # 三个选项**横着排**: 1280x720 的屏幕上竖排会把底部的"设置"挤出窗口,
@@ -258,16 +275,17 @@ class App:
         for i, (key, label) in enumerate(control.MODES.items()):
             rb = ttk.Radiobutton(mode, text=label, value=key, variable=self.var_mode,
                                  command=self._on_mode_click)
-            rb.grid(row=0, column=i, sticky="w", padx=(0, 12))
+            rb.grid(row=0, column=i, sticky="w", padx=(0, theme.px(14)))
             self.radios.append(rb)
         self.mode_hint = ttk.Label(mode, text=MODE_HINTS[self._status.mode],
-                                   style="CardHint.TLabel", wraplength=300,
+                                   style="CardHint.TLabel", wraplength=theme.px(310),
                                    justify="left")
-        self.mode_hint.grid(row=1, column=0, columnspan=3, sticky="w", pady=(3, 0))
+        self.mode_hint.grid(row=1, column=0, columnspan=3, sticky="w",
+                            pady=(theme.px(4), 0))
 
         # ---- 设置 ----
-        box = ttk.Labelframe(left, text=" 设置 ", padding=(10, 3, 10, 7))
-        box.grid(row=5, column=0, sticky="ew", pady=(6, 0))
+        box = ttk.Labelframe(left, text=" 设置 ", padding=card_pad)
+        box.grid(row=5, column=0, sticky="ew", pady=(theme.px(10), 0))
         box.columnconfigure(0, weight=1)
         self.chk_autostart = ttk.Checkbutton(
             box, text="开机自启（登录后自动在后台运行）", variable=self.var_autostart,
@@ -281,9 +299,9 @@ class App:
         for i, chk in enumerate((self.chk_autostart, self.chk_tun, self.chk_failover)):
             chk.grid(row=i, column=0, sticky="w")
         self.settings_note = ttk.Label(box, text="TUN 打开后，所有程序都会走代理。",
-                                       style="CardHint.TLabel", wraplength=300,
+                                       style="CardHint.TLabel", wraplength=theme.px(310),
                                        justify="left")
-        self.settings_note.grid(row=3, column=0, sticky="w", pady=(3, 0))
+        self.settings_note.grid(row=3, column=0, sticky="w", pady=(theme.px(4), 0))
 
     @staticmethod
     def _grid_kv(card: ttk.Labelframe, row: int, key: str, value: ttk.Label,
@@ -291,12 +309,14 @@ class App:
         """状态卡片里的一对"名称: 值"。
 
         名称列的宽度交给 grid 自己算(取同列最宽的那个), 不写死像素 ——
-        用户机器上的字体宽度不一样, 写死了要么挤要么空一大块。
+        用户机器上的字体宽度不一样, 写死了要么挤要么空一大块。字号跟着 DPI
+        走, 所以这里天然也是对的。
         """
         lbl = ttk.Label(card, text=key, style="Key.TLabel", anchor="w")
-        lbl.grid(row=row, column=col, sticky="w", pady=1, padx=(0, 8))
-        value.grid(row=row, column=col + 1, columnspan=span, sticky="w", pady=1,
-                   padx=(0, 8))
+        lbl.grid(row=row, column=col, sticky="w", pady=theme.px(2),
+                 padx=(0, theme.px(10)))
+        value.grid(row=row, column=col + 1, columnspan=span, sticky="w",
+                   pady=theme.px(2), padx=(0, theme.px(10)))
 
     def _build_tabs(self, outer: ttk.Frame) -> None:
         nb = ttk.Notebook(outer)
@@ -305,7 +325,7 @@ class App:
         self._build_check_tab(nb)
 
     def _build_nodes_tab(self, nb: ttk.Notebook) -> None:
-        tab = ttk.Frame(nb, style="Card.TFrame", padding=10)
+        tab = ttk.Frame(nb, style="Card.TFrame", padding=theme.px(12))
         nb.add(tab, text="节点")
         tab.columnconfigure(0, weight=1)
         tab.rowconfigure(2, weight=1)
@@ -317,7 +337,7 @@ class App:
         self.btn_refresh.grid(row=0, column=0)
         self.btn_pick = ttk.Button(bar, text="自动选最优", style="Accent.TButton",
                                    command=self.pick_best)
-        self.btn_pick.grid(row=0, column=1, padx=(8, 0))
+        self.btn_pick.grid(row=0, column=1, padx=(theme.px(10), 0))
         ttk.Label(bar, text="双击某一行，就把它设为当前出口",
                   style="CardHint.TLabel").grid(row=0, column=2, sticky="e")
 
@@ -325,26 +345,37 @@ class App:
             tab, columns=("name", "ms", "cur", "ai"), show="headings",
             selectmode="browse")
         for col, text, width, anchor in (
-            ("name", "节点", 300, "w"), ("ms", "延迟", 80, "center"),
-            ("cur", "当前", 56, "center"), ("ai", "ChatGPT", 84, "center"),
+            ("name", "节点", 320, "w"), ("ms", "延迟", 90, "center"),
+            ("cur", "当前", 64, "center"), ("ai", "ChatGPT", 96, "center"),
         ):
             self.tree_nodes.heading(col, text=text, anchor=anchor)
-            self.tree_nodes.column(col, width=width, anchor=anchor,
+            self.tree_nodes.column(col, width=theme.px(width), anchor=anchor,
                                    stretch=(col == "name"))
-        self.tree_nodes.grid(row=2, column=0, sticky="nsew", pady=(8, 0))
+        self.tree_nodes.grid(row=2, column=0, sticky="nsew", pady=(theme.px(10), 0))
         self.tree_nodes.tag_configure("current", background=theme.ROW_CURRENT)
+        # 延迟用颜色说话: 一眼扫过去就知道哪几个能用, 不用逐个读数字。
+        self.tree_nodes.tag_configure("fast", foreground=theme.OK)
+        self.tree_nodes.tag_configure("mid", foreground=theme.WARN)
+        self.tree_nodes.tag_configure("slow", foreground=theme.DANGER)
         self.tree_nodes.bind("<Double-1>", self._on_node_double_click)
         self.tree_nodes.bind("<Return>", self._on_node_double_click)
         sb = ttk.Scrollbar(tab, orient="vertical", command=self.tree_nodes.yview)
-        sb.grid(row=2, column=1, sticky="ns", pady=(8, 0))
+        sb.grid(row=2, column=1, sticky="ns", pady=(theme.px(10), 0))
         self.tree_nodes.configure(yscrollcommand=sb.set)
+
+        # 空/加载占位: 直接叠在表格那一格里。空表格配一句"为什么空、下一步点哪"
+        # 比一片白强得多 —— 用户不会对着一片白知道自己该干什么。
+        self.nodes_empty = ttk.Label(tab, text="", style="CardHint.TLabel",
+                                     anchor="center", justify="center")
+        self.nodes_empty.grid(row=2, column=0, sticky="nsew", pady=(theme.px(10), 0))
 
         self.nodes_note = ttk.Label(tab, text="正在获取节点列表…",
                                     style="CardHint.TLabel")
-        self.nodes_note.grid(row=3, column=0, columnspan=2, sticky="w", pady=(6, 0))
+        self.nodes_note.grid(row=3, column=0, columnspan=2, sticky="w",
+                             pady=(theme.px(8), 0))
 
     def _build_check_tab(self, nb: ttk.Notebook) -> None:
-        tab = ttk.Frame(nb, style="Card.TFrame", padding=10)
+        tab = ttk.Frame(nb, style="Card.TFrame", padding=theme.px(12))
         nb.add(tab, text="平台自检")
         tab.columnconfigure(0, weight=1)
         tab.rowconfigure(2, weight=1)
@@ -357,7 +388,7 @@ class App:
         self.btn_check.grid(row=0, column=0)
         self.btn_verify = ttk.Button(bar, text="验证 ChatGPT 出口",
                                      command=self._do_verify_ai)
-        self.btn_verify.grid(row=0, column=1, padx=(8, 0))
+        self.btn_verify.grid(row=0, column=1, padx=(theme.px(10), 0))
         ttk.Label(bar, text="自检会真的去访问这些平台，需要几十秒",
                   style="CardHint.TLabel").grid(row=0, column=2, sticky="e")
 
@@ -365,47 +396,56 @@ class App:
             tab, columns=("name", "ok", "ms", "detail"), show="headings",
             selectmode="browse")
         for col, text, width, anchor in (
-            ("name", "平台", 150, "w"), ("ok", "结果", 72, "center"),
-            ("ms", "延迟", 76, "center"), ("detail", "说明", 320, "w"),
+            ("name", "平台", 148, "w"), ("ok", "结果", 76, "center"),
+            ("ms", "延迟", 84, "center"), ("detail", "说明", 320, "w"),
         ):
             self.tree_checks.heading(col, text=text, anchor=anchor)
-            self.tree_checks.column(col, width=width, anchor=anchor,
+            self.tree_checks.column(col, width=theme.px(width), anchor=anchor,
                                     stretch=(col == "detail"))
-        self.tree_checks.grid(row=2, column=0, sticky="nsew", pady=(8, 0))
+        self.tree_checks.grid(row=2, column=0, sticky="nsew", pady=(theme.px(10), 0))
         self.tree_checks.tag_configure("ok", foreground=theme.OK)
         self.tree_checks.tag_configure("bad", foreground=theme.DANGER)
         sb = ttk.Scrollbar(tab, orient="vertical", command=self.tree_checks.yview)
-        sb.grid(row=2, column=1, sticky="ns", pady=(8, 0))
+        sb.grid(row=2, column=1, sticky="ns", pady=(theme.px(10), 0))
         self.tree_checks.configure(yscrollcommand=sb.set)
+
+        self.check_empty = ttk.Label(
+            tab, text="还没有测过。点「开始自检」，看看哪些平台能通。",
+            style="CardHint.TLabel", anchor="center", justify="center",
+            wraplength=theme.px(420))
+        self.check_empty.grid(row=2, column=0, sticky="nsew", pady=(theme.px(10), 0))
 
         self.check_note = ttk.Label(tab, text="点「开始自检」看看哪些平台能通。",
                                     style="CardHint.TLabel")
-        self.check_note.grid(row=3, column=0, columnspan=2, sticky="w", pady=(6, 0))
+        self.check_note.grid(row=3, column=0, columnspan=2, sticky="w",
+                             pady=(theme.px(8), 0))
 
     def _build_error_bar(self, outer: ttk.Frame) -> None:
         # 错误条平时不占位置(grid_remove), 出事时才出现 —— 而不是永远留一条
         # 空白的红框吓唬用户。
-        self.error_bar = ttk.Frame(outer, style="Error.TFrame", padding=(10, 3))
-        self.error_bar.grid(row=2, column=0, columnspan=2, sticky="ew", pady=(6, 0))
+        self.error_bar = ttk.Frame(outer, style="Error.TFrame",
+                                   padding=theme.pxs(12, 5))
+        self.error_bar.grid(row=2, column=0, columnspan=2, sticky="ew",
+                            pady=(theme.px(8), 0))
         self.error_bar.columnconfigure(0, weight=1)
         self.lbl_error = ttk.Label(self.error_bar, text="", style="Error.TLabel",
-                                   wraplength=880, justify="left")
+                                   wraplength=theme.px(900), justify="left")
         self.lbl_error.grid(row=0, column=0, sticky="w")
         ttk.Button(self.error_bar, text="知道了", style="Small.TButton",
                    command=self._clear_error).grid(
-            row=0, column=1, sticky="e", padx=(10, 0))
+            row=0, column=1, sticky="e", padx=(theme.px(12), 0))
         self.error_bar.grid_remove()
 
     def _build_status_bar(self, outer: ttk.Frame) -> None:
         bar = ttk.Frame(outer, style="App.TFrame")
-        bar.grid(row=3, column=0, columnspan=2, sticky="ew", pady=(8, 0))
+        bar.grid(row=3, column=0, columnspan=2, sticky="ew", pady=(theme.px(10), 0))
         bar.columnconfigure(1, weight=1)
         ttk.Label(bar, text=f"{control.BRAND_NAME} v{control.BRAND_VERSION}",
                   style="Status.TLabel").grid(row=0, column=0, sticky="w")
         self.lbl_status = ttk.Label(bar, text="正在读取状态…", style="Status.TLabel")
         self.lbl_status.grid(row=0, column=2, sticky="e")
         self.lbl_status_err = ttk.Label(bar, text="", style="Bad.TLabel")
-        self.lbl_status_err.grid(row=0, column=3, sticky="e", padx=(10, 0))
+        self.lbl_status_err.grid(row=0, column=3, sticky="e", padx=(theme.px(12), 0))
 
     # ------------------------------------------------------------------ #
     # 对外接口(托盘和 gui/__init__.py 用)
@@ -444,6 +484,7 @@ class App:
         if self._closing:
             return
         self._build_right()
+        self._apply_window_icon(bool(self._status.connected))
         self._sync_tray(force=True)
         self._schedule_poll(120)
         # 节点列表再往后放一点: 免费池四千个节点时 /proxies 有几 MB, json 解析
@@ -804,10 +845,21 @@ class App:
         if self._nodes_loading or self._closing or not self._ui_ready:
             return
         self._nodes_loading = True
-        if manual or not self._nodes:
-            self.nodes_note.configure(text="正在获取节点列表…")
+        self._set_nodes_placeholder(
+            "正在获取节点列表…" if (manual or not self._nodes)
+            else f"正在刷新，先前的 {len(self._nodes)} 个还在。")
         control.run_bg(control.list_nodes, limit=NODE_LIMIT,
                        on_done=self._nodes_ready, on_error=self._nodes_failed)
+
+    def _set_nodes_placeholder(self, text: str) -> None:
+        """节点表的空/加载占位。text 为空 = 收起来。"""
+        if not self._ui_ready:
+            return
+        if text:
+            self.nodes_empty.configure(text=text)
+            self.nodes_empty.grid()
+        else:
+            self.nodes_empty.grid_remove()
 
     def _nodes_ready(self, nodes: Any) -> None:
         self._call_soon(lambda: self._render_nodes(nodes if isinstance(nodes, list) else []))
@@ -818,6 +870,7 @@ class App:
     def _nodes_failed_ui(self, exc: BaseException) -> None:
         self._nodes_loading = False
         self.nodes_note.configure(text="节点列表获取失败")
+        self._set_nodes_placeholder("节点列表没取回来。\n点「刷新节点」再试一次。")
         self._show_error(f"获取节点列表失败：{exc}")
 
     def _render_nodes(self, nodes: list[Any]) -> None:
@@ -833,25 +886,33 @@ class App:
             iid = f"n{idx}"
             self._node_iids[iid] = n.name
             self._node_latency[n.name] = n.latency_ms
+            tags: tuple[str, ...] = ("current",) if n.current else ()
+            lat = theme.latency_tag(n.latency_ms)
+            if lat:
+                tags = tags + (lat,)
             tree.insert("", "end", iid=iid, values=(
-                n.name,
+                theme.clean_node_name(n.name),
                 theme.latency_text(n.latency_ms),
                 "✓" if n.current else "",
                 "✓" if n.ai_capable else "",
-            ), tags=("current",) if n.current else ())
+            ), tags=tags)
         self._current_iid = next(
             (iid for iid, name in self._node_iids.items()
              if name and name == self._status.node), None)
         self._update_nodes_note()
         self._update_latency_label()
+        self._set_nodes_placeholder("" if nodes else
+                                    "还没有节点列表。\n连接后点「刷新节点」，或点「自动选最优」。")
 
     def _update_nodes_note(self) -> None:
         if not self._ui_ready:      # 表格还没建, 轮询结果先不往控件上写
             return
         total = max(int(self._status.node_count or 0), len(self._nodes))
         if not self._nodes:
-            text = "还没有节点列表。连接后点「刷新节点」，或点「自动选最优」。"
-        elif total > len(self._nodes):
+            # 空的时候中间那块占位已经把话说清楚了, 底下来一句一样的只会显得啰嗦。
+            self.nodes_note.configure(text="")
+            return
+        if total > len(self._nodes):
             text = f"共 {total} 个节点，这里列出最快的 {len(self._nodes)} 个（按延迟排序）"
         else:
             text = f"共 {len(self._nodes)} 个节点（按延迟排序）"
@@ -913,6 +974,8 @@ class App:
             self.check_note.configure(text="自检没有返回结果。")
             self._show_error("自检没有返回任何结果：请确认已经连接，然后再试一次。")
             return
+        if self._ui_ready:
+            self.check_empty.grid_remove()
         bad = [c for c in rows if not bool(getattr(c, "ok", False))]
         self.check_note.configure(
             text=f"共 {len(rows)} 项，{ok_count} 项可用，{len(bad)} 项不可用。")
@@ -1108,7 +1171,7 @@ class App:
         self._sync_widgets(st)
         if self._ui_ready:
             self.lbl_node.configure(
-                text=theme.shorten_display(st.node, 24)
+                text=theme.shorten_display(theme.clean_node_name(st.node), 24)
                 or ("—" if not st.connected else "自动选择"))
             self._update_latency_label()
             self.lbl_count.configure(text=str(st.node_count or len(self._nodes) or 0))
@@ -1125,6 +1188,7 @@ class App:
         # 连接状态一变, 节点列表里的"延迟/当前"就过期了, 重新拉一份(后台线程)。
         if bool(st.connected) != was_connected:
             self._load_nodes()
+            self._apply_window_icon(bool(st.connected))
         self._sync_tray()
 
     def _ai_text(self, st: Any) -> str:
@@ -1219,24 +1283,92 @@ class App:
     def _render_switch(self) -> None:
         """画大圆钮。状态没变就跳过重画 —— 每 2 秒重画一次会闪。"""
         st = self._status
-        key = (bool(st.connected), self._task_busy, self.switch_hint.cget("text"))
+        key = (bool(st.connected), self._task_busy, self._switch_hover,
+               self._switch_pressed, self.switch_hint.cget("text"))
         if key == self._switch_key:
             return
         self._switch_key = key
-        face, text_color, label = theme.switch_face(bool(st.connected))
-        if self._task_busy:
-            # 处理中: 外圈用品牌蓝提示"在动了", 但文字仍然如实显示当前状态,
-            # 不假装已经连上。
-            ring = theme.ACCENT
-        else:
-            ring = theme.ACCENT if st.connected else theme.BORDER
+
+        connected = bool(st.connected)
+        face, text_color, label = theme.switch_face(connected)
+        if self._switch_pressed:
+            face = theme.darken(face, 0.12)
+        elif self._switch_hover and not self._task_busy:
+            face = theme.lighten(face, 0.14)
+
+        # 按下时内圆缩 2%: 手指按下去的手感。用坐标缩放而不是改尺寸, 免得
+        # 圆钮位置跟着跳。
         c = self.switch
+        outer_r = theme.px(54)
+        pad = theme.px(3) if not self._switch_pressed else theme.px(6)
+        inner_r = outer_r - theme.px(9)
+        cx = cy = outer_r + theme.px(2)
+        ring = theme.ACCENT if (connected or self._task_busy) else theme.BORDER
+        if self._switch_hover and not connected and not self._task_busy:
+            ring = theme.lighten(theme.OFF_FACE, 0.1)
+
         c.delete("all")
-        c.create_oval(4, 4, 102, 102, fill="", outline=ring, width=3)
-        c.create_oval(12, 12, 94, 94, fill=face, outline=face)
-        c.create_text(53, 47, text=label, fill=text_color, font=theme.font(13, "bold"))
-        c.create_text(53, 67, text="点击关闭" if st.connected else "点一下就能用",
-                      fill=text_color, font=theme.font(8))
+        c.create_oval(cx - outer_r, cy - outer_r, cx + outer_r, cy + outer_r,
+                      fill="", outline=ring, width=theme.px(3))
+        c.create_oval(cx - inner_r + pad, cy - inner_r + pad,
+                      cx + inner_r - pad, cy + inner_r - pad,
+                      fill=face, outline=face)
+        c.create_text(cx, cy - theme.px(9), text=label, fill=text_color,
+                      font=theme.font(15, "bold"))
+        c.create_text(cx, cy + theme.px(13),
+                      text="点击关闭" if connected else "点一下就能用",
+                      fill=text_color, font=theme.font(9))
+
+        # 连接中: 外圈转一段弧。比"请稍候"三个字更能说明"它在动"。
+        if self._task_busy:
+            self._draw_spinner()
+            if self._spin_job is None:
+                self._spin_job = self.root.after(70, self._spin)
+        elif self._spin_job is not None:
+            try:
+                self.root.after_cancel(self._spin_job)
+            except Exception:  # noqa: PERF203
+                pass
+            self._spin_job = None
+
+    def _draw_spinner(self) -> None:
+        """画进度弧(外圈那一小段)。"""
+        c = self.switch
+        c.delete("spin")
+        outer_r = theme.px(54)
+        cx = cy = outer_r + theme.px(2)
+        r = outer_r + theme.px(4)
+        c.create_arc(cx - r, cy - r, cx + r, cy + r, start=self._spin_angle,
+                     extent=70, style="arc", outline=theme.ACCENT,
+                     width=theme.px(4), tags="spin")
+
+    def _spin(self) -> None:
+        self._spin_job = None
+        if self._closing or not self._task_busy:
+            self._switch_key = None
+            self._render_switch()
+            return
+        self._spin_angle = (self._spin_angle - 30) % 360
+        self._draw_spinner()
+        self._spin_job = self.root.after(70, self._spin)
+
+    def _on_switch_hover(self, inside: bool) -> None:
+        if self._switch_hover == inside:
+            return
+        self._switch_hover = inside
+        self._render_switch()
+
+    def _on_switch_press(self) -> None:
+        self._switch_pressed = True
+        self._render_switch()
+
+    def _on_switch_release(self) -> None:
+        if not self._switch_pressed:
+            return
+        self._switch_pressed = False
+        self._render_switch()
+        # 在"松开"时触发动作, 和系统按钮一致(按下后拖出去再松开 = 取消)
+        self._on_switch_click()
 
     def _set_hint(self, text: str) -> None:
         self.switch_hint.configure(text=text)
@@ -1282,6 +1414,23 @@ class App:
 
     # ---- 托盘同步 ----
 
+    def _apply_window_icon(self, connected: bool) -> None:
+        """标题栏/任务栏图标, 跟着连接状态换 —— 和托盘图标是同一套素材。
+
+        素材由 icon.py 现生成(纯 Python 画, 不依赖 Pillow), 所以这里只负责
+        取路径; 取不到就保持 Tk 默认图标, 不影响开窗。
+        """
+        if self._icon_state == connected:
+            return
+        self._icon_state = connected
+        try:
+            from .icon import ensure_ico
+
+            path = ensure_ico(connected=connected)
+            self.root.iconbitmap(default=str(path))
+        except Exception:  # noqa: PERF203
+            pass
+
     def _sync_tray(self, *, force: bool = False) -> None:
         """把连接状态同步给托盘图标。
 
@@ -1316,24 +1465,23 @@ class App:
     def _place_window(self) -> None:
         """把窗口摆到屏幕中间, 并保证**完整可见**。
 
-        屏幕只有 1280x720, 底部的任务栏(实测约 41px)和标题栏(约 31px)都要
-        占地方。窗口一旦比工作区高, 底部的状态栏和错误条就永远露不出来 ——
-        而那恰好是用户最需要看到的东西, 所以这里按工作区高度封顶, 而不是
-        按屏幕高度。
+        所有尺寸都按设计稿(96 DPI 下的像素)写, 由 theme.px() 换算成当前缩放
+        下的真实像素 —— 声明 DPI 感知之后 Tk 的像素就是物理像素, 这一步不做
+        的话 150% 屏上窗口物理尺寸只有设计的三分之二, 内容会被大片裁掉。
 
-        刻意**不做** update_idletasks: 那会强制先算一遍全窗口布局, 而紧接着
-        deiconify + update_idletasks 又要再算一遍。实测这一下要多花 0.5 秒,
-        全白花在用户盯着白板的时候。
+        屏幕只有 1280x720 逻辑(150% 缩放下就是 1920x1080 物理), 底部的任务栏
+        和标题栏都要占地方。窗口一旦比工作区高, 底部的状态栏和错误条就永远
+        露不出来 —— 而那恰好是用户最需要看到的东西, 所以按工作区高度封顶。
         """
         sw = self.root.winfo_screenwidth()
         sh = self.root.winfo_screenheight()
-        work_h = sh - 48
-        w = max(760, min(1060, sw - 120))
-        h = max(520, min(620, work_h - 40))
+        work_h = sh - theme.px(48)
+        w = max(theme.px(760), min(theme.px(1060), sw - theme.px(120)))
+        h = max(theme.px(520), min(theme.px(620), work_h - theme.px(40)))
         x = max(0, (sw - w) // 2)
-        y = max(0, (work_h - (h + 40)) // 2 + 8)
+        y = max(0, (work_h - (h + theme.px(40))) // 2 + theme.px(8))
         self.root.geometry(f"{w}x{h}+{x}+{y}")
-        self.root.minsize(880, 560)
+        self.root.minsize(theme.px(880), theme.px(560))
 
     def _on_callback_error(self, exc: type[BaseException], val: BaseException,
                            tb: TracebackType | None) -> None:
