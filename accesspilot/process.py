@@ -10,7 +10,16 @@ from pathlib import Path
 from . import api, config, paths, sysproxy
 from .state import AppState, load_state, save_state
 from .subscription import Subscription, load_profile
-from .util import Fail, info, json_dump, json_load, ok, run_hidden, warn
+from .util import (
+    Fail,
+    dim,
+    info,
+    json_dump,
+    json_load,
+    ok,
+    run_hidden,
+    warn,
+)
 
 
 def _read_pid() -> dict[str, object] | None:
