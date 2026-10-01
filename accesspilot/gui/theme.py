@@ -266,12 +266,14 @@ def latency_style(ms: int) -> str:
 def check_latency_text(ms: int, ok: bool) -> str:
     """平台自检表里的"延迟"。
 
-    结果明明写着"可用", 延迟却显示"超时", 用户只会怀疑整张表都是错的
-    (ChatGPT/YouTube 这类站点走的是网页探测, 拿不到毫秒数是正常的)。
-    所以: 可用但没测到延迟就显示 "—", 只有真的失败才说"超时"。
+    "可用"和"超时"同时出现在一行里, 用户只会怀疑整张表都是错的 —— 而这两列
+    其实来自不同的探测路径: 可用性看状态码, 延迟看计时, 一个有一个没有很正常
+    (ChatGPT/YouTube 这类网页探测经常拿不到毫秒数, 或者慢到 3 秒以上但确实通了)。
+    所以规则是: **可用就只报真实毫秒数**, 拿不到就 "—"; 只有真的失败, 才允许
+    出现"超时"这种带判断的措辞。
     """
-    if ok and (ms is None or ms <= 0):
-        return "—"
+    if ok:
+        return f"{int(ms)} ms" if ms and ms > 0 else "—"
     return latency_text(ms)
 
 

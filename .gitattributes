@@ -6,3 +6,5 @@
 *.bat text eol=crlf
 # Python 源码统一 LF
 *.py text eol=lf
+# 本文件自己也必须 LF —— 否则每行模式尾部会带一个 \r, 匹配全部失效
+.gitattributes text eol=lf

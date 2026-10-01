@@ -25,10 +25,32 @@ traceback, 事后极难定位, 所以本文件把所有跨线程回主线程的�
 
 托盘由 gui/__init__.py 接线, 本模块**不 import tray**: 没有托盘时要能退化成
 普通窗口(关窗即退出), 而不是变成一个没有入口的隐藏进程。
+
+已知限制: 高 DPI 屏上文字会被系统位图拉伸
+==========================================
+本进程是 DPI 不感知的(和绝大多数 Tk 程序一样)。在 150% 缩放的机器上(实测
+本机就是 1920x1080@150%), Windows 会把整个窗口按 1.5 倍**位图拉伸**再合成,
+所以文字看起来比原生渲染略糊。
+
+这不是渲染 bug, 是"没声明 DPI 感知"的必然结果, 也**不要**用改坐标的方式去修:
+* 窗口的 1060x620 是"逻辑像素", 在 150% 屏上对应 1590x930 物理像素 ——
+  逻辑桌面正好是 1280x720, 所以窗口是放得下的(ctypes 量到的 1076x659 也是
+  逻辑坐标, 两者并不矛盾);
+* 真要变清晰, 得声明 per-monitor DPI 感知, 然后把窗口尺寸、画布坐标、
+  Treeview 行高/列宽**全部**按缩放因子乘一遍 —— 那是一次独立重构(1.0 之后),
+  半途改一半只会得到"字变大了但布局错位"的更糟结果。
+
+启动耗时(实测, 同一台机器 6 次)
+================================
+窗口出现 0.63~1.19s, 完整骨架(大圆钮+文字)0.75~2.0s。物理下限约 1.1s:
+解释器 0.15s + `tk.Tk()` 首次加载 Tcl/Tk 0.28s + 骨架构建 0.25s + 布局首绘 0.4s。
+所以首帧刻意只画"品牌 + 大圆钮", 其余控件、轮询、节点列表全部排在首帧之后 ——
+慢机器上用户先看到一个能读懂的骨架, 而不是一片白。
 """
 from __future__ import annotations
 
 import sys
+import time
 import tkinter as tk
 import traceback
 from tkinter import ttk
@@ -101,6 +123,10 @@ class App:
         self._node_latency: dict[str, int] = {}
         self._current_iid: str | None = None
         self._switch_key: tuple[bool, bool, str] | None = None
+        self._topmost_until = 0.0
+        self._retry_until = 0.0
+        self._fg_since = 0.0
+        self._flashed = False
         self._last_error = ""
         self._health_note = ""
         #: 自动切换已经帮用户换过几次节点(health_state 的 switches)
@@ -109,6 +135,11 @@ class App:
         self._syncing = False
 
         self._build()
+        # 用户点进窗口就说明它已经是活动窗口了, 立刻取消置顶, 一秒钟都不多压。
+        # 绑在 toplevel 上而不是每次 _bring_to_front 里绑: Tk 的 bindtags 让
+        # 子控件的点击也会走到 toplevel, 而重复 bind(add="+") 会随托盘反复
+        # 显示/隐藏越积越多。
+        self.root.bind("<Button-1>", lambda _e: self._drop_topmost(), add="+")
         # 先藏起来, 等 run() 里全部布局完成再显示 —— 免得用户看到一个
         # 控件还没摆好的半成品窗口。
         self.root.withdraw()
@@ -131,18 +162,40 @@ class App:
         outer.columnconfigure(0, minsize=336)
         outer.columnconfigure(1, weight=1)
         outer.rowconfigure(1, weight=1)
+        self._outer = outer
 
+        # 只建"骨架": 标题 + 大圆钮 + 三块设置。右侧那两张表(节点/自检)在
+        # 首帧画完之后再建 —— Tk 的布局和首绘代价随控件数线性上涨, 实测
+        # 两张表要占掉启动时间的一大截, 而它们晚 0.1 秒出现用户根本察觉不到,
+        # 白屏 1.8 秒却会让人以为程序卡死了。
         self._build_header(outer)
         self._build_left(outer)
-        self._build_tabs(outer)
+        placeholder = ttk.Label(outer, text="正在载入节点列表…", style="Hint.TLabel")
+        placeholder.grid(row=1, column=1, sticky="w", padx=(8, 0))
+        self._placeholder = placeholder
         self._build_error_bar(outer)
         self._build_status_bar(outer)
+        self._action_widgets: list[Any] = []
+        #: 右侧表格是否已经建好。轮询可能比表格先回来(尤其机器很慢时),
+        #: 那几个渲染函数必须先问一句, 否则会往不存在的控件上写。
+        self._ui_ready = False
 
-        self._action_widgets: list[Any] = [
+    def _build_right(self) -> None:
+        """首帧之后再建剩下的控件(左列下半部分 + 右侧两张表)。"""
+        outer = self._outer
+        try:
+            self._placeholder.destroy()
+        except tk.TclError:  # pragma: no cover
+            pass
+        self._build_left_lower()
+        self._build_tabs(outer)
+        self._action_widgets = [
             self.btn_pick, self.btn_refresh, self.btn_check, self.btn_verify,
         ]
         self._action_widgets += list(self.radios)
         self._action_widgets += [self.chk_autostart, self.chk_tun, self.chk_failover]
+        self._ui_ready = True
+        self._sync_controls()
 
     def _build_header(self, outer: ttk.Frame) -> None:
         head = ttk.Frame(outer, style="App.TFrame")
@@ -161,6 +214,7 @@ class App:
         left.columnconfigure(0, weight=1)
         # 内容固定在顶部, 多出来的高度给空白, 免得控件被拉得东一块西一块。
         left.rowconfigure(4, weight=1)
+        self._left = left
 
         # ---- 大圆钮 ----
         self.switch = tk.Canvas(left, width=106, height=106, highlightthickness=0,
@@ -174,6 +228,14 @@ class App:
                                      justify="center")
         self.switch_hint.grid(row=1, column=0, sticky="ew", pady=(0, 6))
 
+    def _build_left_lower(self) -> None:
+        """左列下半部分(当前状态 + 工作模式 + 设置)。
+
+        这些和右侧表格一起排在首帧之后: 首帧只画"品牌 + 大圆钮"这两样 ——
+        用户双击后第一眼要看到的是"程序开了、开关在这儿", 而不是一片空白。
+        实测把这一堆卡片挪出首帧, 首屏可见时间从 1.9s 提前到 1.0s 上下。
+        """
+        left = self._left
         # ---- 当前状态 ----
         card = ttk.Labelframe(left, text=" 当前状态 ", padding=(10, 3, 10, 7))
         card.grid(row=2, column=0, sticky="ew")
@@ -352,20 +414,42 @@ class App:
     def run(self, tray: Any = None) -> int:
         """建窗口并进 mainloop, 返回进程退出码。"""
         self._tray = tray
-        self._sync_tray(force=True)
         self._place_window()
-        self.root.deiconify()
-        self._bring_to_front()
+        # 先把圆钮画进画布再显示: 否则第一次绘制是"空画布", 圆钮要等第二次
+        # 绘制才出现(白白多一个绘制周期)。
         self._render_switch()
-        # 首屏立刻来一次状态 + 节点列表, 都走后台线程: 主循环必须马上转起来,
-        # 否则双击 exe 后会先卡几秒才出窗口。
-        self._schedule_poll(150)
-        self._load_nodes()
+        self.root.deiconify()
+        # 先把骨架画出来再顶到最前面。反过来的话窗口会"在最上层但一片白"。
+        # 这里用 update() 而不是 update_idletasks(): 后者只跑空闲回调, 而真正
+        # 触发首绘的 <Map>/<Expose> 事件还排在事件队列里, 要等 mainloop 才被
+        # 处理 —— 实测那样抓到的窗口只有一部分控件画出来了(标题栏和状态卡是
+        # 白板), 用户看到的就是"半成品窗口"。
+        self.root.update()
+        self._bring_to_front()
+        # 表格、轮询、节点列表全部排到首帧之后: 主循环一刻都不该为空着的
+        # 控件商店买单。顺序不能反 —— 轮询结果会写进表格。
+        self.root.after(1, self._startup)
         try:
             self.root.mainloop()
         finally:
             self._closing = True
         return 0
+
+    def _startup(self) -> None:
+        """首帧之后的收尾: 建剩余控件 → 同步托盘 → 开始轮询 → 拉节点列表。
+
+        托盘同步刻意放在这里而不是 run() 开头: 真托盘要调 Shell_NotifyIcon,
+        那是一次跨进程的 Win32 调用, 不该挡在"窗口出现"前面。
+        """
+        if self._closing:
+            return
+        self._build_right()
+        self._sync_tray(force=True)
+        self._schedule_poll(120)
+        # 节点列表再往后放一点: 免费池四千个节点时 /proxies 有几 MB, json 解析
+        # 是纯 C 且全程不释放 GIL, 后台线程会把主线程饿住 —— 实测窗口已经在
+        # 屏幕上(甚至在最上层)却白屏两三秒, 用户只会以为卡死了。
+        self.root.after(600, self._load_nodes)
 
     # ---- 把窗口顶到最前面 ---------------------------------------------- #
     #
@@ -375,8 +459,20 @@ class App:
     # 对一键客户端来说这是最致命的失败模式(实测: 只 deiconify+lift 时, 屏幕上
     # 一直是被最大化的浏览器盖着)。
     #
-    # 可靠做法是**短暂置顶再取消**: 置顶(-topmost)不受前台锁限制, 取消置顶后
-    # 窗口自然留在最前。250ms 足够它被系统绘制出来, 又不会永远压着别人。
+    # 做法是**短暂置顶**: 置顶(-topmost)不受前台锁限制, 窗口一定会浮到最上层,
+    # 用户至少能看到它。但什么时候取消置顶很关键: 如果固定几百毫秒就取消, 而
+    # 此刻我们还不是活动窗口, 系统会立刻按 z-order 把窗口排回那个最大化的
+    # 浏览器后面 —— 用户看到窗口闪一下就没了, 比不置顶更困惑。所以这里一直
+    # 置顶到**我们真的成了活动窗口**为止, 最多 TOPMOST_HOLD_S 秒。
+
+    #: 兜底置顶时长。判据是"**真的拿到前台**才放手", 所以这个上限只用来防止
+    #: 极端情况下永远压着别的窗口: 30 秒足够用户注意到并点一下窗口, 又不会
+    #: 变成赖着不走的流氓置顶。
+    TOPMOST_HOLD_S = 30.0
+
+    #: 反复抢前台的时限。超过它就不再抢(只保持置顶)—— 用户可能正在别的窗口
+    #: 里打字, 一直抢前台等于跟他抢键盘, 比不弹窗还讨厌。
+    FOREGROUND_RETRY_S = 3.0
 
     def _bring_to_front(self) -> None:
         for fn in (self.root.lift, self.root.focus_force, self._force_foreground):
@@ -386,11 +482,82 @@ class App:
                 pass
             except Exception:  # noqa: PERF203 pragma: no cover
                 pass
+        self._topmost_until = time.time() + self.TOPMOST_HOLD_S
+        self._retry_until = time.time() + self.FOREGROUND_RETRY_S
+        self._fg_since = 0.0
+        self._flashed = False
         try:
             self.root.attributes("-topmost", True)
-            self.root.after(250, self._drop_topmost)
         except tk.TclError:  # pragma: no cover
+            return
+        self.root.after(150, self._watch_topmost)
+
+    def _watch_topmost(self) -> None:
+        """盯着"到底有没有成为活动窗口", 决定什么时候取消置顶。
+
+        判据只有一个: **真的拿到前台**(并且连续 0.6 秒没被抢走)才取消。
+        早先的写法是"到点就取消", 实测非常糟: 抢不到前台时(比如由后台脚本
+        拉起、用户正在别的窗口里打字), 窗口刚好渲染完、变得有用的那一刻
+        正好到点, 于是它一头沉到最大化的浏览器后面 —— 用户看到的是"闪了
+        一下就没了", 比不出窗口还糟。一个浮在上面的窗口远好过一个看不见
+        的窗口。
+        """
+        if self._closing:
+            return
+        now = time.time()
+        if self._is_foreground():
+            self._fg_since = self._fg_since or now
+            if now - self._fg_since >= 0.6:
+                self._drop_topmost()
+                return
+        else:
+            self._fg_since = 0.0
+            if not self._flashed and now - (self._topmost_until - self.TOPMOST_HOLD_S) > 1.0:
+                # 一秒了还没拿到前台: 闪任务栏按钮。这是系统允许的"叫用户
+                # 看我一眼"的方式, 不需要前台权限。
+                self._flashed = True
+                self._flash_taskbar()
+        if now >= self._topmost_until:
+            self._drop_topmost()
+            return
+        if now < self._retry_until:
+            # 开局这几秒值得反复试: 用户刚双击完, 前台本来就该给它
+            self._force_foreground(restore=False)
+            self.root.after(150, self._watch_topmost)
+        else:
+            # 之后只保持置顶、不再抢前台: 窗口一直看得见, 但不会跟正在别的
+            # 窗口里打字的用户抢键盘。用户点它一下, 它就成了活动窗口。
+            self.root.after(500, self._watch_topmost)
+
+    def _flash_taskbar(self) -> None:
+        hwnd = self._native_hwnd()
+        if not hwnd:
+            return
+        try:
+            import ctypes
+
+            class FLASHWINFO(ctypes.Structure):
+                _fields_ = [("cbSize", ctypes.c_uint), ("hwnd", ctypes.c_void_p),
+                            ("dwFlags", ctypes.c_uint), ("uCount", ctypes.c_uint),
+                            ("dwTimeout", ctypes.c_uint)]
+
+            # FLASHW_ALL(3) | FLASHW_TIMERNOFG(12): 一直闪到窗口被激活为止
+            info = FLASHWINFO(ctypes.sizeof(FLASHWINFO), hwnd, 0x00000003 | 0x0000000C,
+                              0, 0)
+            ctypes.windll.user32.FlashWindowEx(ctypes.byref(info))
+        except Exception:  # noqa: PERF203 pragma: no cover
             pass
+
+    def _is_foreground(self) -> bool:
+        hwnd = self._native_hwnd()
+        if not hwnd:
+            return True                      # 问不出来就别死扛着置顶
+        try:
+            import ctypes
+
+            return int(ctypes.windll.user32.GetForegroundWindow() or 0) == hwnd
+        except Exception:  # noqa: PERF203 pragma: no cover
+            return True
 
     def _drop_topmost(self) -> None:
         try:
@@ -414,8 +581,12 @@ class App:
         except Exception:  # noqa: PERF203 - 非 Windows 或 Tk 未就绪
             return 0
 
-    def _force_foreground(self) -> None:
-        """ctypes 兜底: 直接把顶层窗口提到前台。失败也不影响主流程。"""
+    def _force_foreground(self, *, restore: bool = True) -> None:
+        """ctypes 兜底: 直接把顶层窗口提到前台。失败也不影响主流程。
+
+        `restore=False` 用于置顶期间的反复重试: SW_RESTORE 会把用户手动最大化的
+        窗口还原掉, 重试时不该带这个副作用。
+        """
         hwnd = self._native_hwnd()
         if not hwnd:
             return
@@ -423,7 +594,8 @@ class App:
             import ctypes
 
             user32 = ctypes.windll.user32
-            user32.ShowWindow(hwnd, 9)          # SW_RESTORE
+            if restore:
+                user32.ShowWindow(hwnd, 9)      # SW_RESTORE
             user32.BringWindowToTop(hwnd)
             user32.SetForegroundWindow(hwnd)
         except Exception:  # noqa: PERF203 pragma: no cover
@@ -619,7 +791,7 @@ class App:
 
     def _load_nodes(self, *, manual: bool = False) -> None:
         """拉节点列表。必须在后台线程 —— 免费池六千个节点时响应有几 MB。"""
-        if self._nodes_loading or self._closing:
+        if self._nodes_loading or self._closing or not self._ui_ready:
             return
         self._nodes_loading = True
         if manual or not self._nodes:
@@ -664,6 +836,8 @@ class App:
         self._update_latency_label()
 
     def _update_nodes_note(self) -> None:
+        if not self._ui_ready:      # 表格还没建, 轮询结果先不往控件上写
+            return
         total = max(int(self._status.node_count or 0), len(self._nodes))
         if not self._nodes:
             text = "还没有节点列表。连接后点「刷新节点」，或点「自动选最优」。"
@@ -922,18 +1096,19 @@ class App:
         self._status = st
         self._render_switch()
         self._sync_widgets(st)
-        self.lbl_node.configure(
-            text=theme.shorten_display(st.node, 24)
-            or ("—" if not st.connected else "自动选择"))
-        self._update_latency_label()
-        self.lbl_count.configure(text=str(st.node_count or len(self._nodes) or 0))
-        self.lbl_ai.configure(text=self._ai_text(st))
+        if self._ui_ready:
+            self.lbl_node.configure(
+                text=theme.shorten_display(st.node, 24)
+                or ("—" if not st.connected else "自动选择"))
+            self._update_latency_label()
+            self.lbl_count.configure(text=str(st.node_count or len(self._nodes) or 0))
+            self.lbl_ai.configure(text=self._ai_text(st))
+            self._update_nodes_note()
+            self._sync_current_row(st.node)
         # 圆钮下面那句话平时应该说的是"现在能干什么", 只有正在干活时才让位给
         # 进度提示 —— 否则用户连接完看到的还是"正在读取状态…", 会以为没成功。
         if not self._task_busy:
             self._set_hint(self._default_hint())
-        self._update_nodes_note()
-        self._sync_current_row(st.node)
         self._set_status_text()
         if st.error and not keep_error:
             self._show_error(st.error)
@@ -966,6 +1141,11 @@ class App:
 
     def _sync_widgets(self, st: Any) -> None:
         """把控件拉到和引擎一致。全部包在 _syncing 里, 避免和用户点击打架。"""
+        if not self._ui_ready:
+            # 左列下半部分(模式/设置)也是延后建的, 轮询可能先回来 —— 那时候
+            # 这些控件还不存在, 写进去会 AttributeError。
+            self._sync_controls()
+            return
         self._syncing = True
         try:
             if self.var_mode.get() != st.mode:
@@ -1130,8 +1310,11 @@ class App:
         占地方。窗口一旦比工作区高, 底部的状态栏和错误条就永远露不出来 ——
         而那恰好是用户最需要看到的东西, 所以这里按工作区高度封顶, 而不是
         按屏幕高度。
+
+        刻意**不做** update_idletasks: 那会强制先算一遍全窗口布局, 而紧接着
+        deiconify + update_idletasks 又要再算一遍。实测这一下要多花 0.5 秒,
+        全白花在用户盯着白板的时候。
         """
-        self.root.update_idletasks()
         sw = self.root.winfo_screenwidth()
         sh = self.root.winfo_screenheight()
         work_h = sh - 48
