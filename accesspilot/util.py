@@ -20,7 +20,12 @@ from typing import Any, Callable, Iterable
 # 终端输出
 # --------------------------------------------------------------------------- #
 
-_COLOR = sys.stdout.isatty() and os.environ.get("NO_COLOR") is None
+# 没有控制台时 sys.stdout 会是 None(pythonw.exe / 打包成窗口化 exe 后的运行方式),
+# 直接 sys.stdout.isatty() 会 AttributeError —— 而且是**在 import 阶段**炸,
+# 进程秒退、没有窗口、没有任何提示。用 getattr 兜一层。
+_COLOR = bool(getattr(sys.stdout, "isatty", lambda: False)()) and (
+    os.environ.get("NO_COLOR") is None
+)
 
 
 def _reconfigure_stdout() -> None:
