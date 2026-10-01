@@ -158,6 +158,8 @@ def main() -> int:
     ap.add_argument("--seconds", type=float, default=30.0)
     ap.add_argument("--interval", type=float, default=2.0)
     ap.add_argument("--minimize-at", type=float, default=0.0)
+    ap.add_argument("--main-only", action="store_true",
+                    help="只记录 TkTopLevel 主窗口, 便于高频采样")
     ap.add_argument("--label", default="")
     ap.add_argument("cmd", nargs=argparse.REMAINDER)
     a = ap.parse_args()
@@ -196,6 +198,8 @@ def main() -> int:
         t = round(time.time() - t0, 2)
         tree = proc_tree(p.pid)
         wins = windows_of(tree)
+        if a.main_only:
+            wins = [w for w in wins if w["class"] == "TkTopLevel"]
         # 只关心有标题的顶层窗口(Tk 的 TkTopLevel); 记录全部, 便于排查
         report["frames"].append({
             "t": t,

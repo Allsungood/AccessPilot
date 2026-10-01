@@ -14,10 +14,13 @@ AccessPilot 不是又一个"翻墙内核"，而是一层**面向可用性的控�
 
 - [为什么是这个方案](#为什么是这个方案)
 - [快速开始](#快速开始)
+- [⚠️ 系统代理的风险与恢复](#-系统代理的风险与恢复务必先读)
 - [命令速查](#命令速查)
 - [针对目标平台的分流设计](#针对目标平台的分流设计)
 - [免节点直连加速(可选, 有明确边界)](#免节点直连加速可选-有明确边界)
 - [你还需要一个"节点"](#你还需要一个节点)
+- [红杏 · 桌面客户端（一键开关 + 系统托盘）](#红杏--桌面客户端一键开关--系统托盘)
+- [红杏 · 安卓端](#红杏--安卓端)
 - [图形控制台](#图形控制台)
 - [验证情况（实测数据）](#验证情况实测数据)
 - [常见问题](#常见问题)
@@ -390,17 +393,71 @@ python packaging/build.py          # 产物: dist/红杏.exe
 * **窗口关闭时的系统代理一定会被还原**。这是底线：任何异常路径下都不能给用户
   留下一份指向已经退出的代理的设置。
 
+### 窗口守护（一个兜底，不是修复）
+
+双击 exe 之后，窗口正常出现约 5 秒，然后会被最小化 —— 而**进程还活着**。
+用户看到的是"双击了没反应"，对一键客户端来说这是最致命的失败模式。
+
+已经排除的：裸 Tk 窗口稳定不动；裸 Tk + 同样的 DPI 感知 + 同样的几何也稳定不动；
+`--no-tray` 一样复现；插桩包住 `geometry/state/iconify/withdraw/lift/focus_force`
+证明红杏自己一次都没调过。**根因至今没有定位。**
+
+所以现在的做法是启动后 15 秒内每 250ms 检查一次，被最小化就恢复回来，
+每次恢复打一行日志 —— **如果哪天根因修掉了，这里应该永远是 0 次**。
+
+⚠️ **已知且无法消除的取舍**：用户在启动后 15 秒内**主动**按最小化，会被弹回来。
+因为"用户按的最小化"和"这个故障"在系统看来**完全一样**，实测：
+
+```
+正常           iconic=False  rect=(200,200)      816x639
+Tk iconify()   iconic=True   rect=(-32000,-32000) 237x39
+SW_MINIMIZE    iconic=True   rect=(-32000,-32000) 237x39   ← 点最小化按钮
+SW_RESTORE     iconic=False  rect=(200,200)      816x639
+```
+
+两条最小化路径给出的 `iconic` + `rect` **逐字节相同**。本进程是 per-monitor-v2
+DPI 感知、缩放 1.5，所以 `-32000/1.5 = -21333`、`237/1.5 = 158`、`39/1.5 = 26`
+—— 排查时如果看到 `rect=(-21333,-21333) 158x26`，那**就是一次普通的最小化**，
+不是别的什么异常状态。想靠"最近有没有键鼠输入"区分也不行：移动鼠标同样算输入，
+那样反而会在真故障时误判成用户干的而袖手旁观。
+
 ### 已知限制
 
-* **高 DPI 屏上文字略糊。** 进程没有声明 per-monitor DPI 感知，在 150% 缩放的屏幕上
-  Windows 会把整个窗口位图拉伸 1.5 倍。功能不受影响，但文字比原生渲染软。要变清晰
-  得声明 DPI 感知，并把画布坐标 / Treeview 行高列宽全部按缩放因子乘一遍 —— 这是一次
-  不小的重构，留到 1.0 之后。**顺带提醒排查的人**：这类进程（以及大多数截图工具）
-  看到的是**虚拟化后的**逻辑分辨率，可能不是屏幕的物理分辨率，量窗口位置时别混用两套坐标。
+* **高 DPI 屏已做 per-monitor-v2 DPI 感知**（`theme.enable_dpi_awareness()`，
+  三级降级：`SetProcessDpiAwarenessContext` → `shcore.SetProcessDpiAwareness`
+  → 放弃），画布坐标与 Treeview 行列都按 `dpi/96` 缩放，文字不再被拉伸。
+  **提醒排查的人**：声明感知之后，进程看到的就是**物理**分辨率了，而截图工具
+  未必 —— 量窗口位置时别把两套坐标混用（这一条曾经让我误判过一次）。
+* **保活任务不会推翻用户主动关闭。** 计划任务 `AccessPilotEnsure` 每 5 分钟跑一次
+  `accesspilot ensure`；它会读 `runtime/user_intent.json`，若本次开机内用户主动
+  关过就什么都不做（逃生口 `accesspilot ensure --force`）。判据只在这**一次开机内**
+  有效，重启后失效 —— 否则「开机自启」会被误伤。详见 `accesspilot/intent.py`。
 * **启动耗时约 1 秒。** 实测窗口 0.5~1.2 秒出现、完整骨架 0.75~2.0 秒、数据填满 2~3 秒。
   物理下限约 1.1 秒：Python 解释器 ~0.15s + 首次加载 Tcl/Tk ~0.28s + 构建骨架 ~0.25s
   + 布局首绘 ~0.4s。`tk.Tk()` 那 0.28 秒是加载 DLL，代码层面绕不过去。
+* **开启/重启内核时会多跑一次配置校验**（约 2~3 秒，6000 节点规模）。
+  `config.render()` 现在自带"写候选 → 校验 → 通过了才原子替换"，而
+  `process.start()` 之后还会再校验一次同一份文件。这是刻意留的冗余：
+  校验的对象是刚生成的文件，代价是几秒，收益是**磁盘上永远不会躺着一份坏配置**
+  （见过一次：坏配置在盘上、内核用的还是内存里的旧配置，表面正常；等内核一重启
+  就直接断网，而现象离起因差了好几个小时）。
 * **exe 未做代码签名**，Windows SmartScreen 会提示“未知发布者”，需要用户点“仍要运行”。
+
+---
+
+## 红杏 · 安卓端
+
+Kotlin + Compose 的 Android 客户端，和桌面端同一套节点、同一个 mihomo 内核，
+界面也是一样的一键开关。代码在 `android/`，构建说明与真机实测结论见
+**[android/README.md](android/README.md)**。
+
+架构一句话：`VpnService` 建 TUN → 把文件描述符交给随包的 mihomo 子进程
+（配置里写 `tun.file-descriptor`）→ 转发与分流全归内核。
+
+值得单独说的一点：**`ProcessBuilder` 拿不到这个 fd**（libcore 在 execve 前
+无条件关闭所有 ≥4 的 fd，而且**不靠 `FD_CLOEXEC`**，所以 `detachFd()` 无效），
+因此有一个自写的 native 启动桥 `app/src/main/cpp/hongxing_launcher.c`。
+三判据真机实测与完整证据都在 `android/README.md` 里。
 
 ---
 
@@ -423,11 +480,15 @@ python -m accesspilot ui install           # 可选: metacubexd 专业面板, ht
 
 本机（Windows 10 19045 / Python 3.11.9 / mihomo v1.19.31）实测结果：
 
-**单元测试 101 项全部通过**
+**单元测试 308 项全部通过**（19 个测试文件，全程离线，不打真实网络）
 
 ```powershell
-python -m unittest discover -s tests     # Ran 101 tests ... OK
+python runtests.py                       # 或者:
+python -m unittest discover -s tests     # Ran 308 tests ... OK
 ```
+
+测试隔离靠 `tests/__init__.py` 把数据目录重定向到临时目录（`ACCESSPILOT_HOME`），
+所以跑测试**不会**动到你正在用的 `runtime/` 和系统代理。
 
 **端到端测试 31 项全部通过**（`python tests\e2e_check.py`）
 
@@ -530,32 +591,50 @@ Google 长期不接受中国大陆 +86 号码用于**新账号**验证，这是�
 ```
 AccessPilot/
 ├── accesspilot/
-│   ├── cli.py            # 命令入口与终端渲染
-│   ├── config.py         # mihomo 配置生成(DNS/TUN/策略组/规则) + 内核自检
+│   ├── cli.py            # 命令入口与终端渲染(含计划任务注册)
+│   ├── control.py        # ★ 界面与引擎之间**唯一**的接缝, 见文件头三条硬约定
+│   ├── intent.py         # 记录"用户最后一次点的是开还是关", 供保活让位
+│   ├── config.py         # mihomo 配置生成(DNS/TUN/策略组/规则) + 校验后原子替换
 │   ├── rules.py          # 平台定向规则、规则集目录、镜像策略
+│   ├── freenodes.py      # 公开免费节点抓取/测速/平台级验证
+│   ├── health.py         # 节点失效自动切换 + 单实例(命名互斥体)
 │   ├── sharelink.py      # 7 种协议分享链接解析
-│   ├── subscription.py   # 订阅抓取/解析/去重/本地存储
+│   ├── subscription.py   # 订阅抓取/解析/消重名/本地存储
 │   ├── miniyaml.py       # 零依赖 YAML 子集解析器
 │   ├── coreinstall.py    # 内核下载安装(多镜像回退/解压/GeoIP)
 │   ├── process.py        # 进程守护、端口预检、日志
 │   ├── sysproxy.py       # 系统代理、终端环境变量、TUN 前置检查
+│   ├── accel.py          # 免节点直连加速(本地 IP 优选 + SOCKS5 出站)
 │   ├── api.py            # mihomo REST API 客户端
-│   ├── diag.py           # 目标平台体检、出口 IP、ChatGPT 区域、DNS 污染检测
+│   ├── diag.py           # 平台体检、出口 IP、ChatGPT 区域、DNS 污染检测
 │   ├── webgui.py         # 本地控制台(含 CSRF 防护)
+│   ├── gui/              # 红杏桌面端(Tkinter, 零依赖)
+│   │   ├── app.py        #   主窗口 + 窗口守护
+│   │   ├── theme.py      #   配色/缩放/DPI 感知
+│   │   ├── tray.py       #   纯 ctypes 托盘(自有消息泵线程)
+│   │   └── icon.py       #   手写 ICO 生成(不依赖 Pillow)
 │   └── assets/dashboard.html
+├── android/              # 红杏安卓端(Kotlin + Compose), 见 android/README.md
+│   ├── app/src/main/java/com/accesspilot/hongxing/
+│   │   ├── core/         #   VpnService / 内核管理 / 配置组装 / REST 客户端
+│   │   └── ui/           #   Compose 界面(含 FakeEngine 以便预览)
+│   ├── app/src/main/cpp/hongxing_launcher.c   # fork+execve 启动桥(为了拿到 TUN fd)
+│   └── tools/            #   fetch_core.py / build_assets.py(补齐未入库的产物)
+├── packaging/            # PyInstaller 单文件 exe 链路
+│   ├── hongxing.spec / entry.py / build.py
 ├── scripts/
 │   ├── install.ps1         # Windows 一键安装
 │   └── server-install.sh   # VPS 服务端一键部署(Xray VLESS-Reality)
-├── tests/
-│   ├── test_sharelink.py / test_parsing.py / test_config.py   # 44 项单元测试
-│   ├── e2e_check.py        # 31 项端到端实测(真实内核 + 真实链路)
-│   └── helpers/socks5_server.py
-└── accesspilot.cmd       # 免安装启动器
+├── tests/                  # 19 个测试文件, 308 项(离线可跑, 不碰真实网络)
+│   ├── test_control.py / test_intent.py / test_config_dedupe.py / ...
+│   └── e2e_check.py        # 端到端实测(真实内核 + 真实链路)
+└── accesspilot.cmd       # 免安装启动器(CRLF, 见 .gitattributes)
 ```
 
 运行时数据（可通过 `ACCESSPILOT_HOME` 重定向）：
 Windows `%LOCALAPPDATA%\AccessPilot\`，Linux/macOS `~/.accesspilot/`
-—— `core/` 内核、`profiles/` 订阅档、`runtime/config.yaml` 生成配置、`logs/core.log` 日志。
+—— `core/` 内核、`profiles/` 订阅档、`runtime/config.yaml` 生成配置、
+`runtime/user_intent.json` 开关意图、`logs/core.log` 日志。
 
 ---
 
