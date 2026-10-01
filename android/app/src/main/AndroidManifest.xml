@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  红杏 Android · 清单
+
+  几个容易被忽略但必须有的声明:
+  * BIND_VPN_SERVICE 要加在 service 上, 否则系统不会把 VpnService 的授权
+    交给它 —— 表现是 establish() 返回 null, 而且不报错。
+  * targetSdk 34+ 起前台服务必须声明 type。VpnService 没有专属 type,
+    用 specialUse 并在 property 里写清用途(应用商店审核会看这个)。
+  * POST_NOTIFICATIONS 是 Android 13+ 的运行时权限: 没有它前台服务的
+    常驻通知不显示, 用户看不到"正在保护网络"的状态, 也不知道怎么断开。
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
+    <application
+        android:allowBackup="false"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.Hongxing"
+        android:usesCleartextTraffic="false"
+        tools:targetApi="35">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:configChanges="orientation|screenSize|keyboardHidden|uiMode"
+            android:theme="@style/Theme.Hongxing">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!--
+          用 tools:ignore 压掉 specialUse 的 lint 警告: 我们已经提供了
+          PROPERTY_SPECIAL_USE_FGS_SUBTYPE 说明, lint 仍然会提示要人工复核。
+        -->
+        <service
+            android:name=".core.HongxingVpnService"
+            android:exported="false"
+            android:permission="android.permission.BIND_VPN_SERVICE"
+            android:foregroundServiceType="specialUse"
+            tools:ignore="ForegroundServicePermission">
+            <intent-filter>
+                <action android:name="android.net.VpnService" />
+            </intent-filter>
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="vpn_tunnel: 承载用户主动开启的本地 VPN 隧道, 断开即停止" />
+        </service>
+
+    </application>
+</manifest>

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  红杏 Android · 应用主题
+
+  界面本身是 Compose 画的, 这里只需要一个"启动时别闪白屏"的底座:
+  * windowBackground 用一个接近 Compose 深色/浅色底色的颜色, 冷启动时
+    不会先闪一下纯白再变成界面 —— 这是安卓上最常见的廉价感来源。
+  * 用 Material3 的 DayNight 父主题, 跟随系统深色模式。
+-->
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <style name="Theme.Hongxing" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/hongxing_window_bg</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar" tools:targetApi="m">true</item>
+    </style>
+</resources>

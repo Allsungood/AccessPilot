@@ -1,0 +1,26 @@
+# 红杏 Android · 忽略规则
+#
+# 注意这里**不忽略** app/src/main/assets/ —— 那里面有随包的 geodata、规则集、
+# 配置模板和节点列表, 是产品的一部分。它们不算小(约 28 MB), 但缺了内核根本
+# 起不来(没有 geodata 时 mihomo 直接 exit 1), 所以必须进仓库。
+# 重新生成: python android/tools/build_assets.py
+
+# Gradle
+.gradle/
+build/
+app/build/
+local.properties          # 每台机器的 SDK 路径不同
+
+# IDE
+.idea/
+*.iml
+.DS_Store
+
+# 构建中间产物
+captures/
+*.apk
+*.aab
+*.keystore
+
+# mihomo 原始下载包(解压后的 libmihomo.so 在 jniLibs 里, 那份要进仓库)
+core-bin/*.gz

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      冷启动时的窗口底色, 刻意取成和 Compose 界面浅色主题的 surface 一致,
+      这样从点击图标到界面画出来之间不会闪一下刺眼的白。
+      (深色模式由 values-night 覆盖。)
+    -->
+    <color name="hongxing_window_bg">#FFFBF9F8</color>
+</resources>
