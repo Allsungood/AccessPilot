@@ -489,8 +489,63 @@ class App:
     #: 启动后盯窗口的时长。过了它就不再管 —— 免得跟用户自己按的最小化较劲。
     WINDOW_GUARD_S = 15.0
 
+    #: 全程没人碰过键鼠时, 把盯的时间放宽到这里。
+    #:
+    #: 为什么需要这一档 —— 独立验收的实测数据(3 轮冷启动, 每 100ms 采一次):
+    #: 故障是**概率性**的, 3 轮里复现 1 轮(窗口首帧 t=1.45, 自己最小化在 t=3.77);
+    #: 而且**不只在头几秒** —— 另有一轮在 t=32.31 才自己最小化, 那时常规窗口
+    #: 早就过期了, 窗口就一直最小化着。
+    #:
+    #: 而"从我启动到现在一次键鼠输入都没有"本身就是证据: **窗口不可能是用户按小的**。
+    #: 所以这种情况下可以放心地继续盯下去, 不会抢用户的操作权。
+    WINDOW_GUARD_IDLE_S = 120.0
+
     #: 盯的间隔。
     WINDOW_GUARD_MS = 250
+
+    @classmethod
+    def _guard_alive(cls, age: float, idle_ms: int | None) -> bool:
+        """还要不要继续盯窗口。
+
+        抽成纯函数是为了能直接测 —— 否则要真的开一个窗口等 15~120 秒,
+        这种测试没人会跑, 也就等于没测。
+
+        * `age`     —— 从进程启动到现在多少秒
+        * `idle_ms` —— 系统范围内距上次键盘/鼠标输入的毫秒数; None = 拿不到
+
+        `idle_ms >= age*1000` 的含义是"最后一次输入发生在**我启动之前**",
+        也就是启动至今无人操作。
+        """
+        if age <= cls.WINDOW_GUARD_S:
+            return True
+        if age > cls.WINDOW_GUARD_IDLE_S:
+            return False
+        return idle_ms is not None and idle_ms >= age * 1000
+
+    @staticmethod
+    def _idle_ms() -> int | None:
+        """系统范围内"距上次键鼠输入"的毫秒数; 拿不到返回 None。
+
+        用 GetLastInputInfo 而不是盯我们自己的窗口消息: 用户按的是**标题栏**上的
+        最小化按钮, 属于非客户区, Tk 的 <Button-1> 根本收不到。
+        """
+        try:
+            import ctypes
+            from ctypes import wintypes
+
+            class _LASTINPUTINFO(ctypes.Structure):
+                _fields_ = [("cbSize", wintypes.UINT), ("dwTime", wintypes.DWORD)]
+
+            li = _LASTINPUTINFO()
+            li.cbSize = ctypes.sizeof(_LASTINPUTINFO)
+            if not ctypes.windll.user32.GetLastInputInfo(ctypes.byref(li)):
+                return None
+            now = ctypes.windll.kernel32.GetTickCount64()
+            # dwTime 是 32 位的(开机 49.7 天回绕)。用 32 位差值算天然处理回绕,
+            # 不需要额外判断 —— 这正是取差值而不是比较绝对值的理由。
+            return (int(now) - int(li.dwTime)) & 0xFFFFFFFF
+        except Exception:
+            return None
 
     def _guard_window(self) -> None:
         """启动后头十几秒盯住窗口: 被最小化或挪到屏幕外就恢复回来。
@@ -515,7 +570,10 @@ class App:
 
         ## 边界(以及一个**做不到**的区分)
 
-        * 只在前 [WINDOW_GUARD_S] 秒内生效 —— 之后用户自己按最小化我们就不管了;
+        * 常规只在前 [WINDOW_GUARD_S] 秒内生效 —— 之后用户自己按最小化我们就不管了;
+        * 但若**启动至今一次键鼠输入都没有**, 则放宽到 [WINDOW_GUARD_IDLE_S] 秒:
+          那种情况下窗口不可能是用户按小的, 而实测故障确实是概率性的、
+          最晚一次在 t=32 秒才发作(见 WINDOW_GUARD_IDLE_S 的注释);
         * 每次恢复都打一行日志。**如果哪天根因修掉了, 这里应该永远是 0 次** ——
           这行日志就是留给自己将来的证据。
 
@@ -544,7 +602,8 @@ class App:
             return
         import time as _t
 
-        if _t.time() - self._started_at > self.WINDOW_GUARD_S:
+        age = _t.time() - self._started_at
+        if not self._guard_alive(age, self._idle_ms()):
             return
         try:
             if not self._window_on_screen():

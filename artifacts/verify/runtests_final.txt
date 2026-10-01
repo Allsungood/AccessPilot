@@ -1,0 +1,29 @@
+[i] 测试数据目录: C:\Users\Administrator\AppData\Local\Temp\accesspilot-runtests-3ldmcze3
+....................................................................................................................................................................................................................................................................................................................
+----------------------------------------------------------------------
+Ran 308 tests in 9.319s
+
+OK
+[!] 跳过格式异常的链接: '2600:1' does not appear to be an IPv4 or IPv6 address
+[!] 跳过格式异常的链接: '2600:1' does not appear to be an IPv4 or IPv6 address
+[!] 跳过格式异常的链接: Invalid IPv6 URL
+[!] Z:\definitely\not\writable\dir 写入失败: [WinError 3] 系统找不到指定的路径。: 'Z:\\'
+[+] 已安装: C:\Users\Administrator\AppData\Local\Temp\tmpot6ec3bo\accesspilot.cmd
+[+] 已安装: C:\Users\Administrator\AppData\Local\Temp\tmpot6ec3bo\superlantern.cmd
+
+[i] 在任意目录直接运行:  accesspilot --version
+  如果提示找不到命令, 关掉重开一个终端窗口即可(PATH 需要刷新)
+[+] 已安装: C:\Users\Administrator\AppData\Local\Temp\tmpnftqp_p8\accesspilot.cmd
+[+] 已安装: C:\Users\Administrator\AppData\Local\Temp\tmpnftqp_p8\superlantern.cmd
+
+[i] 在任意目录直接运行:  accesspilot --version
+  如果提示找不到命令, 关掉重开一个终端窗口即可(PATH 需要刷新)
+[+] 已安装: C:\Users\Administrator\AppData\Local\Temp\tmp7_jhed0a\accesspilot.cmd
+[+] 已安装: C:\Users\Administrator\AppData\Local\Temp\tmp7_jhed0a\superlantern.cmd
+
+[i] 在任意目录直接运行:  accesspilot --version
+  如果提示找不到命令, 关掉重开一个终端窗口即可(PATH 需要刷新)
+[+] 内核已停止
+[i] 本次开机内用户已主动关闭代理, 保活不动它
+  (想让它无视这条: accesspilot ensure --force; 或在界面上点一下「打开」)
+[+] 已删除配置档 测试档

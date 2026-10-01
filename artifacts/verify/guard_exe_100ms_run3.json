@@ -1,0 +1,5322 @@
+{
+  "label": "exe-100ms-run3",
+  "dpi_awareness": "per-monitor-v2",
+  "screen": [
+    1920,
+    1080
+  ],
+  "cmd": [
+    "C:\\Users\\Administrator\\AccessPilot\\dist\\红杏.exe"
+  ],
+  "spawn_pid": 11836,
+  "frames": [
+    {
+      "t": 0.1,
+      "child_alive": true,
+      "pids": [
+        11836
+      ],
+      "windows": []
+    },
+    {
+      "t": 0.21,
+      "child_alive": true,
+      "pids": [
+        11836
+      ],
+      "windows": []
+    },
+    {
+      "t": 0.33,
+      "child_alive": true,
+      "pids": [
+        11836
+      ],
+      "windows": []
+    },
+    {
+      "t": 0.44,
+      "child_alive": true,
+      "pids": [
+        11836
+      ],
+      "windows": []
+    },
+    {
+      "t": 0.55,
+      "child_alive": true,
+      "pids": [
+        11836
+      ],
+      "windows": []
+    },
+    {
+      "t": 0.66,
+      "child_alive": true,
+      "pids": [
+        11836
+      ],
+      "windows": []
+    },
+    {
+      "t": 0.77,
+      "child_alive": true,
+      "pids": [
+        11836
+      ],
+      "windows": []
+    },
+    {
+      "t": 0.88,
+      "child_alive": true,
+      "pids": [
+        11836
+      ],
+      "windows": []
+    },
+    {
+      "t": 0.99,
+      "child_alive": true,
+      "pids": [
+        11836
+      ],
+      "windows": []
+    },
+    {
+      "t": 1.11,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": []
+    },
+    {
+      "t": 1.22,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": []
+    },
+    {
+      "t": 1.34,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": []
+    },
+    {
+      "t": 1.45,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": []
+    },
+    {
+      "t": 1.56,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": []
+    },
+    {
+      "t": 1.68,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": []
+    },
+    {
+      "t": 1.79,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": []
+    },
+    {
+      "t": 1.9,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": []
+    },
+    {
+      "t": 2.02,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": []
+    },
+    {
+      "t": 2.13,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": []
+    },
+    {
+      "t": 2.24,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": []
+    },
+    {
+      "t": 2.35,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": []
+    },
+    {
+      "t": 2.46,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": []
+    },
+    {
+      "t": 2.57,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": []
+    },
+    {
+      "t": 2.69,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": []
+    },
+    {
+      "t": 2.8,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": []
+    },
+    {
+      "t": 2.91,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": []
+    },
+    {
+      "t": 3.03,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": []
+    },
+    {
+      "t": 3.14,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 3.26,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 3.39,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 3.52,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 3.65,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 3.76,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 3.88,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 3.99,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 4.1,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 4.21,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 4.32,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 4.43,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 4.54,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 4.66,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 4.77,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 4.88,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 4.99,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 5.1,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 5.21,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 5.33,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 5.45,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 5.56,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 5.68,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 5.81,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 5.92,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 6.04,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 6.15,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 6.26,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 6.37,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 6.49,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 6.6,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 6.71,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 6.83,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 6.94,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 7.05,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 7.17,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 7.28,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 7.39,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 7.5,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 7.61,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 7.72,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 7.83,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 7.94,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 8.06,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 8.17,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 8.28,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 8.39,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 8.5,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 8.62,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 8.73,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 8.84,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 8.95,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 9.06,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 9.18,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 9.29,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 9.4,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 9.51,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 9.62,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 9.73,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 9.84,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 9.96,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 10.06,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 10.18,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 10.29,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 10.4,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 10.51,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 10.62,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 10.73,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 10.84,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 10.95,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 11.07,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 11.18,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 11.29,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 11.4,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 11.51,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 11.62,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 11.73,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 11.85,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 11.96,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 12.07,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 12.18,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 12.29,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 12.41,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 12.52,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 12.63,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 12.74,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 12.85,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 12.96,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 13.07,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 13.19,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 13.3,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 13.41,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 13.52,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 13.63,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 13.74,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 13.85,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 13.96,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 14.08,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 14.19,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 14.31,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 14.43,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 14.54,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 14.66,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 14.77,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 14.89,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 15.0,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 15.12,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 15.23,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 15.34,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 15.45,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 15.56,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 15.67,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 15.78,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 15.9,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 16.01,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 16.12,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 16.23,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 16.34,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 16.46,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 16.57,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 16.68,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 16.79,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 16.91,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 17.02,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 17.13,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 17.24,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 17.35,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 17.47,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 17.58,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 17.69,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 17.81,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 17.92,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 18.04,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 18.15,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 18.26,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 18.37,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 18.48,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 18.59,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 18.7,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 18.82,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 18.93,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 19.04,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 19.15,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 19.27,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 19.38,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 19.49,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 19.6,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 19.71,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 19.82,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 19.94,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 20.05,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 20.16,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 20.27,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 20.39,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 20.5,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 20.61,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 20.72,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 20.84,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 20.95,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 21.06,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 21.18,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 21.29,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 21.4,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 21.51,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 21.62,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 21.73,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 21.85,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 21.96,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    },
+    {
+      "t": 22.08,
+      "child_alive": true,
+      "pids": [
+        4712,
+        11836
+      ],
+      "windows": [
+        {
+          "hwnd": 4920934,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ],
+          "showCmd": 1,
+          "normal_rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        }
+      ]
+    }
+  ],
+  "kill": {
+    "pid": 11836
+  },
+  "exit_code_after_kill": 1
+}
