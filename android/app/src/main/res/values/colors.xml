@@ -3,7 +3,20 @@
     <!--
       冷启动时的窗口底色, 刻意取成和 Compose 界面浅色主题的 surface 一致,
       这样从点击图标到界面画出来之间不会闪一下刺眼的白。
+
+      这个色值必须和 ui/theme/Color.kt 里的 PaperLight(0xFFFBF9F8) 一致 ——
+      两边不一致时, 冷启动那 200ms 会是一个和界面不同的颜色, 观感很廉价。
       (深色模式由 values-night 覆盖。)
     -->
     <color name="hongxing_window_bg">#FFFBF9F8</color>
+
+    <!--
+      深色模式的窗口底色。对应 Color.kt 里的 InkDark(0xFF141110)。
+
+      **还没生效**: 需要在 res/values-night/ 下新建一个 colors.xml 覆盖
+      hongxing_window_bg, 并把 themes.xml 的父主题换成 DayNight 系
+      (现在是 android:Theme.Material.Light.NoActionBar, 深色模式下仍是浅色窗口)。
+      这是 MainActivity/themes.xml 那一侧的活, 界面这边只把色值准备好。
+    -->
+    <color name="hongxing_window_bg_dark">#FF141110</color>
 </resources>

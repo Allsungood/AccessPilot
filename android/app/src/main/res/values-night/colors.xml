@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      深色模式下的窗口底色 —— 覆盖 values/colors.xml 里的同名色。
+
+      必须和 ui/theme/Color.kt 的 InkDark(0xFF141110) 一致, 否则冷启动那
+      一瞬间会是一个和界面不同的黑, 同样看得出来。
+    -->
+    <color name="hongxing_window_bg">#FF141110</color>
+</resources>

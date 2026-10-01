@@ -1,5 +1,93 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  红杏 Android · 界面文案
+
+  规矩只有一条: **Kotlin 里一个中文字符都不许有**(除了假引擎模拟的引擎日志)。
+  理由不是强迫症 —— 界面文案要改的时候, 改文案的人不该去读 Kotlin; 而且将来
+  做多语言时, 漏在代码里的字符串是找不出来的。
+-->
 <resources>
     <string name="app_name">红杏</string>
     <string name="app_tagline">一键通行</string>
+
+    <!-- ===== 大圆钮 ===== -->
+    <string name="power_title_idle">未连接</string>
+    <string name="power_caption_idle">点一下就能用</string>
+    <string name="power_title_connecting">正在连接…</string>
+    <string name="power_caption_connecting">正在准备隧道，马上就好</string>
+    <string name="power_title_connected">已连接</string>
+    <string name="power_caption_uptime">已用 %1$s</string>
+    <string name="power_title_disconnecting">正在断开…</string>
+    <string name="power_caption_disconnecting">正在收尾，让流量回到直连</string>
+    <string name="power_title_error">出错了</string>
+    <string name="power_caption_error">点一下重试</string>
+    <string name="uptime_hours_minutes">%1$d 小时 %2$d 分</string>
+
+    <!-- ===== 首次启动的 VPN 授权引导 ===== -->
+    <string name="vpn_hint_title">还差一步：允许红杏建立 VPN</string>
+    <string name="vpn_hint_body">第一次连接时系统会弹出「VPN 连接请求」，点「确定」就行。红杏只用它把该走代理的流量送出去，不会读取你的任何内容。</string>
+
+    <!-- ===== 状态卡 ===== -->
+    <string name="status_label_node">出口节点</string>
+    <string name="status_label_mode">分流模式</string>
+    <string name="status_label_uptime">已用时长</string>
+    <string name="status_label_node_count">节点总数</string>
+    <string name="status_label_traffic">本次流量</string>
+    <string name="status_value_node_none">未选择</string>
+    <string name="status_value_node_count">共 %1$d 个</string>
+    <string name="traffic_upload_label">上行</string>
+    <string name="traffic_download_label">下行</string>
+
+    <!-- ===== 分流模式 ===== -->
+    <string name="mode_section_title">分流模式</string>
+    <string name="mode_section_hint">拿不准就选智能分流，它管得住绝大多数情况。</string>
+    <string name="mode_rule_title">智能分流</string>
+    <string name="mode_rule_desc">只有被墙的网站走代理，国内网站直连</string>
+    <string name="mode_global_title">全局代理</string>
+    <string name="mode_global_desc">所有流量都走代理，某个网站打不开时用它试试</string>
+    <string name="mode_direct_title">直连</string>
+    <string name="mode_direct_desc">完全不用代理，等于临时把红杏关掉</string>
+    <string name="mode_selected_desc">已选中</string>
+
+    <!-- ===== 节点列表 ===== -->
+    <string name="nodes_entry_title">节点列表</string>
+    <string name="nodes_entry_subtitle">共 %1$d 个 · 点开可以换一个</string>
+    <string name="nodes_sheet_title">选择节点</string>
+    <string name="nodes_sheet_subtitle">共 %1$d 个</string>
+    <string name="nodes_sheet_subtitle_current">共 %1$d 个 · 当前 %2$s</string>
+    <string name="nodes_action_refresh">刷新</string>
+    <string name="nodes_action_test">测速</string>
+    <string name="nodes_badge_ai">AI</string>
+    <string name="nodes_badge_ai_desc">这个节点可以打开 ChatGPT</string>
+    <string name="nodes_current">当前使用</string>
+    <string name="nodes_unavailable">不可用</string>
+    <string name="nodes_latency_ms">%1$d ms</string>
+    <string name="nodes_latency_unknown">未测速</string>
+    <string name="nodes_empty_title">还没有节点</string>
+    <string name="nodes_empty_body">点上面的「刷新」，从订阅里重新拉一次列表</string>
+    <string name="nodes_empty_refreshing">正在拉取节点…</string>
+
+    <!-- ===== 出错 ===== -->
+    <string name="error_banner_title">出错了</string>
+    <string name="error_copy_hint">长按这段文字可以复制</string>
+    <string name="error_copied">已复制</string>
+    <string name="error_dismiss">知道了</string>
+    <string name="action_failed">操作没成功，稍后再试一次</string>
+    <string name="clipboard_label">红杏</string>
+
+    <!-- ===== 前台服务通知 (core/HongxingVpnService.kt) ===== -->
+    <string name="notification_channel_name">连接状态</string>
+    <string name="notification_channel_desc">显示红杏是否正在保护网络</string>
+    <string name="notification_connecting">正在建立隧道…</string>
+    <string name="notification_protecting">正在保护网络</string>
+    <string name="notification_disconnect">断开</string>
+
+    <!-- ===== 开发用: 假引擎状态切换器(正式接线时界面上不会出现) ===== -->
+    <string name="dev_switcher_title">DEV</string>
+    <string name="dev_state_connected">已连接</string>
+    <string name="dev_state_connecting">连接中</string>
+    <string name="dev_state_idle">未连接</string>
+    <string name="dev_state_error">出错</string>
+    <string name="dev_state_no_permission">未授权</string>
+    <string name="dev_state_no_nodes">无节点</string>
 </resources>

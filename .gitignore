@@ -32,6 +32,18 @@ secrets.yaml
 *.secret
 *.key
 
+# ---- 安卓构建产物 ----
+# .cxx/ 是 AGP 落 CMake 中间产物的目录（.o / CMakeCache / ninja 日志）。
+# 换 NDK 版本就会整目录重建，提交它只会制造无意义的冲突。
+android/app/.cxx/
+android/.gradle/
+android/local.properties
+
+# ---- 调试截图 ----
+# artifacts/ 下的 png 是开发期探针截图（DPI 对照、托盘缩放、窗口存活采样…），
+# 体积大、只对当时那次排查有意义。同目录的 .py 验收脚本要留。
+artifacts/**/*.png
+
 # ---- 编辑器 / 系统 ----
 .vscode/
 .idea/

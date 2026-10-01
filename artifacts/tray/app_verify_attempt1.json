@@ -1,0 +1,23 @@
+{
+  "ok": false,
+  "command": "python -m accesspilot gui",
+  "steps": [
+    {
+      "step": "带托盘连续存活 70 秒",
+      "ok": false,
+      "detail": "中途退出"
+    },
+    {
+      "step": "托盘窗口全程都在",
+      "ok": false,
+      "detail": "11 次采样里看到托盘窗口(HongXingTrayWnd_*)"
+    },
+    {
+      "step": "stderr 里没有致命错误/异常",
+      "ok": true,
+      "detail": "干净"
+    }
+  ],
+  "stdout_tail": "",
+  "stderr_tail": ""
+}

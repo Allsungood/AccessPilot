@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  红杏 Android · 深色模式的窗口主题
+
+  为什么需要单独一份:
+  values/themes.xml 的父主题是 android:Theme.Material.Light.NoActionBar ——
+  它是**写死的浅色**。系统切到深色模式时, Compose 那边会正确变暗, 但冷启动
+  那一瞬间(点图标到第一帧画出来之间)显示的还是窗口主题的底色, 于是会:
+
+      深色模式 -> 先闪一下浅色 -> 再变成深色界面
+
+  这是安卓上最常见的廉价感来源之一。修法是给 values-night 一份同名主题,
+  换一个深色的父主题 + 深色底色, 系统会按当前模式自动选。
+
+  父主题用 android:Theme.Material.NoActionBar(深色版) 而不是 DayNight 系:
+  minSdk 是 26, 而 Theme.DeviceDefault.DayNight 要 API 29 —— 用资源限定符
+  来分, 才能覆盖到 26~28。
+
+  色值要求和 ui/theme/Color.kt 里的 InkDark(0xFF141110) 一致, 否则深色模式下
+  冷启动那一瞬间是另一个黑, 同样能看出来。
+-->
+<resources>
+    <style name="Theme.Hongxing" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/hongxing_window_bg</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+</resources>

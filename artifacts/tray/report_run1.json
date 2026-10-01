@@ -1,0 +1,192 @@
+{
+  "ok": false,
+  "screen": [
+    1920,
+    1080
+  ],
+  "steps": [
+    {
+      "step": "ICONDIR",
+      "ok": true,
+      "detail": "hongxing.ico 285478 字节, 尺寸=[16, 32, 48, 256] 位深=[32, 32, 32, 32]"
+    },
+    {
+      "step": "未连接图标",
+      "ok": true,
+      "detail": "hongxing_off.ico 285478 字节"
+    },
+    {
+      "step": "Windows 逐个解出尺寸",
+      "ok": true,
+      "detail": "CreateIconFromResourceEx -> [16, 32, 48, 256]"
+    },
+    {
+      "step": "Tray.start()",
+      "ok": true,
+      "detail": "返回 True"
+    },
+    {
+      "step": "菜单弹出并被点中(第 2 项 -> best)",
+      "ok": true,
+      "detail": "菜单窗口 rect=[648, 403, 886, 533] 点击=[767, 483] 回调计数={'show': 0, 'toggle': 0, 'best': 1, 'quit': 0} cmd_id=3 菜单项文字={1: '显示主窗口', 2: '一键连接', 3: '自动选最优节点', 4: '退出'}"
+    },
+    {
+      "step": "菜单开着时 Tk 主循环仍在跑",
+      "ok": true,
+      "detail": "这一轮 Tk 心跳 tick 增加 13 次(菜单只阻塞托盘线程)"
+    },
+    {
+      "step": "退出菜单可用",
+      "ok": false,
+      "detail": "菜单窗口 rect=[3, 42, 241, 172] 回调计数={'show': 0, 'toggle': 0, 'best': 1, 'quit': 0} cmd_id=None"
+    },
+    {
+      "step": "stop() 后图标消失",
+      "ok": true,
+      "detail": "Shell_NotifyIconGetRect -> None"
+    },
+    {
+      "step": "托盘线程已结束",
+      "ok": true,
+      "detail": "thread=None"
+    }
+  ],
+  "callbacks": {
+    "show": 0,
+    "toggle": 0,
+    "best": 1,
+    "quit": 0
+  },
+  "ico": {
+    "on": "C:\\Users\\Administrator\\AccessPilot\\accesspilot\\gui\\assets\\hongxing.ico",
+    "off": "C:\\Users\\Administrator\\AccessPilot\\accesspilot\\gui\\assets\\hongxing_off.ico",
+    "entries": [
+      [
+        16,
+        16,
+        32,
+        1128,
+        70
+      ],
+      [
+        32,
+        32,
+        32,
+        4264,
+        1198
+      ],
+      [
+        48,
+        48,
+        32,
+        9640,
+        5462
+      ],
+      [
+        256,
+        256,
+        32,
+        270376,
+        15102
+      ]
+    ]
+  },
+  "icon_rect": [
+    1689,
+    1020,
+    1725,
+    1080
+  ],
+  "menu": {
+    "cursor": [
+      760,
+      380
+    ],
+    "item_index": 3,
+    "attempt": 3,
+    "ticks_before_post": 232,
+    "menu_opened_at": 1790816899.263,
+    "ticks_at_menu_open": 232,
+    "tray_hwnd": 984866,
+    "foreground_before_menu": 66340,
+    "id_texts": {
+      "1": "显示主窗口",
+      "2": "断开连接",
+      "3": "自动选最优节点",
+      "4": "退出"
+    },
+    "menu_built_at": 1790816899.264,
+    "menu_closed_at": 1790816900.842,
+    "ticks_at_menu_close": 240,
+    "ticks_after_menu": 306,
+    "helper_stdout": "",
+    "pid": 23280,
+    "item": 3,
+    "label": "quit",
+    "menu_hwnd": 3146576,
+    "found_at": 1790816899.552,
+    "menu_window_rect": [
+      3,
+      42,
+      241,
+      172
+    ],
+    "menu_image": [
+      1190,
+      650
+    ],
+    "clicked_at": [
+      122,
+      153
+    ],
+    "item_h": 31,
+    "cursor_placed": false,
+    "cursor_before_click": [
+      272,
+      325
+    ],
+    "window_under_cursor": 1186184,
+    "cursor_on_menu": false,
+    "used_keyboard_fallback": "cursor-not-on-menu",
+    "menu_gone_after_enter": true,
+    "attempts": [
+      {
+        "attempt": 1,
+        "menu_rect": [
+          760,
+          380,
+          998,
+          510
+        ],
+        "cursor_on_menu": false,
+        "keyboard_fallback": "cursor-not-on-menu",
+        "cmd_id": null
+      },
+      {
+        "attempt": 2,
+        "menu_rect": [
+          762,
+          379,
+          1000,
+          509
+        ],
+        "cursor_on_menu": false,
+        "keyboard_fallback": "cursor-not-on-menu",
+        "cmd_id": null
+      },
+      {
+        "attempt": 3,
+        "menu_rect": [
+          3,
+          42,
+          241,
+          172
+        ],
+        "cursor_on_menu": false,
+        "keyboard_fallback": "cursor-not-on-menu",
+        "cmd_id": null
+      }
+    ]
+  },
+  "out_dir": "artifacts\\tray"
+}

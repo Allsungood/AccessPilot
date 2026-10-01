@@ -1,0 +1,26 @@
+[i] ��������Ŀ¼: C:\Users\Administrator\AppData\Local\Temp\accesspilot-runtests-u_mm7ctf
+[!] 跳过格式异常的链接: '2600:1' does not appear to be an IPv4 or IPv6 address
+[!] 跳过格式异常的链接: '2600:1' does not appear to be an IPv4 or IPv6 address
+[!] 跳过格式异常的链接: Invalid IPv6 URL
+[!] Z:\definitely\not\writable\dir 写入失败: [WinError 3] 系统找不到指定的路径。: 'Z:\\'
+[+] 已安装: C:\Users\Administrator\AppData\Local\Temp\tmp5d_tdorj\accesspilot.cmd
+[+] 已安装: C:\Users\Administrator\AppData\Local\Temp\tmp5d_tdorj\superlantern.cmd
+
+[i] 在任意目录直接运行:  accesspilot --version
+  如果提示找不到命令, 关掉重开一个终端窗口即可(PATH 需要刷新)
+[+] 已安装: C:\Users\Administrator\AppData\Local\Temp\tmpknwep9tw\accesspilot.cmd
+[+] 已安装: C:\Users\Administrator\AppData\Local\Temp\tmpknwep9tw\superlantern.cmd
+
+[i] 在任意目录直接运行:  accesspilot --version
+  如果提示找不到命令, 关掉重开一个终端窗口即可(PATH 需要刷新)
+[+] 已安装: C:\Users\Administrator\AppData\Local\Temp\tmpa10dnbnq\accesspilot.cmd
+[+] 已安装: C:\Users\Administrator\AppData\Local\Temp\tmpa10dnbnq\superlantern.cmd
+
+[i] 在任意目录直接运行:  accesspilot --version
+  如果提示找不到命令, 关掉重开一个终端窗口即可(PATH 需要刷新)
+[+] 已删除配置档 测试档
+..................................................................................................................................................................................................................................................................
+----------------------------------------------------------------------
+Ran 258 tests in 21.883s
+
+OK
