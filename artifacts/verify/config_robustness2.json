@@ -1,0 +1,127 @@
+[
+  {
+    "real_types": {
+      "anytls": [
+        "name",
+        "password",
+        "port",
+        "server",
+        "skip-cert-verify",
+        "sni",
+        "tls",
+        "type",
+        "udp"
+      ],
+      "http": [
+        "name",
+        "port",
+        "server",
+        "type",
+        "udp"
+      ],
+      "hysteria2": [
+        "name",
+        "password",
+        "port",
+        "server",
+        "skip-cert-verify",
+        "sni",
+        "type"
+      ],
+      "socks5": [
+        "name",
+        "password",
+        "port",
+        "server",
+        "type",
+        "udp",
+        "username"
+      ],
+      "ss": [
+        "cipher",
+        "name",
+        "password",
+        "port",
+        "server",
+        "type",
+        "udp"
+      ],
+      "trojan": [
+        "name",
+        "password",
+        "port",
+        "server",
+        "skip-cert-verify",
+        "sni",
+        "type",
+        "udp"
+      ],
+      "vless": [
+        "alpn",
+        "client-fingerprint",
+        "name",
+        "network",
+        "port",
+        "server",
+        "servername",
+        "tls",
+        "type",
+        "udp",
+        "uuid",
+        "ws-opts"
+      ],
+      "vmess": [
+        "alterId",
+        "cipher",
+        "name",
+        "network",
+        "port",
+        "server",
+        "type",
+        "udp",
+        "uuid",
+        "ws-opts"
+      ]
+    },
+    "type_counts": {
+      "vmess": 1021,
+      "trojan": 607,
+      "vless": 3741,
+      "ss": 57,
+      "http": 451,
+      "socks5": 8,
+      "anytls": 1,
+      "hysteria2": 64
+    }
+  },
+  {
+    "case": "每种类型各取 1 个真实节点",
+    "n": 8,
+    "core_accepts": true,
+    "key": [
+      "configuration file C:\\Users\\Administrator\\AppData\\Local\\Temp\\ap-v2-_890420v\\config.yaml test is successful"
+    ]
+  },
+  {
+    "case": "真实 vmess 去掉 uuid",
+    "core_accepts": false,
+    "key": [
+      "time=\"2026-10-01T11:16:10.889036100+08:00\" level=error msg=\"proxy 0: '' has unset fields: uuid\"",
+      "configuration file C:\\Users\\Administrator\\AppData\\Local\\Temp\\ap-v2-ht0ya6sg\\config.yaml test failed"
+    ]
+  },
+  {
+    "case": "现有 free.json 经 uniquify_names() 去重后渲染",
+    "core_accepts": true,
+    "key": [
+      "configuration file C:\\Users\\Administrator\\AppData\\Local\\Temp\\ap-v2-uj1spbwq\\config.yaml test is successful"
+    ]
+  },
+  {
+    "case": "sanitize_proxies() 之后再 uniquify_names() 渲染",
+    "core_accepts": true,
+    "key": [
+      "configuration file C:\\Users\\Administrator\\AppData\\Local\\Temp\\ap-v2-keoiaekn\\config.yaml test is successful"
+    ]
+  }
+]

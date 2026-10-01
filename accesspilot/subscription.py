@@ -173,15 +173,33 @@ def dedupe(proxies: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 def uniquify_names(proxies: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    used: dict[str, int] = {}
+    """确保输出里**没有任何两个 name 相同**, 重名的加 ` #N` 后缀。
+
+    ⚠️ 这个保证是硬要求, 不是"顺手清理一下": 内核只要发现一个重名, 拒绝的是
+    **整份配置**(报 `proxy X is the duplicate name`), 不是那一个节点。6000 个
+    节点里有两百个重名, 代价是 6000 个全部不可用。
+
+    ## 原来的实现不成立(实测)
+
+        >>> uniquify_names([{"name":"X"},{"name":"X"},{"name":"X #2"}])
+        ['X', 'X #2', 'X #2']          # ← 它自己造出了一个重名
+
+    因为 `used` 只记录 base, 而**生成出来的** `f"{base} #{n}"` 从不检查是否
+    已被占用 —— 可输入里本来就完全可能有一个节点叫 `X #2`。
+    于是"调用过 uniquify_names 所以名字一定唯一"这个前提是假的, 而所有上层
+    代码都建立在它上面(见 config.build_config 的注释)。
+
+    现在改成维护一个"已被占用"的集合, 生成的名字也查重, 撞了就继续往后加。
+    """
+    taken: set[str] = set()
     for p in proxies:
         base = str(p.get("name") or "node").strip() or "node"
-        if base in used:
-            used[base] += 1
-            p["name"] = f"{base} #{used[base]}"
-        else:
-            used[base] = 1
-            p["name"] = base
+        name, n = base, 1
+        while name in taken:
+            n += 1
+            name = f"{base} #{n}"
+        taken.add(name)
+        p["name"] = name
     return proxies
 
 

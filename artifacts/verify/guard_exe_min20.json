@@ -1,0 +1,4384 @@
+{
+  "label": "exe-minimize-at-20s-after-guard",
+  "dpi_awareness": "per-monitor-v2",
+  "screen": [
+    1920,
+    1080
+  ],
+  "cmd": [
+    "C:\\Users\\Administrator\\AccessPilot\\dist\\红杏.exe"
+  ],
+  "spawn_pid": 8160,
+  "frames": [
+    {
+      "t": 2.0,
+      "child_alive": true,
+      "pids": [
+        8160,
+        20552
+      ],
+      "windows": [
+        {
+          "hwnd": 6231494,
+          "title": "HongXingTraySink",
+          "class": "HongXingTrayWnd_20552_1",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            22,
+            22
+          ]
+        },
+        {
+          "hwnd": 3091278,
+          "title": "TtkMonitorWindow",
+          "class": "TtkMonitorClass",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            38,
+            38,
+            1440,
+            736
+          ]
+        },
+        {
+          "hwnd": 2889226,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        },
+        {
+          "hwnd": 1125264,
+          "title": "PyInstaller Onefile Hidden Window",
+          "class": "PyInstallerOnefileHiddenWindow",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            234,
+            234,
+            1440,
+            722
+          ]
+        },
+        {
+          "hwnd": 3217018,
+          "title": "",
+          "class": "SoPY_UI",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 3020386,
+          "title": "Sogou_TSF_UI",
+          "class": "Sogou_TSF_UI",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 4789744,
+          "title": "Default IME",
+          "class": "IME",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 5379644,
+          "title": "MSCTFIME UI",
+          "class": "MSCTFIME UI",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 928572,
+          "title": "Default IME",
+          "class": "IME",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 731960,
+          "title": "Default IME",
+          "class": "IME",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "t": 4.02,
+      "child_alive": true,
+      "pids": [
+        8160,
+        20552
+      ],
+      "windows": [
+        {
+          "hwnd": 2889226,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        },
+        {
+          "hwnd": 2823694,
+          "title": "EmbeddedMenuWindow",
+          "class": "EmbeddedMenuWindowClass",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            10,
+            10
+          ]
+        },
+        {
+          "hwnd": 2363650,
+          "title": "MenuWindow",
+          "class": "MenuWindowClass",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            10,
+            10
+          ]
+        },
+        {
+          "hwnd": 6231494,
+          "title": "HongXingTraySink",
+          "class": "HongXingTrayWnd_20552_1",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            22,
+            22
+          ]
+        },
+        {
+          "hwnd": 3091278,
+          "title": "TtkMonitorWindow",
+          "class": "TtkMonitorClass",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            38,
+            38,
+            1440,
+            736
+          ]
+        },
+        {
+          "hwnd": 1125264,
+          "title": "PyInstaller Onefile Hidden Window",
+          "class": "PyInstallerOnefileHiddenWindow",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            234,
+            234,
+            1440,
+            722
+          ]
+        },
+        {
+          "hwnd": 3681166,
+          "title": "",
+          "class": "SoPY_Status",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            1578,
+            576,
+            349,
+            66
+          ]
+        },
+        {
+          "hwnd": 4331276,
+          "title": "HintWnd",
+          "class": "SoPY_Hint",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 3217018,
+          "title": "",
+          "class": "SoPY_UI",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 3020386,
+          "title": "Sogou_TSF_UI",
+          "class": "Sogou_TSF_UI",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 5379644,
+          "title": "MSCTFIME UI",
+          "class": "MSCTFIME UI",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 928572,
+          "title": "Default IME",
+          "class": "IME",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 4789744,
+          "title": "Default IME",
+          "class": "IME",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 731960,
+          "title": "Default IME",
+          "class": "IME",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "t": 6.1,
+      "child_alive": true,
+      "pids": [
+        8160,
+        20552
+      ],
+      "windows": [
+        {
+          "hwnd": 2889226,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        },
+        {
+          "hwnd": 2823694,
+          "title": "EmbeddedMenuWindow",
+          "class": "EmbeddedMenuWindowClass",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            10,
+            10
+          ]
+        },
+        {
+          "hwnd": 2363650,
+          "title": "MenuWindow",
+          "class": "MenuWindowClass",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            10,
+            10
+          ]
+        },
+        {
+          "hwnd": 6231494,
+          "title": "HongXingTraySink",
+          "class": "HongXingTrayWnd_20552_1",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            22,
+            22
+          ]
+        },
+        {
+          "hwnd": 3091278,
+          "title": "TtkMonitorWindow",
+          "class": "TtkMonitorClass",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            38,
+            38,
+            1440,
+            736
+          ]
+        },
+        {
+          "hwnd": 1125264,
+          "title": "PyInstaller Onefile Hidden Window",
+          "class": "PyInstallerOnefileHiddenWindow",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            234,
+            234,
+            1440,
+            722
+          ]
+        },
+        {
+          "hwnd": 3681166,
+          "title": "",
+          "class": "SoPY_Status",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            1578,
+            576,
+            349,
+            66
+          ]
+        },
+        {
+          "hwnd": 4331276,
+          "title": "HintWnd",
+          "class": "SoPY_Hint",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 3217018,
+          "title": "",
+          "class": "SoPY_UI",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 3020386,
+          "title": "Sogou_TSF_UI",
+          "class": "Sogou_TSF_UI",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 5379644,
+          "title": "MSCTFIME UI",
+          "class": "MSCTFIME UI",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 928572,
+          "title": "Default IME",
+          "class": "IME",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 4789744,
+          "title": "Default IME",
+          "class": "IME",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 731960,
+          "title": "Default IME",
+          "class": "IME",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "t": 8.11,
+      "child_alive": true,
+      "pids": [
+        8160,
+        20552
+      ],
+      "windows": [
+        {
+          "hwnd": 2889226,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        },
+        {
+          "hwnd": 2823694,
+          "title": "EmbeddedMenuWindow",
+          "class": "EmbeddedMenuWindowClass",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            10,
+            10
+          ]
+        },
+        {
+          "hwnd": 2363650,
+          "title": "MenuWindow",
+          "class": "MenuWindowClass",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            10,
+            10
+          ]
+        },
+        {
+          "hwnd": 6231494,
+          "title": "HongXingTraySink",
+          "class": "HongXingTrayWnd_20552_1",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            22,
+            22
+          ]
+        },
+        {
+          "hwnd": 3091278,
+          "title": "TtkMonitorWindow",
+          "class": "TtkMonitorClass",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            38,
+            38,
+            1440,
+            736
+          ]
+        },
+        {
+          "hwnd": 1125264,
+          "title": "PyInstaller Onefile Hidden Window",
+          "class": "PyInstallerOnefileHiddenWindow",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            234,
+            234,
+            1440,
+            722
+          ]
+        },
+        {
+          "hwnd": 3681166,
+          "title": "",
+          "class": "SoPY_Status",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            1578,
+            576,
+            349,
+            66
+          ]
+        },
+        {
+          "hwnd": 4331276,
+          "title": "HintWnd",
+          "class": "SoPY_Hint",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 3217018,
+          "title": "",
+          "class": "SoPY_UI",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 3020386,
+          "title": "Sogou_TSF_UI",
+          "class": "Sogou_TSF_UI",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 5379644,
+          "title": "MSCTFIME UI",
+          "class": "MSCTFIME UI",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 928572,
+          "title": "Default IME",
+          "class": "IME",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 4789744,
+          "title": "Default IME",
+          "class": "IME",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 731960,
+          "title": "Default IME",
+          "class": "IME",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "t": 10.12,
+      "child_alive": true,
+      "pids": [
+        8160,
+        20552
+      ],
+      "windows": [
+        {
+          "hwnd": 2889226,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        },
+        {
+          "hwnd": 2823694,
+          "title": "EmbeddedMenuWindow",
+          "class": "EmbeddedMenuWindowClass",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            10,
+            10
+          ]
+        },
+        {
+          "hwnd": 2363650,
+          "title": "MenuWindow",
+          "class": "MenuWindowClass",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            10,
+            10
+          ]
+        },
+        {
+          "hwnd": 6231494,
+          "title": "HongXingTraySink",
+          "class": "HongXingTrayWnd_20552_1",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            22,
+            22
+          ]
+        },
+        {
+          "hwnd": 3091278,
+          "title": "TtkMonitorWindow",
+          "class": "TtkMonitorClass",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            38,
+            38,
+            1440,
+            736
+          ]
+        },
+        {
+          "hwnd": 1125264,
+          "title": "PyInstaller Onefile Hidden Window",
+          "class": "PyInstallerOnefileHiddenWindow",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            234,
+            234,
+            1440,
+            722
+          ]
+        },
+        {
+          "hwnd": 3681166,
+          "title": "",
+          "class": "SoPY_Status",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            1578,
+            576,
+            349,
+            66
+          ]
+        },
+        {
+          "hwnd": 4331276,
+          "title": "HintWnd",
+          "class": "SoPY_Hint",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 3217018,
+          "title": "",
+          "class": "SoPY_UI",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 3020386,
+          "title": "Sogou_TSF_UI",
+          "class": "Sogou_TSF_UI",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 5379644,
+          "title": "MSCTFIME UI",
+          "class": "MSCTFIME UI",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 928572,
+          "title": "Default IME",
+          "class": "IME",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 4789744,
+          "title": "Default IME",
+          "class": "IME",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 731960,
+          "title": "Default IME",
+          "class": "IME",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "t": 12.13,
+      "child_alive": true,
+      "pids": [
+        8160,
+        20552
+      ],
+      "windows": [
+        {
+          "hwnd": 2889226,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        },
+        {
+          "hwnd": 2823694,
+          "title": "EmbeddedMenuWindow",
+          "class": "EmbeddedMenuWindowClass",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            10,
+            10
+          ]
+        },
+        {
+          "hwnd": 2363650,
+          "title": "MenuWindow",
+          "class": "MenuWindowClass",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            10,
+            10
+          ]
+        },
+        {
+          "hwnd": 6231494,
+          "title": "HongXingTraySink",
+          "class": "HongXingTrayWnd_20552_1",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            22,
+            22
+          ]
+        },
+        {
+          "hwnd": 3091278,
+          "title": "TtkMonitorWindow",
+          "class": "TtkMonitorClass",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            38,
+            38,
+            1440,
+            736
+          ]
+        },
+        {
+          "hwnd": 1125264,
+          "title": "PyInstaller Onefile Hidden Window",
+          "class": "PyInstallerOnefileHiddenWindow",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            234,
+            234,
+            1440,
+            722
+          ]
+        },
+        {
+          "hwnd": 3681166,
+          "title": "",
+          "class": "SoPY_Status",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            1578,
+            576,
+            349,
+            66
+          ]
+        },
+        {
+          "hwnd": 4331276,
+          "title": "HintWnd",
+          "class": "SoPY_Hint",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 3217018,
+          "title": "",
+          "class": "SoPY_UI",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 3020386,
+          "title": "Sogou_TSF_UI",
+          "class": "Sogou_TSF_UI",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 5379644,
+          "title": "MSCTFIME UI",
+          "class": "MSCTFIME UI",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 928572,
+          "title": "Default IME",
+          "class": "IME",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 4789744,
+          "title": "Default IME",
+          "class": "IME",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 731960,
+          "title": "Default IME",
+          "class": "IME",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "t": 14.15,
+      "child_alive": true,
+      "pids": [
+        8160,
+        20552
+      ],
+      "windows": [
+        {
+          "hwnd": 2889226,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        },
+        {
+          "hwnd": 2823694,
+          "title": "EmbeddedMenuWindow",
+          "class": "EmbeddedMenuWindowClass",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            10,
+            10
+          ]
+        },
+        {
+          "hwnd": 2363650,
+          "title": "MenuWindow",
+          "class": "MenuWindowClass",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            10,
+            10
+          ]
+        },
+        {
+          "hwnd": 6231494,
+          "title": "HongXingTraySink",
+          "class": "HongXingTrayWnd_20552_1",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            22,
+            22
+          ]
+        },
+        {
+          "hwnd": 3091278,
+          "title": "TtkMonitorWindow",
+          "class": "TtkMonitorClass",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            38,
+            38,
+            1440,
+            736
+          ]
+        },
+        {
+          "hwnd": 1125264,
+          "title": "PyInstaller Onefile Hidden Window",
+          "class": "PyInstallerOnefileHiddenWindow",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            234,
+            234,
+            1440,
+            722
+          ]
+        },
+        {
+          "hwnd": 3681166,
+          "title": "",
+          "class": "SoPY_Status",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            1578,
+            576,
+            349,
+            66
+          ]
+        },
+        {
+          "hwnd": 4331276,
+          "title": "HintWnd",
+          "class": "SoPY_Hint",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 3217018,
+          "title": "",
+          "class": "SoPY_UI",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 3020386,
+          "title": "Sogou_TSF_UI",
+          "class": "Sogou_TSF_UI",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 5379644,
+          "title": "MSCTFIME UI",
+          "class": "MSCTFIME UI",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 928572,
+          "title": "Default IME",
+          "class": "IME",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 4789744,
+          "title": "Default IME",
+          "class": "IME",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 731960,
+          "title": "Default IME",
+          "class": "IME",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "t": 16.18,
+      "child_alive": true,
+      "pids": [
+        8160,
+        20552
+      ],
+      "windows": [
+        {
+          "hwnd": 2889226,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        },
+        {
+          "hwnd": 2823694,
+          "title": "EmbeddedMenuWindow",
+          "class": "EmbeddedMenuWindowClass",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            10,
+            10
+          ]
+        },
+        {
+          "hwnd": 2363650,
+          "title": "MenuWindow",
+          "class": "MenuWindowClass",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            10,
+            10
+          ]
+        },
+        {
+          "hwnd": 6231494,
+          "title": "HongXingTraySink",
+          "class": "HongXingTrayWnd_20552_1",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            22,
+            22
+          ]
+        },
+        {
+          "hwnd": 3091278,
+          "title": "TtkMonitorWindow",
+          "class": "TtkMonitorClass",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            38,
+            38,
+            1440,
+            736
+          ]
+        },
+        {
+          "hwnd": 1125264,
+          "title": "PyInstaller Onefile Hidden Window",
+          "class": "PyInstallerOnefileHiddenWindow",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            234,
+            234,
+            1440,
+            722
+          ]
+        },
+        {
+          "hwnd": 3681166,
+          "title": "",
+          "class": "SoPY_Status",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            1578,
+            576,
+            349,
+            66
+          ]
+        },
+        {
+          "hwnd": 4331276,
+          "title": "HintWnd",
+          "class": "SoPY_Hint",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 3217018,
+          "title": "",
+          "class": "SoPY_UI",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 3020386,
+          "title": "Sogou_TSF_UI",
+          "class": "Sogou_TSF_UI",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 5379644,
+          "title": "MSCTFIME UI",
+          "class": "MSCTFIME UI",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 928572,
+          "title": "Default IME",
+          "class": "IME",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 4789744,
+          "title": "Default IME",
+          "class": "IME",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 731960,
+          "title": "Default IME",
+          "class": "IME",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "t": 18.19,
+      "child_alive": true,
+      "pids": [
+        8160,
+        20552
+      ],
+      "windows": [
+        {
+          "hwnd": 2889226,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        },
+        {
+          "hwnd": 2823694,
+          "title": "EmbeddedMenuWindow",
+          "class": "EmbeddedMenuWindowClass",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            10,
+            10
+          ]
+        },
+        {
+          "hwnd": 2363650,
+          "title": "MenuWindow",
+          "class": "MenuWindowClass",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            10,
+            10
+          ]
+        },
+        {
+          "hwnd": 6231494,
+          "title": "HongXingTraySink",
+          "class": "HongXingTrayWnd_20552_1",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            22,
+            22
+          ]
+        },
+        {
+          "hwnd": 3091278,
+          "title": "TtkMonitorWindow",
+          "class": "TtkMonitorClass",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            38,
+            38,
+            1440,
+            736
+          ]
+        },
+        {
+          "hwnd": 1125264,
+          "title": "PyInstaller Onefile Hidden Window",
+          "class": "PyInstallerOnefileHiddenWindow",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            234,
+            234,
+            1440,
+            722
+          ]
+        },
+        {
+          "hwnd": 3681166,
+          "title": "",
+          "class": "SoPY_Status",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            1578,
+            576,
+            349,
+            66
+          ]
+        },
+        {
+          "hwnd": 4331276,
+          "title": "HintWnd",
+          "class": "SoPY_Hint",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 3217018,
+          "title": "",
+          "class": "SoPY_UI",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 3020386,
+          "title": "Sogou_TSF_UI",
+          "class": "Sogou_TSF_UI",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 5379644,
+          "title": "MSCTFIME UI",
+          "class": "MSCTFIME UI",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 928572,
+          "title": "Default IME",
+          "class": "IME",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 4789744,
+          "title": "Default IME",
+          "class": "IME",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 731960,
+          "title": "Default IME",
+          "class": "IME",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "t": 20.21,
+      "child_alive": true,
+      "pids": [
+        8160,
+        20552
+      ],
+      "windows": [
+        {
+          "hwnd": 2889226,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": false,
+          "rect": [
+            165,
+            21,
+            1612,
+            986
+          ]
+        },
+        {
+          "hwnd": 2823694,
+          "title": "EmbeddedMenuWindow",
+          "class": "EmbeddedMenuWindowClass",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            10,
+            10
+          ]
+        },
+        {
+          "hwnd": 2363650,
+          "title": "MenuWindow",
+          "class": "MenuWindowClass",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            10,
+            10
+          ]
+        },
+        {
+          "hwnd": 6231494,
+          "title": "HongXingTraySink",
+          "class": "HongXingTrayWnd_20552_1",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            22,
+            22
+          ]
+        },
+        {
+          "hwnd": 3091278,
+          "title": "TtkMonitorWindow",
+          "class": "TtkMonitorClass",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            38,
+            38,
+            1440,
+            736
+          ]
+        },
+        {
+          "hwnd": 1125264,
+          "title": "PyInstaller Onefile Hidden Window",
+          "class": "PyInstallerOnefileHiddenWindow",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            234,
+            234,
+            1440,
+            722
+          ]
+        },
+        {
+          "hwnd": 3681166,
+          "title": "",
+          "class": "SoPY_Status",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            1578,
+            576,
+            349,
+            66
+          ]
+        },
+        {
+          "hwnd": 4331276,
+          "title": "HintWnd",
+          "class": "SoPY_Hint",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 3217018,
+          "title": "",
+          "class": "SoPY_UI",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 3020386,
+          "title": "Sogou_TSF_UI",
+          "class": "Sogou_TSF_UI",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 5379644,
+          "title": "MSCTFIME UI",
+          "class": "MSCTFIME UI",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 928572,
+          "title": "Default IME",
+          "class": "IME",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 4789744,
+          "title": "Default IME",
+          "class": "IME",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 731960,
+          "title": "Default IME",
+          "class": "IME",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "t": 22.24,
+      "child_alive": true,
+      "pids": [
+        8160,
+        20552
+      ],
+      "windows": [
+        {
+          "hwnd": 2823694,
+          "title": "EmbeddedMenuWindow",
+          "class": "EmbeddedMenuWindowClass",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            10,
+            10
+          ]
+        },
+        {
+          "hwnd": 2363650,
+          "title": "MenuWindow",
+          "class": "MenuWindowClass",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            10,
+            10
+          ]
+        },
+        {
+          "hwnd": 6231494,
+          "title": "HongXingTraySink",
+          "class": "HongXingTrayWnd_20552_1",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            22,
+            22
+          ]
+        },
+        {
+          "hwnd": 3091278,
+          "title": "TtkMonitorWindow",
+          "class": "TtkMonitorClass",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            38,
+            38,
+            1440,
+            736
+          ]
+        },
+        {
+          "hwnd": 1125264,
+          "title": "PyInstaller Onefile Hidden Window",
+          "class": "PyInstallerOnefileHiddenWindow",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            234,
+            234,
+            1440,
+            722
+          ]
+        },
+        {
+          "hwnd": 2889226,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": true,
+          "rect": [
+            -32000,
+            -32000,
+            237,
+            39
+          ]
+        },
+        {
+          "hwnd": 3681166,
+          "title": "",
+          "class": "SoPY_Status",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            1578,
+            576,
+            349,
+            66
+          ]
+        },
+        {
+          "hwnd": 4789744,
+          "title": "Default IME",
+          "class": "IME",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 731960,
+          "title": "Default IME",
+          "class": "IME",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 4331276,
+          "title": "HintWnd",
+          "class": "SoPY_Hint",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 3217018,
+          "title": "",
+          "class": "SoPY_UI",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 3020386,
+          "title": "Sogou_TSF_UI",
+          "class": "Sogou_TSF_UI",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 5379644,
+          "title": "MSCTFIME UI",
+          "class": "MSCTFIME UI",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 928572,
+          "title": "Default IME",
+          "class": "IME",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "t": 24.26,
+      "child_alive": true,
+      "pids": [
+        8160,
+        20552
+      ],
+      "windows": [
+        {
+          "hwnd": 2823694,
+          "title": "EmbeddedMenuWindow",
+          "class": "EmbeddedMenuWindowClass",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            10,
+            10
+          ]
+        },
+        {
+          "hwnd": 2363650,
+          "title": "MenuWindow",
+          "class": "MenuWindowClass",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            10,
+            10
+          ]
+        },
+        {
+          "hwnd": 6231494,
+          "title": "HongXingTraySink",
+          "class": "HongXingTrayWnd_20552_1",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            22,
+            22
+          ]
+        },
+        {
+          "hwnd": 3091278,
+          "title": "TtkMonitorWindow",
+          "class": "TtkMonitorClass",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            38,
+            38,
+            1440,
+            736
+          ]
+        },
+        {
+          "hwnd": 1125264,
+          "title": "PyInstaller Onefile Hidden Window",
+          "class": "PyInstallerOnefileHiddenWindow",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            234,
+            234,
+            1440,
+            722
+          ]
+        },
+        {
+          "hwnd": 2889226,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": true,
+          "rect": [
+            -32000,
+            -32000,
+            237,
+            39
+          ]
+        },
+        {
+          "hwnd": 3681166,
+          "title": "",
+          "class": "SoPY_Status",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            1578,
+            576,
+            349,
+            66
+          ]
+        },
+        {
+          "hwnd": 4789744,
+          "title": "Default IME",
+          "class": "IME",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 731960,
+          "title": "Default IME",
+          "class": "IME",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 4331276,
+          "title": "HintWnd",
+          "class": "SoPY_Hint",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 3217018,
+          "title": "",
+          "class": "SoPY_UI",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 3020386,
+          "title": "Sogou_TSF_UI",
+          "class": "Sogou_TSF_UI",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 5379644,
+          "title": "MSCTFIME UI",
+          "class": "MSCTFIME UI",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 928572,
+          "title": "Default IME",
+          "class": "IME",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "t": 26.27,
+      "child_alive": true,
+      "pids": [
+        8160,
+        20552
+      ],
+      "windows": [
+        {
+          "hwnd": 2823694,
+          "title": "EmbeddedMenuWindow",
+          "class": "EmbeddedMenuWindowClass",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            10,
+            10
+          ]
+        },
+        {
+          "hwnd": 2363650,
+          "title": "MenuWindow",
+          "class": "MenuWindowClass",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            10,
+            10
+          ]
+        },
+        {
+          "hwnd": 6231494,
+          "title": "HongXingTraySink",
+          "class": "HongXingTrayWnd_20552_1",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            22,
+            22
+          ]
+        },
+        {
+          "hwnd": 3091278,
+          "title": "TtkMonitorWindow",
+          "class": "TtkMonitorClass",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            38,
+            38,
+            1440,
+            736
+          ]
+        },
+        {
+          "hwnd": 1125264,
+          "title": "PyInstaller Onefile Hidden Window",
+          "class": "PyInstallerOnefileHiddenWindow",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            234,
+            234,
+            1440,
+            722
+          ]
+        },
+        {
+          "hwnd": 2889226,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": true,
+          "rect": [
+            -32000,
+            -32000,
+            237,
+            39
+          ]
+        },
+        {
+          "hwnd": 3681166,
+          "title": "",
+          "class": "SoPY_Status",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            1578,
+            576,
+            349,
+            66
+          ]
+        },
+        {
+          "hwnd": 4789744,
+          "title": "Default IME",
+          "class": "IME",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 731960,
+          "title": "Default IME",
+          "class": "IME",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 4331276,
+          "title": "HintWnd",
+          "class": "SoPY_Hint",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 3217018,
+          "title": "",
+          "class": "SoPY_UI",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 3020386,
+          "title": "Sogou_TSF_UI",
+          "class": "Sogou_TSF_UI",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 5379644,
+          "title": "MSCTFIME UI",
+          "class": "MSCTFIME UI",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 928572,
+          "title": "Default IME",
+          "class": "IME",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "t": 28.28,
+      "child_alive": true,
+      "pids": [
+        8160,
+        20552
+      ],
+      "windows": [
+        {
+          "hwnd": 2823694,
+          "title": "EmbeddedMenuWindow",
+          "class": "EmbeddedMenuWindowClass",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            10,
+            10
+          ]
+        },
+        {
+          "hwnd": 2363650,
+          "title": "MenuWindow",
+          "class": "MenuWindowClass",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            10,
+            10
+          ]
+        },
+        {
+          "hwnd": 6231494,
+          "title": "HongXingTraySink",
+          "class": "HongXingTrayWnd_20552_1",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            22,
+            22
+          ]
+        },
+        {
+          "hwnd": 3091278,
+          "title": "TtkMonitorWindow",
+          "class": "TtkMonitorClass",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            38,
+            38,
+            1440,
+            736
+          ]
+        },
+        {
+          "hwnd": 1125264,
+          "title": "PyInstaller Onefile Hidden Window",
+          "class": "PyInstallerOnefileHiddenWindow",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            234,
+            234,
+            1440,
+            722
+          ]
+        },
+        {
+          "hwnd": 2889226,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": true,
+          "rect": [
+            -32000,
+            -32000,
+            237,
+            39
+          ]
+        },
+        {
+          "hwnd": 3681166,
+          "title": "",
+          "class": "SoPY_Status",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            1578,
+            576,
+            349,
+            66
+          ]
+        },
+        {
+          "hwnd": 4789744,
+          "title": "Default IME",
+          "class": "IME",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 731960,
+          "title": "Default IME",
+          "class": "IME",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 4331276,
+          "title": "HintWnd",
+          "class": "SoPY_Hint",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 3217018,
+          "title": "",
+          "class": "SoPY_UI",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 3020386,
+          "title": "Sogou_TSF_UI",
+          "class": "Sogou_TSF_UI",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 5379644,
+          "title": "MSCTFIME UI",
+          "class": "MSCTFIME UI",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 928572,
+          "title": "Default IME",
+          "class": "IME",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "t": 30.29,
+      "child_alive": true,
+      "pids": [
+        8160,
+        20552
+      ],
+      "windows": [
+        {
+          "hwnd": 2823694,
+          "title": "EmbeddedMenuWindow",
+          "class": "EmbeddedMenuWindowClass",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            10,
+            10
+          ]
+        },
+        {
+          "hwnd": 2363650,
+          "title": "MenuWindow",
+          "class": "MenuWindowClass",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            10,
+            10
+          ]
+        },
+        {
+          "hwnd": 6231494,
+          "title": "HongXingTraySink",
+          "class": "HongXingTrayWnd_20552_1",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            22,
+            22
+          ]
+        },
+        {
+          "hwnd": 3091278,
+          "title": "TtkMonitorWindow",
+          "class": "TtkMonitorClass",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            38,
+            38,
+            1440,
+            736
+          ]
+        },
+        {
+          "hwnd": 1125264,
+          "title": "PyInstaller Onefile Hidden Window",
+          "class": "PyInstallerOnefileHiddenWindow",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            234,
+            234,
+            1440,
+            722
+          ]
+        },
+        {
+          "hwnd": 2889226,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": true,
+          "rect": [
+            -32000,
+            -32000,
+            237,
+            39
+          ]
+        },
+        {
+          "hwnd": 3681166,
+          "title": "",
+          "class": "SoPY_Status",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            1578,
+            576,
+            349,
+            66
+          ]
+        },
+        {
+          "hwnd": 4789744,
+          "title": "Default IME",
+          "class": "IME",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 731960,
+          "title": "Default IME",
+          "class": "IME",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 4331276,
+          "title": "HintWnd",
+          "class": "SoPY_Hint",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 3217018,
+          "title": "",
+          "class": "SoPY_UI",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 3020386,
+          "title": "Sogou_TSF_UI",
+          "class": "Sogou_TSF_UI",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 5379644,
+          "title": "MSCTFIME UI",
+          "class": "MSCTFIME UI",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 928572,
+          "title": "Default IME",
+          "class": "IME",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "t": 32.3,
+      "child_alive": true,
+      "pids": [
+        8160,
+        20552
+      ],
+      "windows": [
+        {
+          "hwnd": 2823694,
+          "title": "EmbeddedMenuWindow",
+          "class": "EmbeddedMenuWindowClass",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            10,
+            10
+          ]
+        },
+        {
+          "hwnd": 2363650,
+          "title": "MenuWindow",
+          "class": "MenuWindowClass",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            10,
+            10
+          ]
+        },
+        {
+          "hwnd": 6231494,
+          "title": "HongXingTraySink",
+          "class": "HongXingTrayWnd_20552_1",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            22,
+            22
+          ]
+        },
+        {
+          "hwnd": 3091278,
+          "title": "TtkMonitorWindow",
+          "class": "TtkMonitorClass",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            38,
+            38,
+            1440,
+            736
+          ]
+        },
+        {
+          "hwnd": 1125264,
+          "title": "PyInstaller Onefile Hidden Window",
+          "class": "PyInstallerOnefileHiddenWindow",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            234,
+            234,
+            1440,
+            722
+          ]
+        },
+        {
+          "hwnd": 2889226,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": true,
+          "rect": [
+            -32000,
+            -32000,
+            237,
+            39
+          ]
+        },
+        {
+          "hwnd": 3681166,
+          "title": "",
+          "class": "SoPY_Status",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            1578,
+            576,
+            349,
+            66
+          ]
+        },
+        {
+          "hwnd": 4789744,
+          "title": "Default IME",
+          "class": "IME",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 731960,
+          "title": "Default IME",
+          "class": "IME",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 4331276,
+          "title": "HintWnd",
+          "class": "SoPY_Hint",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 3217018,
+          "title": "",
+          "class": "SoPY_UI",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 3020386,
+          "title": "Sogou_TSF_UI",
+          "class": "Sogou_TSF_UI",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 5379644,
+          "title": "MSCTFIME UI",
+          "class": "MSCTFIME UI",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 928572,
+          "title": "Default IME",
+          "class": "IME",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "t": 34.31,
+      "child_alive": true,
+      "pids": [
+        8160,
+        20552
+      ],
+      "windows": [
+        {
+          "hwnd": 2823694,
+          "title": "EmbeddedMenuWindow",
+          "class": "EmbeddedMenuWindowClass",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            10,
+            10
+          ]
+        },
+        {
+          "hwnd": 2363650,
+          "title": "MenuWindow",
+          "class": "MenuWindowClass",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            10,
+            10
+          ]
+        },
+        {
+          "hwnd": 6231494,
+          "title": "HongXingTraySink",
+          "class": "HongXingTrayWnd_20552_1",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            22,
+            22
+          ]
+        },
+        {
+          "hwnd": 3091278,
+          "title": "TtkMonitorWindow",
+          "class": "TtkMonitorClass",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            38,
+            38,
+            1440,
+            736
+          ]
+        },
+        {
+          "hwnd": 1125264,
+          "title": "PyInstaller Onefile Hidden Window",
+          "class": "PyInstallerOnefileHiddenWindow",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            234,
+            234,
+            1440,
+            722
+          ]
+        },
+        {
+          "hwnd": 2889226,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": true,
+          "rect": [
+            -32000,
+            -32000,
+            237,
+            39
+          ]
+        },
+        {
+          "hwnd": 3681166,
+          "title": "",
+          "class": "SoPY_Status",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            1578,
+            576,
+            349,
+            66
+          ]
+        },
+        {
+          "hwnd": 4789744,
+          "title": "Default IME",
+          "class": "IME",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 731960,
+          "title": "Default IME",
+          "class": "IME",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 4331276,
+          "title": "HintWnd",
+          "class": "SoPY_Hint",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 3217018,
+          "title": "",
+          "class": "SoPY_UI",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 3020386,
+          "title": "Sogou_TSF_UI",
+          "class": "Sogou_TSF_UI",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 5379644,
+          "title": "MSCTFIME UI",
+          "class": "MSCTFIME UI",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 928572,
+          "title": "Default IME",
+          "class": "IME",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "t": 36.32,
+      "child_alive": true,
+      "pids": [
+        8160,
+        20552
+      ],
+      "windows": [
+        {
+          "hwnd": 2823694,
+          "title": "EmbeddedMenuWindow",
+          "class": "EmbeddedMenuWindowClass",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            10,
+            10
+          ]
+        },
+        {
+          "hwnd": 2363650,
+          "title": "MenuWindow",
+          "class": "MenuWindowClass",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            10,
+            10
+          ]
+        },
+        {
+          "hwnd": 6231494,
+          "title": "HongXingTraySink",
+          "class": "HongXingTrayWnd_20552_1",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            22,
+            22
+          ]
+        },
+        {
+          "hwnd": 3091278,
+          "title": "TtkMonitorWindow",
+          "class": "TtkMonitorClass",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            38,
+            38,
+            1440,
+            736
+          ]
+        },
+        {
+          "hwnd": 1125264,
+          "title": "PyInstaller Onefile Hidden Window",
+          "class": "PyInstallerOnefileHiddenWindow",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            234,
+            234,
+            1440,
+            722
+          ]
+        },
+        {
+          "hwnd": 2889226,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": true,
+          "rect": [
+            -32000,
+            -32000,
+            237,
+            39
+          ]
+        },
+        {
+          "hwnd": 3681166,
+          "title": "",
+          "class": "SoPY_Status",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            1578,
+            576,
+            349,
+            66
+          ]
+        },
+        {
+          "hwnd": 4789744,
+          "title": "Default IME",
+          "class": "IME",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 731960,
+          "title": "Default IME",
+          "class": "IME",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 4331276,
+          "title": "HintWnd",
+          "class": "SoPY_Hint",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 3217018,
+          "title": "",
+          "class": "SoPY_UI",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 3020386,
+          "title": "Sogou_TSF_UI",
+          "class": "Sogou_TSF_UI",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 5379644,
+          "title": "MSCTFIME UI",
+          "class": "MSCTFIME UI",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 928572,
+          "title": "Default IME",
+          "class": "IME",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "t": 38.33,
+      "child_alive": true,
+      "pids": [
+        8160,
+        20552
+      ],
+      "windows": [
+        {
+          "hwnd": 2823694,
+          "title": "EmbeddedMenuWindow",
+          "class": "EmbeddedMenuWindowClass",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            10,
+            10
+          ]
+        },
+        {
+          "hwnd": 2363650,
+          "title": "MenuWindow",
+          "class": "MenuWindowClass",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            10,
+            10
+          ]
+        },
+        {
+          "hwnd": 6231494,
+          "title": "HongXingTraySink",
+          "class": "HongXingTrayWnd_20552_1",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            22,
+            22
+          ]
+        },
+        {
+          "hwnd": 3091278,
+          "title": "TtkMonitorWindow",
+          "class": "TtkMonitorClass",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            38,
+            38,
+            1440,
+            736
+          ]
+        },
+        {
+          "hwnd": 1125264,
+          "title": "PyInstaller Onefile Hidden Window",
+          "class": "PyInstallerOnefileHiddenWindow",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            234,
+            234,
+            1440,
+            722
+          ]
+        },
+        {
+          "hwnd": 2889226,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": true,
+          "rect": [
+            -32000,
+            -32000,
+            237,
+            39
+          ]
+        },
+        {
+          "hwnd": 3681166,
+          "title": "",
+          "class": "SoPY_Status",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            1578,
+            576,
+            349,
+            66
+          ]
+        },
+        {
+          "hwnd": 4789744,
+          "title": "Default IME",
+          "class": "IME",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 731960,
+          "title": "Default IME",
+          "class": "IME",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 4331276,
+          "title": "HintWnd",
+          "class": "SoPY_Hint",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 3217018,
+          "title": "",
+          "class": "SoPY_UI",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 3020386,
+          "title": "Sogou_TSF_UI",
+          "class": "Sogou_TSF_UI",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 5379644,
+          "title": "MSCTFIME UI",
+          "class": "MSCTFIME UI",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 928572,
+          "title": "Default IME",
+          "class": "IME",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "t": 40.34,
+      "child_alive": true,
+      "pids": [
+        8160,
+        20552
+      ],
+      "windows": [
+        {
+          "hwnd": 2823694,
+          "title": "EmbeddedMenuWindow",
+          "class": "EmbeddedMenuWindowClass",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            10,
+            10
+          ]
+        },
+        {
+          "hwnd": 2363650,
+          "title": "MenuWindow",
+          "class": "MenuWindowClass",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            10,
+            10
+          ]
+        },
+        {
+          "hwnd": 6231494,
+          "title": "HongXingTraySink",
+          "class": "HongXingTrayWnd_20552_1",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            22,
+            22
+          ]
+        },
+        {
+          "hwnd": 3091278,
+          "title": "TtkMonitorWindow",
+          "class": "TtkMonitorClass",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            38,
+            38,
+            1440,
+            736
+          ]
+        },
+        {
+          "hwnd": 1125264,
+          "title": "PyInstaller Onefile Hidden Window",
+          "class": "PyInstallerOnefileHiddenWindow",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            234,
+            234,
+            1440,
+            722
+          ]
+        },
+        {
+          "hwnd": 2889226,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": true,
+          "rect": [
+            -32000,
+            -32000,
+            237,
+            39
+          ]
+        },
+        {
+          "hwnd": 3681166,
+          "title": "",
+          "class": "SoPY_Status",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            1578,
+            576,
+            349,
+            66
+          ]
+        },
+        {
+          "hwnd": 4789744,
+          "title": "Default IME",
+          "class": "IME",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 731960,
+          "title": "Default IME",
+          "class": "IME",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 4331276,
+          "title": "HintWnd",
+          "class": "SoPY_Hint",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 3217018,
+          "title": "",
+          "class": "SoPY_UI",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 3020386,
+          "title": "Sogou_TSF_UI",
+          "class": "Sogou_TSF_UI",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 5379644,
+          "title": "MSCTFIME UI",
+          "class": "MSCTFIME UI",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 928572,
+          "title": "Default IME",
+          "class": "IME",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "t": 42.37,
+      "child_alive": true,
+      "pids": [
+        8160,
+        20552
+      ],
+      "windows": [
+        {
+          "hwnd": 2823694,
+          "title": "EmbeddedMenuWindow",
+          "class": "EmbeddedMenuWindowClass",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            10,
+            10
+          ]
+        },
+        {
+          "hwnd": 2363650,
+          "title": "MenuWindow",
+          "class": "MenuWindowClass",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            10,
+            10
+          ]
+        },
+        {
+          "hwnd": 6231494,
+          "title": "HongXingTraySink",
+          "class": "HongXingTrayWnd_20552_1",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            22,
+            22
+          ]
+        },
+        {
+          "hwnd": 3091278,
+          "title": "TtkMonitorWindow",
+          "class": "TtkMonitorClass",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            38,
+            38,
+            1440,
+            736
+          ]
+        },
+        {
+          "hwnd": 1125264,
+          "title": "PyInstaller Onefile Hidden Window",
+          "class": "PyInstallerOnefileHiddenWindow",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            234,
+            234,
+            1440,
+            722
+          ]
+        },
+        {
+          "hwnd": 2889226,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": true,
+          "rect": [
+            -32000,
+            -32000,
+            237,
+            39
+          ]
+        },
+        {
+          "hwnd": 3681166,
+          "title": "",
+          "class": "SoPY_Status",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            1578,
+            576,
+            349,
+            66
+          ]
+        },
+        {
+          "hwnd": 4789744,
+          "title": "Default IME",
+          "class": "IME",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 731960,
+          "title": "Default IME",
+          "class": "IME",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 4331276,
+          "title": "HintWnd",
+          "class": "SoPY_Hint",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 3217018,
+          "title": "",
+          "class": "SoPY_UI",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 3020386,
+          "title": "Sogou_TSF_UI",
+          "class": "Sogou_TSF_UI",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 5379644,
+          "title": "MSCTFIME UI",
+          "class": "MSCTFIME UI",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 928572,
+          "title": "Default IME",
+          "class": "IME",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "t": 44.39,
+      "child_alive": true,
+      "pids": [
+        8160,
+        20552
+      ],
+      "windows": [
+        {
+          "hwnd": 2823694,
+          "title": "EmbeddedMenuWindow",
+          "class": "EmbeddedMenuWindowClass",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            10,
+            10
+          ]
+        },
+        {
+          "hwnd": 2363650,
+          "title": "MenuWindow",
+          "class": "MenuWindowClass",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            10,
+            10
+          ]
+        },
+        {
+          "hwnd": 6231494,
+          "title": "HongXingTraySink",
+          "class": "HongXingTrayWnd_20552_1",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            22,
+            22
+          ]
+        },
+        {
+          "hwnd": 3091278,
+          "title": "TtkMonitorWindow",
+          "class": "TtkMonitorClass",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            38,
+            38,
+            1440,
+            736
+          ]
+        },
+        {
+          "hwnd": 1125264,
+          "title": "PyInstaller Onefile Hidden Window",
+          "class": "PyInstallerOnefileHiddenWindow",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            234,
+            234,
+            1440,
+            722
+          ]
+        },
+        {
+          "hwnd": 2889226,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": true,
+          "rect": [
+            -32000,
+            -32000,
+            237,
+            39
+          ]
+        },
+        {
+          "hwnd": 3681166,
+          "title": "",
+          "class": "SoPY_Status",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            1578,
+            576,
+            349,
+            66
+          ]
+        },
+        {
+          "hwnd": 4789744,
+          "title": "Default IME",
+          "class": "IME",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 731960,
+          "title": "Default IME",
+          "class": "IME",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 4331276,
+          "title": "HintWnd",
+          "class": "SoPY_Hint",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 3217018,
+          "title": "",
+          "class": "SoPY_UI",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 3020386,
+          "title": "Sogou_TSF_UI",
+          "class": "Sogou_TSF_UI",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 5379644,
+          "title": "MSCTFIME UI",
+          "class": "MSCTFIME UI",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 928572,
+          "title": "Default IME",
+          "class": "IME",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "t": 46.41,
+      "child_alive": true,
+      "pids": [
+        8160,
+        20552
+      ],
+      "windows": [
+        {
+          "hwnd": 2823694,
+          "title": "EmbeddedMenuWindow",
+          "class": "EmbeddedMenuWindowClass",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            10,
+            10
+          ]
+        },
+        {
+          "hwnd": 2363650,
+          "title": "MenuWindow",
+          "class": "MenuWindowClass",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            10,
+            10
+          ]
+        },
+        {
+          "hwnd": 6231494,
+          "title": "HongXingTraySink",
+          "class": "HongXingTrayWnd_20552_1",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            22,
+            22
+          ]
+        },
+        {
+          "hwnd": 3091278,
+          "title": "TtkMonitorWindow",
+          "class": "TtkMonitorClass",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            38,
+            38,
+            1440,
+            736
+          ]
+        },
+        {
+          "hwnd": 1125264,
+          "title": "PyInstaller Onefile Hidden Window",
+          "class": "PyInstallerOnefileHiddenWindow",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            234,
+            234,
+            1440,
+            722
+          ]
+        },
+        {
+          "hwnd": 2889226,
+          "title": "红杏 · 一键通行",
+          "class": "TkTopLevel",
+          "visible": true,
+          "iconic": true,
+          "rect": [
+            -32000,
+            -32000,
+            237,
+            39
+          ]
+        },
+        {
+          "hwnd": 3681166,
+          "title": "",
+          "class": "SoPY_Status",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            1578,
+            576,
+            349,
+            66
+          ]
+        },
+        {
+          "hwnd": 4789744,
+          "title": "Default IME",
+          "class": "IME",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 731960,
+          "title": "Default IME",
+          "class": "IME",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 4331276,
+          "title": "HintWnd",
+          "class": "SoPY_Hint",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 3217018,
+          "title": "",
+          "class": "SoPY_UI",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 3020386,
+          "title": "Sogou_TSF_UI",
+          "class": "Sogou_TSF_UI",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 5379644,
+          "title": "MSCTFIME UI",
+          "class": "MSCTFIME UI",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "hwnd": 928572,
+          "title": "Default IME",
+          "class": "IME",
+          "visible": false,
+          "iconic": false,
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ]
+    }
+  ],
+  "minimized_hwnd": 2889226,
+  "minimized_at": 20.21,
+  "kill": {
+    "pid": 8160
+  },
+  "exit_code_after_kill": 1
+}

@@ -10,7 +10,7 @@ from typing import Any
 
 from . import miniyaml, paths, rules
 from .state import AppState
-from .subscription import Subscription
+from .subscription import Subscription, uniquify_names
 from .util import Fail, ok, run_hidden
 
 #: 用于 url-test 的探测地址(国内可直连, 返回 204)
@@ -371,6 +371,20 @@ def build_config(sub: Subscription, st: AppState, *, tun: bool | None = None) ->
     # 不能因为一颗老鼠屎坏掉一锅汤(实测: 一个 auth_aes128_md5 的 SSR 节点
     # 让 1242 个节点的配置全部加载失败)。
     proxies = sanitize_proxies(sub.proxies)
+    # 清洗之后**必须**再消一次重名, 顺序不能反也不能省。
+    #
+    # 为什么这不是多此一举 —— 两层原因, 都是实测出来的:
+    #
+    # 1. sanitize 会**改变** name(去掉控制字符、emoji 变体选择符等), 于是两个
+    #    本来不同的名字可能在清洗后撞成一个。历史事故的原始形态就是这个:
+    #    一个节点的 sni 里混进控制字符, 清洗后与另一个重名, 内核拒绝整份配置,
+    #    6027 个节点全部不可用。当时只在 freenodes.fetch_free() 里补了去重,
+    #    而 process.start() / turn_on() / 订阅导入走的是**这条路**。
+    # 2. 上游给的订阅本来就可能自带重名, 不是所有调用方都记得先 uniquify。
+    #
+    # 所以这里补的是"最后一道防线": 不管上游怎么调、传进来什么, 渲染出来的
+    # 配置里名字一定唯一。防线的意义就在于它不依赖调用方守规矩。
+    proxies = uniquify_names(proxies)
     for p in proxies:
         p.pop("dialer-proxy", None)
         # mihomo >= 1.19 已移除全局 global-client-fingerprint, 改为逐节点设置。
@@ -483,8 +497,37 @@ def write_config(cfg: dict[str, Any], path: Path | None = None) -> Path:
 
 
 def render(sub: Subscription, st: AppState, *, tun: bool | None = None) -> Path:
+    """生成配置, **校验通过之后才原子替换**线上那份。
+
+    ## 为什么不能直接覆盖 runtime/config.yaml
+
+    真实事故(2026-10-01): `runtime/config.yaml` 被写成了带重名的坏配置, 而
+    校验是在**写完之后**才做的。当时内核还在跑(用的是启动时读进内存的那份),
+    所以表面上一切正常 —— 但只要内核因为任何原因重启(用户点开关 / exe 重启 /
+    保活任务拉起 / 重启机器), 它就会读到这份坏文件, 校验失败、起不来,
+    **用户直接断网, 而且开关打不开**(故障现象离起因差了几个小时, 极难排查)。
+
+    所以校验必须在文件落地之前完成: 先写候选, 校验候选, 过了才 rename 顶替。
+    同目录 rename 在 Windows 上也是原子的, 不会有"写了一半"的中间态。
+
+    校验失败时**保留原来那份**: 原来那份也许是好的, 而留一份也许能用,
+    永远好过留一份确定不能用。
+    """
     cfg = build_config(sub, st, tun=tun)
-    return write_config(cfg)
+    target = paths.config_file()
+    # 候选文件必须和目标**同目录**, 否则 replace 可能跨卷而失去原子性。
+    candidate = target.with_name(target.name + ".candidate")
+    write_config(cfg, candidate)
+    try:
+        passed, output = test_config(candidate)
+    except Exception:
+        candidate.unlink(missing_ok=True)
+        raise
+    if not passed:
+        candidate.unlink(missing_ok=True)
+        raise Fail(f"配置校验失败, 已保留原有配置:\n{output}")
+    candidate.replace(target)
+    return target
 
 
 def test_config(path: Path | None = None) -> tuple[bool, str]:

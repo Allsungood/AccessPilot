@@ -41,7 +41,7 @@ import time
 from dataclasses import asdict, dataclass, field
 from typing import Any, Callable
 
-from . import api, diag, paths, process, rules, sysproxy
+from . import api, diag, intent, paths, process, rules, sysproxy
 from .state import load_state, save_state
 from .util import json_dump, json_load
 
@@ -389,11 +389,20 @@ def turn_on(*, tun: bool | None = None, system_proxy: bool = True) -> Status:
         save_state(st)
     except Exception as e:  # noqa: PERF203
         return _fail(str(e) or type(e).__name__)
+    # 记下"用户主动开" —— 只有真的起来了才记。放在 return 之前而不是 try 里,
+    # 是为了让失败路径不留下一条"用户想开"的记录去干扰保活判断。
+    intent.mark_on()
     return snapshot()
 
 
 def turn_off() -> Status:
-    """关闭。内核停掉, 系统代理还原 —— 不留任何残留设置。"""
+    """关闭。内核停掉, 系统代理还原 —— 不留任何残留设置。
+
+    这里必须记一笔「用户主动关」(intent.mark_off)。保活任务
+    (`accesspilot ensure`, 每 5 分钟一次) 原来只看内核在不在跑, 于是会在
+    几分钟内把用户刚关掉的代理重新打开 —— 一个点了关却自己开回来的开关。
+    意图记录就是给保活看的刹车。
+    """
     st = load_state()
     try:
         process.stop()
@@ -401,6 +410,7 @@ def turn_off() -> Status:
         save_state(st)
     except Exception as e:  # noqa: PERF203
         return _fail(str(e) or type(e).__name__)
+    intent.mark_off()
     return snapshot()
 
 

@@ -10,7 +10,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-from . import __version__, api, config, coreinstall, diag, paths, process, rules, sysproxy
+from . import __version__, api, config, coreinstall, diag, intent, paths, process, rules, sysproxy
 from .state import load_state, save_state
 from .subscription import (
     delete_profile,
@@ -317,6 +317,8 @@ def cmd_start(args: argparse.Namespace) -> int:
     if args.no_sysproxy:
         system_proxy = False
     process.start(st=st, tun=st.tun_enable, system_proxy=system_proxy)
+    # 命令行 start 也是"用户主动开", 要覆盖掉之前可能存在的"关"记录。
+    intent.mark_on()
     return 0
 
 
@@ -325,6 +327,9 @@ def cmd_stop(args: argparse.Namespace) -> int:
         ok("内核已停止")
     else:
         info("内核未在运行")
+    # 命令行 stop 和界面上点「关闭」是同一件事, 都要记进意图 —— 否则
+    # 命令行关掉之后保活又会把它拉回来, 用户看到的是"stop 不管用"。
+    intent.mark_off()
     return 0
 
 
@@ -336,6 +341,7 @@ def cmd_restart(args: argparse.Namespace) -> int:
         st.tun_enable = False
     save_state(st)
     process.restart(st=st, tun=st.tun_enable, system_proxy=not st.tun_enable)
+    intent.mark_on()
     return 0
 
 
@@ -1207,8 +1213,22 @@ def cmd_free(args: argparse.Namespace) -> int:
 
 
 def cmd_ensure(args: argparse.Namespace) -> int:
-    """确保内核在运行; 已在运行则直接返回(供定时保活/开机自启调用)."""
+    """确保内核在运行; 已在运行则直接返回(供定时保活/开机自启调用).
+
+    ⚠️ 这个命令**不能**只看"内核在不在跑"。它由计划任务每 5 分钟调一次,
+    如果无条件拉起, 用户在界面上点了「关闭」之后最多 5 分钟代理就自己回来了 ——
+    实测到的真实行为, 用户会认为开关是坏的。
+
+    所以先问一句 intent: 这次开机里用户最后一次主动操作是不是「关」?
+    是就什么都不做。判据只在**同一次开机内**有效, 重启后自然失效,
+    这样「开机自启」不会被误伤。
+    """
     if process.is_running():
+        return 0
+    if not getattr(args, "force", False) and intent.user_wants_off():
+        # 说人话, 而且给出出路: 用户可能正想知道"为什么它不自己起来了"。
+        info("本次开机内用户已主动关闭代理, 保活不动它")
+        print(dim("  (想让它无视这条: accesspilot ensure --force; 或在界面上点一下「打开」)"))
         return 0
     st = load_state()
     if not st.active_profile:
@@ -1685,6 +1705,8 @@ def build_parser() -> argparse.ArgumentParser:
 
     sp = sub.add_parser("ensure", help="确保内核在运行(已在运行则不做任何事)")
     sp.add_argument("--sysproxy", action="store_true", help="内核不在运行时, 启动后开启系统代理")
+    sp.add_argument("--force", action="store_true",
+                    help="无视「用户本次开机内主动关过」这条记录, 照样拉起")
     sp.set_defaults(func=cmd_ensure)
 
     sp = sub.add_parser("autostart", help="Windows 计划任务保活: 内核不在就自动拉起(默认每 5 分钟)")
