@@ -295,13 +295,19 @@ def _install_streams(*, want_console: bool = True) -> str:
         ("log", _open_log_stream),
     ]
     if not want_console:
-        # GUI 路径**不能**挂父控制台。实测(2026-10-01): 从终端启动
-        # `红杏.exe` 时挂了控制台, 主窗口会以**最小化**状态出现 ——
-        #     exe 正常启动:      IsIconic=True   rect=(-32000,-32000)
-        #     HONGXING_NO_CONSOLE=1: IsIconic=False  rect=(110,14) 1076x659
-        # 同一个 exe、同样的启动方式, 只差这一步。用户双击虽然拿不到父控制台
-        # (所以碰不到), 但从终端/脚本/快捷方式带参数启动就会踩到。
-        # 命令行子命令(--version / doctor)照旧走 console, 那边需要它才能打印。
+        # GUI 路径不挂父控制台 —— 理由是**设计**, 不是实测:
+        # 一个窗口化程序没有理由把自己关联到调用者的控制台; 而
+        # _attach_parent_console 存在的唯一目的就是让 `红杏.exe --version`
+        # / `doctor` 这类命令行子命令能在终端里打印, GUI 路径不需要它。
+        #
+        # 诚实记录一段走过的弯路(2026-10-01): 我曾观察到"从终端启动 exe 时
+        # 主窗口以最小化状态出现", 并把它归因于 AttachConsole。但换新 exe 做
+        # A/B 时结论**反了过来**(默认正常、加 HONGXING_NO_CONSOLE=1 反而最小化),
+        # 说明那个现象的真正变量不是这里 —— 后来查明是另一个 teammate 的测试
+        # 脚本在用 keybd_event 发真实按键, 干扰了前台窗口。所以**这条改动并不
+        # 是那个现象的修复**, 只是按设计把 GUI 与 CLI 的输出路径分开。
+        # 干净复测(无测试脚本干扰)下, exe 的窗口从 3.0s 起一直是
+        # iconic=False rect=(110,14,1076,659) 且是前台, 存活 60 秒以上。
         chain = [item for item in chain if item[0] != "console"]
     if forced in ("console", "handle"):
         chain = [item for item in chain if item[0] == forced] + [("log", _open_log_stream)]
