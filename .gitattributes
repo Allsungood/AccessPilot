@@ -1,0 +1,8 @@
+# Windows 批处理必须用 CRLF 换行 —— cmd.exe 对 LF-only 的 .cmd/.bat
+# 在处理带括号的 if(...) 块时会解析错乱(真实事故: accesspilot.cmd 被
+# git 以 LF 检出后, 计划任务里的 `if errorlevel 1 (...)` 整块错乱,
+# 报 "is not recognized as an internal or external command")。
+*.cmd text eol=crlf
+*.bat text eol=crlf
+# Python 源码统一 LF
+*.py text eol=lf

@@ -1223,6 +1223,94 @@ def cmd_ensure(args: argparse.Namespace) -> int:
     return 0
 
 
+#: 计划任务模板.
+#:
+#: 为什么不用 `schtasks /Create /SC MINUTE`: 那条路**没法设置电源条件**, 而
+#: 新建任务的默认值是 DisallowStartIfOnBatteries=true / StopIfGoingOnBatteries
+#: =true。在笔记本上一拔电源, 保活和节点刷新就静默不跑了 —— 实测返回
+#: 0x800710E0「操作员或管理员拒绝了请求」。而这两个任务恰恰是移动使用时
+#: 最需要的。用 XML 建任务能一次把电源条件、执行时限、并发策略都写对。
+_TASK_XML = """<?xml version="1.0" encoding="UTF-16"?>
+<Task version="1.2" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
+  <RegistrationInfo>
+    <Description>{desc}</Description>
+  </RegistrationInfo>
+  <Triggers>
+    <TimeTrigger>
+      <Repetition>
+        <Interval>PT{minutes}M</Interval>
+        <StopAtDurationEnd>false</StopAtDurationEnd>
+      </Repetition>
+      <StartBoundary>2020-01-01T00:00:00</StartBoundary>
+      <Enabled>true</Enabled>
+    </TimeTrigger>
+  </Triggers>
+  <Principals>
+    <Principal id="Author">
+      <LogonType>InteractiveToken</LogonType>
+      <RunLevel>LeastPrivilege</RunLevel>
+    </Principal>
+  </Principals>
+  <Settings>
+    <MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>
+    <DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries>
+    <StopIfGoingOnBatteries>false</StopIfGoingOnBatteries>
+    <AllowHardTerminate>true</AllowHardTerminate>
+    <StartWhenAvailable>true</StartWhenAvailable>
+    <RunOnlyIfNetworkAvailable>false</RunOnlyIfNetworkAvailable>
+    <IdleSettings>
+      <StopOnIdleEnd>false</StopOnIdleEnd>
+      <RestartOnIdle>false</RestartOnIdle>
+    </IdleSettings>
+    <AllowStartOnDemand>true</AllowStartOnDemand>
+    <Enabled>true</Enabled>
+    <Hidden>false</Hidden>
+    <RunOnlyIfIdle>false</RunOnlyIfIdle>
+    <WakeToRun>false</WakeToRun>
+    <ExecutionTimeLimit>PT{limit}H</ExecutionTimeLimit>
+    <Priority>7</Priority>
+  </Settings>
+  <Actions Context="Author">
+    <Exec>
+      <Command>{command}</Command>
+      <Arguments>{arguments}</Arguments>
+    </Exec>
+  </Actions>
+</Task>
+"""
+
+
+def _task_xml(*, arguments: str, minutes: int, limit_hours: int, desc: str) -> str:
+    """渲染计划任务的 XML(在这里做转义, 所以不需要碰 schtasks 就能单测)."""
+    from xml.sax.saxutils import escape
+
+    return _TASK_XML.format(
+        desc=escape(desc), minutes=int(minutes), limit=int(limit_hours),
+        command="cmd", arguments=escape(arguments),
+    )
+
+
+def _register_task(
+    name: str, *, arguments: str, minutes: int, limit_hours: int, desc: str
+) -> tuple[int, str]:
+    """用 XML 注册一个每 N 分钟重复的计划任务(关掉电源条件)."""
+    import shutil as _shutil
+    import tempfile
+
+    xml = _task_xml(arguments=arguments, minutes=minutes,
+                    limit_hours=limit_hours, desc=desc)
+    tmpdir = Path(tempfile.mkdtemp(prefix="ap-task-"))
+    tmp = tmpdir / f"{name}.xml"
+    try:
+        # schtasks /XML 要求 Unicode 文件(UTF-16 + BOM)
+        tmp.write_text(xml, encoding="utf-16")
+        return run_hidden(
+            ["schtasks", "/Create", "/F", "/TN", name, "/XML", str(tmp)], timeout=30
+        )
+    finally:
+        _shutil.rmtree(tmpdir, ignore_errors=True)
+
+
 def cmd_autostart(args: argparse.Namespace) -> int:
     """用 Windows 计划任务定期保活内核.
 
@@ -1236,6 +1324,11 @@ def cmd_autostart(args: argparse.Namespace) -> int:
     shim = shutil.which("accesspilot")
     if not shim:
         raise Fail("未找到全局命令 accesspilot, 请先执行 accesspilot install-cmd")
+    # 必须是**绝对**路径。真实事故: 计划任务里存的是 `.\accesspilot.CMD`,
+    # 而任务计划的工作目录是 C:\Windows\System32, 于是每次触发都是
+    # "'.\\accesspilot.CMD' is not recognized as an internal or external command"
+    # (退出码 1) —— 保活任务从来没成功过。实测改用绝对路径后退出码 0。
+    shim = str(Path(shim).resolve())
     action = args.action
     refresh_task = "AccessPilotRefresh"
     if action == "status":
@@ -1249,24 +1342,23 @@ def cmd_autostart(args: argparse.Namespace) -> int:
         return 0
     if action == "on":
         minutes = args.minutes or 5
-        cmdline = f'cmd /c ""{shim}" ensure"'
-        code, out = run_hidden(
-            ["schtasks", "/Create", "/F", "/TN", task, "/SC", "MINUTE",
-             "/MO", str(minutes), "/TR", cmdline, "/RL", "LIMITED"],
-            timeout=30,
+        code, out = _register_task(
+            task, arguments=f'/c ""{shim}" ensure"', minutes=minutes, limit_hours=1,
+            desc="红杏/AccessPilot 内核保活: 每 N 分钟检查一次, 不在运行就拉起",
         )
         if code != 0:
             raise Fail(f"创建计划任务失败: {out.strip()[:300]}")
         ok(f"保活任务已注册: 每 {minutes} 分钟检查一次内核, 不在运行就自动拉起")
+        print(dim(f"  (指向 {shim}; 已关闭「只在交流电源时启动」, 拔电池也照跑)"))
 
         # 可选的节点自动刷新: 免费池质量按小时波动, 让它自己抓好的时段
         if args.refresh_minutes:
             rm = int(args.refresh_minutes)
-            rcmd = f'cmd /c ""{shim}" free auto --workers 96 --timeout 5 --verify-top 30"'
-            code, out = run_hidden(
-                ["schtasks", "/Create", "/F", "/TN", refresh_task, "/SC", "MINUTE",
-                 "/MO", str(rm), "/TR", rcmd, "/RL", "LIMITED"],
-                timeout=30,
+            code, out = _register_task(
+                refresh_task,
+                arguments=f'/c ""{shim}" free auto --workers 96 --timeout 5 --verify-top 30"',
+                minutes=rm, limit_hours=3,
+                desc="红杏/AccessPilot 节点池刷新: 重新抓取+测速+平台验证",
             )
             if code == 0:
                 ok(f"节点自动刷新已注册: 每 {rm} 分钟重新抓取+测速+验证一次")
