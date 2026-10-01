@@ -268,8 +268,22 @@ def fetch_all(
     if not collected:
         raise Fail("所有公开源都抓取失败, 请检查网络或稍后重试")
 
-    proxies = sub_mod.uniquify_names(sub_mod.dedupe(collected))
-    proxies = sanitize(proxies)
+    # 顺序很重要: **先去重、再清洗、最后才消除重名**。
+    #
+    # 真实事故(2026-10-01): 原来是 `uniquify_names(dedupe(...))` 然后才
+    # `sanitize(...)`。而 sanitize 会清洗名字里的控制字符 —— 那可能把两个原本
+    # 不同的名字洗成同一个:
+    #     节点 A: "🇭🇰 香港 | HKG #3"
+    #     节点 B: "🇭🇰 香港 | HKG #3\x9f"     (订阅源里混进的控制字符)
+    #     uniquify 后: A 和 B 不同, 通过
+    #     sanitize 后: B 的 \x9f 被洗掉 -> 两者都叫 "🇭🇰 香港 | HKG #3" -> 撞名
+    # 后果不是"少一个节点", 而是 mihomo 拒绝**整份配置**:
+    #     level=error msg="proxy 🇭🇰 香港 | HKG #3 is the duplicate name"
+    #     configuration file ... test failed
+    # 于是每小时一次的 free auto 都在配置校验那步中断, 配置档被留在"几千个未经
+    # 验证的节点"的膨胀状态(实测 6227 个节点里有 10 组重名)。
+    proxies = sanitize(sub_mod.dedupe(collected))
+    proxies = sub_mod.uniquify_names(proxies)
     if verbose:
         from collections import Counter
 
