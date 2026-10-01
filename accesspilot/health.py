@@ -41,6 +41,14 @@
 后台线程是 daemon; 任何异常都被捕获、记进 last_error, 然后**继续下一轮**
 —— 后台线程静默退出是"自动切换突然不工作了"最常见的原因。stop() 只发信号
 + 短暂 join(2 秒), 绝不长时间阻塞界面。
+
+单实例为什么不是"抢到锁就完事"
+------------------------------
+第二个红杏必须把**已有的那个窗口**叫到用户眼前, 否则用户看到的是"双击了
+没反应"。而 Windows 有前台锁: 别的进程调 SetForegroundWindow 会被系统忽略
+(只在任务栏闪一下)—— 更坑的是它**返回成功**, 所以判断"到没到前台"只能靠
+GetForegroundWindow 复查。见 _activate_existing_window(): 常规激活 -> 挂到
+前台线程的输入队列上再试 -> 短暂置顶兜底 + 闪任务栏, 并且置顶一定会取消。
 """
 from __future__ import annotations
 
@@ -897,16 +905,63 @@ ERROR_ALREADY_EXISTS = 183
 #: 让不同用户的会话互相挡住, 而且创建 Global 对象还需要额外权限。
 _MUTEX_PREFIX = "Local\\AccessPilot."
 
-#: 找"已有窗口"时按优先级尝试的窗口类名。Tk 客户端可以传
-#: className="AccessPilotGui", 这样即使标题被改过也认得出来。
+#: 找"已有窗口"时优先尝试的**专属性**窗口类名。打包时给 Tk 传
+#: className="AccessPilotGui" 就能一眼认出来, 这类名字不会撞车。
 WINDOW_CLASS_HINTS: tuple[str, ...] = ("AccessPilotGui", "AccessPilot", "HongxingGui")
 
-#: 兜底: 标题里带这些字样的可见窗口(客户端标题形如 "红杏 ...")。
-WINDOW_TITLE_HINTS: tuple[str, ...] = ("红杏", "AccessPilot")
+#: 主窗口"可能"的类名, 用来给候选窗口加分。TkTopLevel 是 Tk 的默认顶层类
+#: (实测"红杏 · 一键通行"就是它) —— 但它不专属: 随便一个 Tk 测试窗口也是
+#: 这个类, 所以只能加分, 不能单独用来锁定目标。
+MAIN_WINDOW_CLASSES: tuple[str, ...] = WINDOW_CLASS_HINTS + ("TkTopLevel",)
+
+#: 标题关键字, **按优先级排列**(越靠前越可信):
+#:   1. 产品完整标题(control.BRAND_NAME + " · " + BRAND_TAGLINE) —— 最强信号;
+#:   2. 品牌名"红杏" —— 次之;
+#:   3. 英文名 AccessPilot —— 最末: 终端/编辑器的标题里也常带项目路径,
+#:      那些窗口叫到前台毫无意义。
+#: 真实踩过: 同事的托盘自测窗口叫"红杏托盘自测", 只按"含红杏"取第一个就会
+#: 把自测窗口叫到前台, 真正的客户端反而"双击没反应"。
+WINDOW_TITLE_HINTS: tuple[str, ...] = ("红杏 · 一键通行", "红杏", "AccessPilot")
+
+#: 托盘那个隐藏消息窗口的类名前缀(gui/tray.py: HongXingTrayWnd_<pid>_<seq>)。
+#:
+#: 它有两层意义, 都得处理:
+#:   * 找主窗口时要**跳过**它 —— 把它当前台目标等于什么都没发生;
+#:   * 判断"我们是不是已经在前台"时要**算自己人** —— 它偶尔会成为前台窗口,
+#:     若当成"别人", 主窗口会误判自己没拿到前台, 从而一直抢/一直保持置顶。
+TRAY_WINDOW_CLASS_PREFIX = "HongXingTrayWnd"
+
+#: 等"真的成为前台"的时限(秒)。这段时间内反复试常规激活 + 输入队列挂接。
+FOREGROUND_WAIT_S = 1.8
+
+#: 置顶兜底时长(秒)。置顶不受前台锁限制, 是"用户至少看得见"的最后一招;
+#: 但它会一直压在别的窗口上面, 所以必须有上限。
+TOPMOST_HOLD_S = 3.5
+
+#: "连续这么久都在前台"才认为稳了。刚置顶时窗口可能短暂浮上来又被抢走,
+#: 立刻取消置顶会让它一头沉回最大化浏览器后面(用户看到"闪一下就没了")。
+FOREGROUND_SETTLE_S = 0.2
+
+#: 置顶失败/被挡时闪任务栏按钮的等待时间(秒)。
+FLASH_AFTER_S = 0.8
 
 _mutex_handle: int | None = None
 _kernel32: Any = None
 _user32: Any = None
+_wndenumproc: Any = None
+
+
+def _wnd_enum_proc_type() -> Any:
+    """EnumWindows 回调类型。
+
+    延迟构造: `ctypes.WINFUNCTYPE` 只在 Windows 上存在, 而 health 模块要能
+    在别的平台上被导入(测试/打包检查)。
+    """
+    global _wndenumproc
+    if _wndenumproc is None:
+        _wndenumproc = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_void_p,
+                                          ctypes.c_void_p)
+    return _wndenumproc
 
 
 def _kernel32_dll() -> Any:
@@ -926,6 +981,8 @@ def _kernel32_dll() -> Any:
         k32.CreateMutexW.restype = wintypes.HANDLE
         k32.CloseHandle.argtypes = (wintypes.HANDLE,)
         k32.CloseHandle.restype = wintypes.BOOL
+        k32.GetCurrentThreadId.argtypes = ()
+        k32.GetCurrentThreadId.restype = wintypes.DWORD
         _kernel32 = k32
     return _kernel32
 
@@ -950,6 +1007,26 @@ def _user32_dll() -> Any:
         u32.GetWindowTextW.argtypes = (wintypes.HWND, wintypes.LPWSTR,
                                        ctypes.c_int)
         u32.GetWindowTextW.restype = ctypes.c_int
+        u32.GetClassNameW.argtypes = (wintypes.HWND, wintypes.LPWSTR,
+                                      ctypes.c_int)
+        u32.GetClassNameW.restype = ctypes.c_int
+        u32.GetForegroundWindow.argtypes = ()
+        u32.GetForegroundWindow.restype = wintypes.HWND
+        u32.GetWindowThreadProcessId.argtypes = (wintypes.HWND,
+                                                 ctypes.POINTER(wintypes.DWORD))
+        u32.GetWindowThreadProcessId.restype = wintypes.DWORD
+        u32.SetWindowPos.argtypes = (wintypes.HWND, wintypes.HWND, ctypes.c_int,
+                                     ctypes.c_int, ctypes.c_int, ctypes.c_int,
+                                     ctypes.c_uint)
+        u32.SetWindowPos.restype = wintypes.BOOL
+        u32.BringWindowToTop.argtypes = (wintypes.HWND,)
+        u32.BringWindowToTop.restype = wintypes.BOOL
+        u32.AttachThreadInput.argtypes = (wintypes.DWORD, wintypes.DWORD,
+                                          wintypes.BOOL)
+        u32.AttachThreadInput.restype = wintypes.BOOL
+        u32.FlashWindowEx.restype = wintypes.BOOL
+        u32.EnumWindows.argtypes = (_wnd_enum_proc_type(), ctypes.c_void_p)
+        u32.EnumWindows.restype = wintypes.BOOL
         _user32 = u32
     return _user32
 
@@ -999,77 +1076,368 @@ def release_single_instance() -> None:
         pass
 
 
-def _find_existing_window() -> int:
+def _is_visible(hwnd: int) -> bool:
+    """窗口当前是不是可见的。"""
+    try:
+        return bool(_user32_dll().IsWindowVisible(hwnd))
+    except Exception:  # noqa: PERF203
+        return True                     # 问不出来就当可见, 别把能用的窗口筛掉
+
+
+def _usable_target(hwnd: int, *, include_hidden: bool) -> bool:
+    """这个句柄能不能当作"已有客户端窗口"。"""
+    if not hwnd:
+        return False
+    if _is_tray_window(hwnd):
+        return False
+    return bool(include_hidden or _is_visible(hwnd))
+
+
+def _find_existing_window(*, include_hidden: bool = False) -> int:
     """找客户端主窗口句柄(找不到返回 0)。
 
-    两步: 先用 FindWindowW 按类名/精确标题找(快); 找不到再枚举顶层窗口按
-    标题关键字模糊匹配 —— 标题常带版本号/后缀, 精确匹配容易落空。
+    三步, 由准到宽:
+      1. 标题**精确**匹配(客户端标题就是产品名 + 副标题, 最强信号);
+      2. 专属类名精确匹配(打包时 className="AccessPilotGui" 这类);
+      3. 枚举顶层窗口按标题关键字**打分**(见 _pick_main_window)。
+
+    两条排除规则:
+      * **一律跳过托盘那个隐藏消息窗口**(HongXingTrayWnd_*): 它跟主窗口同进程,
+        也带自家名字, 一旦被当成目标, 用户看到的就是"双击了没有任何反应";
+      * 默认只要可见窗口 —— 但 `include_hidden=True` 时连隐藏的也算: 客户端
+        被收进托盘时主窗口就是隐藏的, 这时第二个实例应该把它叫回来。
     """
     if sys.platform != "win32":
         return 0
     try:
         u32 = _user32_dll()
-        for cls in WINDOW_CLASS_HINTS:
-            hwnd = u32.FindWindowW(cls, None)
-            if hwnd:
-                return int(hwnd)
         for title in WINDOW_TITLE_HINTS:
-            hwnd = u32.FindWindowW(None, title)
-            if hwnd:
-                return int(hwnd)
-        return _find_window_by_title(u32)
+            hwnd = int(u32.FindWindowW(None, title) or 0)
+            if _usable_target(hwnd, include_hidden=include_hidden):
+                return hwnd
+        for cls in WINDOW_CLASS_HINTS:
+            hwnd = int(u32.FindWindowW(cls, None) or 0)
+            if _usable_target(hwnd, include_hidden=include_hidden):
+                return hwnd
+        return _pick_main_window(_windows_of(u32, include_hidden=include_hidden))
     except Exception:  # noqa: PERF203
         return 0
 
 
-def _find_window_by_title(u32: Any) -> int:
-    """枚举可见顶层窗口, 按标题关键字匹配(标题不完全一致时也能找到)。"""
-    callback_type = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_void_p,
-                                       ctypes.c_void_p)
-    found: list[int] = []
+def _windows_of(u32: Any, *, include_hidden: bool) -> list[tuple[int, str, str]]:
+    """枚举顶层窗口, 返回 [(hwnd, 类名, 标题)]。
+
+    用传进来的 `u32`: 这样"挑哪个窗口"这段逻辑可以脱离真实 DLL 单测, 靠一个
+    假 user32 就能把各种窗口布局跑一遍。
+    """
+    if sys.platform != "win32":
+        return []
+    callback_type = _wnd_enum_proc_type()
+    out: list[tuple[int, str, str]] = []
 
     def visit(hwnd: Any, _lparam: Any) -> bool:
-        if found:
-            return False
         try:
-            if not u32.IsWindowVisible(hwnd):
+            if not include_hidden and not u32.IsWindowVisible(hwnd):
                 return True
+            cls_buf = ctypes.create_unicode_buffer(256)
+            u32.GetClassNameW(hwnd, cls_buf, 256)
             length = int(u32.GetWindowTextLengthW(hwnd) or 0)
             if length <= 0:
                 return True
             buf = ctypes.create_unicode_buffer(length + 1)
             u32.GetWindowTextW(hwnd, buf, length + 1)
-            title = buf.value
+            out.append((int(hwnd), cls_buf.value, buf.value))
         except Exception:  # noqa: PERF203
             return True
-        if any(hint in title for hint in WINDOW_TITLE_HINTS):
-            found.append(int(hwnd))
-            return False
         return True
 
     try:
-        u32.EnumWindows.argtypes = (callback_type, ctypes.c_void_p)
-        u32.EnumWindows.restype = ctypes.c_bool
+        # 原型在 _user32_dll() 里统一声明 —— 这里绝不能再去赋值
+        # `u32.EnumWindows.argtypes`: 传进来的可能是个假对象(单测), 给绑定
+        # 方法设属性会抛 AttributeError, 把整条模糊匹配悄悄废掉。
         u32.EnumWindows(callback_type(visit), None)
     except Exception:  # noqa: PERF203
-        return 0
-    return found[0] if found else 0
+        return []
+    return out
 
 
-def _activate_existing_window() -> bool:
-    """把已有客户端窗口叫到前台。失败只返回 False, 绝不抛异常。
+def _pick_main_window(windows: list[tuple[int, str, str]]) -> int:
+    """在一堆窗口里挑出"客户端主窗口", 挑不出返回 0。
 
-    注意 Windows 的前台锁定: 调用方不是前台进程时 SetForegroundWindow 可能被
-    系统忽略(只在任务栏闪一下)。所以先 ShowWindow(SW_RESTORE) 把最小化的窗口
-    还原, 再 SetForegroundWindow —— 这是成功率高、又不需要 hack 的组合。
+    为什么是打分而不是"取第一个匹配": 只按"标题含红杏"取第一个, 会把同事的
+    托盘自测窗口("红杏托盘自测")叫到前台, 真正的客户端反而没反应。打分规则:
+
+      * 标题命中越靠前的关键字分越高(产品完整标题 > 品牌名 > 英文名);
+      * 命中主窗口类名加分。
+
+    同级则保持枚举顺序(枚举按 z-order, 最前面的先被看到)。
     """
-    hwnd = _find_existing_window()
-    if not hwnd:
+    best_hwnd = 0
+    best_score = 0
+    for hwnd, cls, title in windows:
+        if not title or cls.startswith(TRAY_WINDOW_CLASS_PREFIX):
+            continue
+        score = 0
+        for index, hint in enumerate(WINDOW_TITLE_HINTS):
+            if hint in title:
+                score = (len(WINDOW_TITLE_HINTS) - index) * 10
+                break
+        if not score:
+            continue
+        if cls in MAIN_WINDOW_CLASSES:
+            score += 5
+        if score > best_score:
+            best_hwnd, best_score = hwnd, score
+    return best_hwnd
+
+
+def _window_class(hwnd: int) -> str:
+    """窗口类名(取不到返回空串)。"""
+    if sys.platform != "win32":
+        return ""
+    try:
+        buf = ctypes.create_unicode_buffer(256)
+        _user32_dll().GetClassNameW(hwnd, buf, 256)
+        return buf.value
+    except Exception:  # noqa: PERF203
+        return ""
+
+
+def _window_pid(hwnd: int) -> int:
+    """窗口属于哪个进程(取不到返回 0)。"""
+    if sys.platform != "win32":
+        return 0
+    try:
+        from ctypes import wintypes
+
+        pid = wintypes.DWORD()
+        _user32_dll().GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+        return int(pid.value)
+    except Exception:  # noqa: PERF203
+        return 0
+
+
+def _is_tray_window(hwnd: int) -> bool:
+    """是不是托盘那个隐藏消息窗口(gui/tray.py 的 HongXingTrayWnd_<pid>_<seq>)。"""
+    return _window_class(hwnd).startswith(TRAY_WINDOW_CLASS_PREFIX)
+
+
+def _owns_foreground(hwnd: int) -> bool:
+    """前台是不是"我们自己" —— 已有窗口是否已经摆在用户眼前。
+
+    只比 GetForegroundWindow() == hwnd 是不够的: 托盘那个隐藏窗口
+    (类名 HongXingTrayWnd_*) 偶尔会成为前台窗口, 它同样属于红杏。若把它
+    当成"别人", 主窗口会误判自己没拿到前台 —— 于是继续抢、继续保持置顶,
+    用户看到的就是一个赖在最前面不走的窗口。
+
+    所以判据是: 前台就是目标窗口, **或者**前台是本进程的另一个窗口。
+    """
+    if sys.platform != "win32":
+        return True
+    try:
+        fg = int(_user32_dll().GetForegroundWindow() or 0)
+    except Exception:  # noqa: PERF203
+        return True                     # 问不出来就别死扛着置顶
+    if not fg:
+        return False
+    if fg == int(hwnd):
+        return True
+    if _is_tray_window(fg):
+        # 自家托盘窗口拿到前台 = 红杏其实已经在前面了。
+        own_pid = _window_pid(hwnd)
+        return bool(own_pid) and _window_pid(fg) == own_pid
+    return False
+
+
+def foreground_is_ours(hwnd: int) -> bool:
+    """前台窗口算不算"我们自己"(给 GUI 用的公开版本)。
+
+    gui/app.py 的 `_is_foreground()` 目前只比 `GetForegroundWindow() == 主窗口`
+    —— 托盘那个隐藏窗口偶尔会拿到前台, 于是主窗口误判"我失去前台了", 一直
+    保持置顶不退。界面层把那个判断换成这个函数即可(一行):
+
+        from ..health import foreground_is_ours
+        foreground_is_ours(self._native_hwnd())
+
+    这里不做任何界面相关的事, 也不 import GUI, 所以两边互不依赖。
+    """
+    return _owns_foreground(int(hwnd or 0))
+
+
+def _set_topmost(hwnd: int, on: bool) -> bool:
+    """置顶 / 取消置顶。
+
+    置顶**不受前台锁限制**, 是"别的进程也能让窗口浮到最上层"的唯一手段。
+    用 SWP_NOACTIVATE: 只改 z-order, 不顺手抢焦点(抢焦点交给专门那几步)。
+    """
+    if sys.platform != "win32":
+        return False
+    HWND_TOPMOST, HWND_NOTOPMOST = -1, -2
+    SWP_NOSIZE, SWP_NOMOVE = 0x0001, 0x0002
+    SWP_NOACTIVATE, SWP_SHOWWINDOW = 0x0010, 0x0040
+    try:
+        return bool(_user32_dll().SetWindowPos(
+            hwnd, HWND_TOPMOST if on else HWND_NOTOPMOST, 0, 0, 0, 0,
+            SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW))
+    except Exception:  # noqa: PERF203
+        return False
+
+
+def _force_foreground_once(hwnd: int, *, restore: bool = True) -> bool:
+    """常规手法: 还原窗口 + 提到顶层 + 抢前台。
+
+    能不能成取决于 Windows 的前台锁(只对"已经拥有前台的进程"放行)。
+    `restore=False` 用于置顶期间的反复重试: SW_RESTORE 会把用户手动最大化的
+    窗口还原掉, 重试时不该带这个副作用。
+    """
+    if sys.platform != "win32":
         return False
     try:
         u32 = _user32_dll()
-        SW_RESTORE = 9
-        u32.ShowWindow(hwnd, SW_RESTORE)
+        if restore:
+            u32.ShowWindow(hwnd, 9)         # SW_RESTORE
+        u32.BringWindowToTop(hwnd)
         return bool(u32.SetForegroundWindow(hwnd))
     except Exception:  # noqa: PERF203
         return False
+
+
+def _force_foreground_attached(hwnd: int) -> bool:
+    """绕开前台锁的正规手法: 把自己的输入队列临时挂到前台线程上。
+
+    前台锁是按**线程**判的 —— 只有"拥有前台的那个线程"才能改前台。而
+    AttachThreadInput 会让两个线程共享输入队列, 于是这次 SetForegroundWindow
+    会被系统放行。这是"第二个实例叫不动已有窗口"的标准解法。
+
+    用完必须解除挂接(放在 finally): 不解除的话, 两个进程的输入队列会一直
+    绑在一起, 前台窗口那边一旦卡住就会连累我们。
+    """
+    if sys.platform != "win32":
+        return False
+    attached = False
+    fg_thread = 0
+    my_thread = 0
+    try:
+        u32 = _user32_dll()
+        k32 = _kernel32_dll()
+        fg = int(u32.GetForegroundWindow() or 0)
+        my_thread = int(k32.GetCurrentThreadId())
+        if fg:
+            fg_thread = int(u32.GetWindowThreadProcessId(fg, None) or 0)
+        if fg_thread and my_thread and fg_thread != my_thread:
+            attached = bool(u32.AttachThreadInput(my_thread, fg_thread, True))
+        return _force_foreground_once(hwnd)
+    except Exception:  # noqa: PERF203
+        return False
+    finally:
+        if attached:
+            try:
+                _user32_dll().AttachThreadInput(my_thread, fg_thread, False)
+            except Exception:  # noqa: PERF203
+                pass
+
+
+def _flash_taskbar(hwnd: int) -> bool:
+    """闪任务栏按钮。不需要前台权限, 是系统允许的"叫用户看我一眼"。"""
+    if sys.platform != "win32":
+        return False
+
+    class FLASHWINFO(ctypes.Structure):
+        _fields_ = [("cbSize", ctypes.c_uint), ("hwnd", ctypes.c_void_p),
+                    ("dwFlags", ctypes.c_uint), ("uCount", ctypes.c_uint),
+                    ("dwTimeout", ctypes.c_uint)]
+
+    try:
+        # FLASHW_ALL(3) | FLASHW_TIMERNOFG(12): 一直闪到窗口被激活为止
+        info = FLASHWINFO(ctypes.sizeof(FLASHWINFO), hwnd, 0x00000003 | 0x0000000C,
+                          0, 0)
+        return bool(_user32_dll().FlashWindowEx(ctypes.byref(info)))
+    except Exception:  # noqa: PERF203
+        return False
+
+
+def _activate_existing_window(
+    *, wait: float = FOREGROUND_WAIT_S, hold: float = TOPMOST_HOLD_S
+) -> bool:
+    """把已有实例的窗口叫到最前面。返回是否**真的**拿到了前台。
+
+    这是对外的那个函数, 唯一职责是"绝不把异常扔给调用方": 叫不到前台只是
+    "用户得多点一下窗口", 绝不该让第二个实例报错或卡住(它马上就要退出)。
+    """
+    try:
+        return _activate_window_impl(wait=wait, hold=hold)
+    except Exception:  # noqa: PERF203
+        return False
+
+
+def _activate_window_impl(*, wait: float, hold: float) -> bool:
+    """激活流程本体。
+
+    为什么不能只调一次 SetForegroundWindow: Windows 的前台锁只对"已经拥有
+    前台的进程"放行, 别的进程调用会被系统忽略(只在任务栏闪一下) —— 实测
+    启动第二个红杏时, 屏幕前面依然是被最大化的浏览器, 用户看到的是"双击了
+    没反应", 而这正是一键客户端最致命的失败模式。
+
+    做法与 gui/app.py 的 `App._bring_to_front` 同一套思路, 但纯 ctypes、不
+    import GUI(health 不能依赖界面层, 否则打包和单测都会变重):
+      1. 常规激活一次 —— 用户双击启动时这一下就够了;
+      2. 没成 -> 挂到前台线程的输入队列上再激活一次(前台锁的正规绕法);
+      3. 还没成 -> **短暂置顶**: 置顶不受前台锁限制, 窗口一定浮到最上层,
+         然后一边等它真的成为前台、一边闪任务栏按钮, 最多 hold 秒;
+      4. 无论成败都在 finally 里取消置顶 —— 第二个进程马上就要退出, 要是
+         留在置顶状态, 用户会得到一个永远压着所有窗口的"流氓窗口"。
+    """
+    hwnd = _find_existing_window()
+    if not hwnd:
+        # 客户端可能被收进了托盘(窗口是隐藏的): 那也是"已经在运行", 要把
+        # 它叫回来 —— 第一步的 ShowWindow(SW_RESTORE) 正好把它还原出来。
+        hwnd = _find_existing_window(include_hidden=True)
+    if not hwnd:
+        return False
+    if _owns_foreground(hwnd):
+        # 已经在最前面(或者前台是自家的托盘窗口): 一个手指头都别动,
+        # 免得把用户正在打字的窗口抢走。
+        return True
+
+    _force_foreground_once(hwnd)
+    # 注意: **不能信 SetForegroundWindow 的返回值**。实测(前台锁生效时)它
+    # 返回 1(成功)却什么都没发生 —— 前台还是那个被最大化的浏览器。所以这里
+    # 一律用 GetForegroundWindow 复查, 没到前台就继续下一步。
+    if not _owns_foreground(hwnd):
+        _force_foreground_attached(hwnd)
+    if _owns_foreground(hwnd):
+        return True
+
+    start = time.time()
+    deadline = start + max(wait, hold)
+    topmost = _set_topmost(hwnd, True)
+    flashed = False
+    settle_since = 0.0
+    got = False
+    try:
+        while time.time() < deadline:
+            now = time.time()
+            try:
+                owned = _owns_foreground(hwnd)
+            except Exception:  # noqa: PERF203
+                owned = False       # 问不出来就当没拿到, 到点自然收手
+            if owned:
+                settle_since = settle_since or now
+                if now - settle_since >= FOREGROUND_SETTLE_S:
+                    got = True
+                    break
+            else:
+                settle_since = 0.0
+                if now - start < wait:
+                    # 开局这一两秒值得反复试: 用户刚启动完, 前台本来就该给它
+                    _force_foreground_once(hwnd, restore=False)
+                elif not flashed:
+                    flashed = True
+                    _flash_taskbar(hwnd)
+            time.sleep(0.05)
+    finally:
+        if topmost:
+            _set_topmost(hwnd, False)
+    if not got and not flashed:
+        _flash_taskbar(hwnd)
+    return got

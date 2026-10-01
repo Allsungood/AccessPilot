@@ -578,6 +578,292 @@ class TestSingleInstance(unittest.TestCase):
         health.release_single_instance()
         health.release_single_instance()
 
+    def test_loser_calls_activation(self) -> None:
+        """拿不到名额时必须去叫已有窗口, 而不是安静退出。"""
+        self.assertTrue(health.acquire_single_instance(self.name))
+        with mock.patch.object(health, "_activate_existing_window") as activate:
+            self.assertFalse(health.acquire_single_instance(self.name))
+        activate.assert_called_once()
+
+
+# --------------------------------------------------------------------------- #
+# "把已有窗口叫到最前面": 前台锁 + 托盘窗口(全部离线, 用假 user32 顶掉 Win32)
+# --------------------------------------------------------------------------- #
+
+
+class FakeWindow:
+    """一个假窗口: 句柄 + 标题 + 类名 + 是否可见 + 属于哪个进程。"""
+
+    def __init__(self, hwnd: int, title: str, cls: str = "TkTopLevel",
+                 *, visible: bool = True, pid: int = 4321) -> None:
+        self.hwnd = int(hwnd)
+        self.title = title
+        self.cls = cls
+        self.visible = visible
+        self.pid = int(pid)
+
+
+class FakeUser32:
+    """离线假 user32, **如实建模 Windows 的前台锁**。
+
+    前台锁的语义: 目标窗口不是前台时, 别的进程调 SetForegroundWindow 会被
+    直接拒绝(返回 0, 前台不变); 只有把自己的输入队列挂到前台线程上
+    (AttachThreadInput) 之后才放行。`lock_active=False` 用来模拟"用户刚
+    双击启动, 前台本来就该给它"的情况。
+    """
+
+    def __init__(self, windows: list[FakeWindow], *, foreground: int = 0,
+                 lock_active: bool = True, attach_grants: bool = True) -> None:
+        self.windows = list(windows)
+        self.foreground = int(foreground or 0)
+        self.lock_active = lock_active
+        self.attach_grants = attach_grants
+        self.attached = False
+        self.calls: list[tuple] = []
+
+    # ---- 查询 ----
+    def _find(self, hwnd) -> FakeWindow | None:
+        for w in self.windows:
+            if w.hwnd == int(hwnd or 0):
+                return w
+        return None
+
+    def GetForegroundWindow(self) -> int:
+        return self.foreground
+
+    def IsWindowVisible(self, hwnd) -> bool:
+        w = self._find(hwnd)
+        return bool(w and w.visible)
+
+    def GetWindowTextLengthW(self, hwnd) -> int:
+        w = self._find(hwnd)
+        return len(w.title) if w else 0
+
+    def GetWindowTextW(self, hwnd, buf, count) -> int:
+        w = self._find(hwnd)
+        buf.value = w.title if w else ""
+        return len(buf.value)
+
+    def GetClassNameW(self, hwnd, buf, count) -> int:
+        w = self._find(hwnd)
+        buf.value = w.cls if w else ""
+        return len(buf.value)
+
+    def GetWindowThreadProcessId(self, hwnd, pid_ptr):
+        w = self._find(hwnd)
+        if pid_ptr is not None and w is not None:
+            pid_ptr._obj.value = w.pid
+        return 9000 + (w.pid if w else 0)
+
+    def FindWindowW(self, cls, title) -> int:
+        for w in self.windows:
+            if cls and w.cls == str(cls) and (title is None or w.title == str(title)):
+                return w.hwnd
+            if not cls and title and w.title == str(title):
+                return w.hwnd
+        return 0
+
+    def EnumWindows(self, callback, lparam) -> bool:
+        for w in self.windows:
+            if not callback(w.hwnd, lparam):
+                break
+        return True
+
+    # ---- 动作 ----
+    def ShowWindow(self, hwnd, cmd) -> bool:
+        self.calls.append(("ShowWindow", int(hwnd), int(cmd)))
+        return True
+
+    def BringWindowToTop(self, hwnd) -> bool:
+        self.calls.append(("BringWindowToTop", int(hwnd)))
+        return True
+
+    def SetForegroundWindow(self, hwnd) -> bool:
+        self.calls.append(("SetForegroundWindow", int(hwnd)))
+        if self.lock_active and not self.attached:
+            return False                      # 前台锁: 别的进程说了不算
+        self.foreground = int(hwnd)
+        return True
+
+    def AttachThreadInput(self, mine, theirs, attach) -> bool:
+        self.calls.append(("AttachThreadInput", int(mine), int(theirs), bool(attach)))
+        self.attached = bool(attach) and self.attach_grants
+        return True
+
+    def SetWindowPos(self, hwnd, after, x, y, cx, cy, flags) -> bool:
+        self.calls.append(("SetWindowPos", int(hwnd), int(after)))
+        return True
+
+    def FlashWindowEx(self, info_ptr) -> bool:
+        self.calls.append(("FlashWindowEx", int(self.foreground)))
+        return True
+
+    # ---- 断言辅助 ----
+    def called(self, name: str) -> list[tuple]:
+        return [c for c in self.calls if c[0] == name]
+
+    def topmost_flags(self) -> list[int]:
+        return [c[2] for c in self.called("SetWindowPos")]
+
+
+class FakeKernel32:
+    def GetCurrentThreadId(self) -> int:
+        return 4242
+
+
+@unittest.skipUnless(sys.platform == "win32", "窗口/前台锁是 Windows 专有实现")
+class TestActivateExistingWindow(unittest.TestCase):
+    """题目: 第二个实例启动时, 必须把**已有**窗口真的叫到最前面。
+
+    真实故障: 只调一次 SetForegroundWindow 会被前台锁挡掉, 屏幕上前面
+    依然是被最大化的浏览器 —— 用户看到"双击了没反应"。
+    """
+
+    def setUp(self) -> None:
+        self.browser = FakeWindow(0x2002, "DeepSeek Harness - 浏览器",
+                                  "Chrome_WidgetWin_1", pid=999)
+        self.main = FakeWindow(0x1001, "红杏 · 一键通行", "TkTopLevel", pid=4321)
+        # 托盘隐藏消息窗口: 同进程、标题也带自家名字, 但它**不是**主窗口
+        self.tray = FakeWindow(0x3003, "HongXingTraySink", "HongXingTrayWnd_4321_1",
+                               visible=False, pid=4321)
+        self.u32 = FakeUser32([self.browser, self.main, self.tray],
+                              foreground=self.browser.hwnd)
+        for target, value in (("_user32_dll", lambda: self.u32),
+                              ("_kernel32_dll", FakeKernel32)):
+            p = mock.patch.object(health, target, value)
+            p.start()
+            self.addCleanup(p.stop)
+
+    def test_finds_main_window_not_tray(self) -> None:
+        """托盘那个隐藏窗口绝不能当目标 —— 点了它等于什么都没发生。"""
+        self.assertEqual(health._find_existing_window(), self.main.hwnd)
+
+    def test_tray_only_windows_means_no_target(self) -> None:
+        self.u32.windows = [self.tray]
+        self.assertEqual(health._find_existing_window(), 0)
+        self.assertFalse(health._activate_existing_window())
+
+    def test_no_window_is_a_noop(self) -> None:
+        with mock.patch.object(health, "_find_existing_window", return_value=0):
+            self.assertFalse(health._activate_existing_window())
+        self.assertEqual(self.u32.calls, [])
+
+    def test_already_foreground_does_nothing(self) -> None:
+        """已经在前台就别动 —— 抢前台等于跟正在打字的用户抢键盘。"""
+        self.u32.foreground = self.main.hwnd
+        self.assertTrue(health._activate_existing_window())
+        self.assertEqual(self.u32.calls, [])
+
+    def test_tray_foreground_counts_as_ours(self) -> None:
+        """托盘窗口偶尔会拿到前台, 它也是"我们自己人"。
+
+        否则主窗口会误判"我没在前台", 于是一直抢、一直保持置顶 ——
+        用户看到的就是一个赖在最前面不走的窗口。
+        """
+        self.u32.foreground = self.tray.hwnd
+        self.assertTrue(health._owns_foreground(self.main.hwnd))
+        self.assertTrue(health._activate_existing_window())
+        self.assertEqual(self.u32.calls, [], "自家窗口在前台时不该有任何动作")
+
+    def test_other_process_foreground_is_not_ours(self) -> None:
+        self.assertFalse(health._owns_foreground(self.main.hwnd))
+        self.assertFalse(health.foreground_is_ours(self.main.hwnd))
+
+    def test_public_helper_matches_internal(self) -> None:
+        """给 GUI 用的公开版本: 托盘窗口当前台时也算"自己人"。"""
+        self.u32.foreground = self.tray.hwnd
+        self.assertTrue(health.foreground_is_ours(self.main.hwnd))
+        self.u32.foreground = self.main.hwnd
+        self.assertTrue(health.foreground_is_ours(self.main.hwnd))
+
+    def test_plain_activation_when_not_locked(self) -> None:
+        """用户双击启动时前台本来就该给它: 一次 SetForegroundWindow 就够。"""
+        self.u32.lock_active = False
+        self.assertTrue(health._activate_existing_window())
+        self.assertEqual(self.u32.foreground, self.main.hwnd)
+        self.assertEqual(self.u32.called("AttachThreadInput"), [])
+        self.assertEqual(self.u32.called("SetWindowPos"), [], "没被挡住就不用置顶")
+
+    def test_attach_thread_input_beats_the_lock(self) -> None:
+        """前台锁挡路时的正规解法: 挂到前台线程的输入队列上再来一次。"""
+        self.assertTrue(health._activate_existing_window())
+        self.assertEqual(self.u32.foreground, self.main.hwnd)
+        attaches = self.u32.called("AttachThreadInput")
+        self.assertEqual([c[3] for c in attaches], [True, False],
+                         "挂接之后必须解除, 否则两个进程的输入队列会绑在一起")
+        self.assertEqual(self.u32.called("SetWindowPos"), [],
+                         "已经真的拿到前台了, 不需要置顶兜底")
+
+    def test_topmost_and_flash_when_lock_wins(self) -> None:
+        """连挂接都不管用时, 也要保证用户看得见: 短暂置顶 + 闪任务栏。"""
+        self.u32.attach_grants = False
+        ok = health._activate_existing_window(wait=0.05, hold=0.15)
+        self.assertFalse(ok, "确实没拿到前台就如实返回 False")
+        self.assertEqual(self.u32.topmost_flags(), [-1, -2],
+                         "先置顶(HWND_TOPMOST=-1), 结束必须取消(-2)")
+        self.assertTrue(self.u32.called("FlashWindowEx"), "前台锁挡着时闪任务栏")
+        self.assertEqual(self.u32.foreground, self.browser.hwnd)
+
+    def test_topmost_is_dropped_even_if_wait_loop_breaks(self) -> None:
+        """轮询里出任何岔子, 也绝不能把窗口留成永久置顶。"""
+        self.u32.attach_grants = False
+        seen = {"n": 0}
+
+        def flaky(hwnd: int) -> bool:
+            seen["n"] += 1
+            if seen["n"] <= 3:          # 前三次: 确实还没拿到前台
+                return False
+            raise RuntimeError("查询炸了")
+
+        with mock.patch.object(health, "_owns_foreground", side_effect=flaky):
+            ok = health._activate_existing_window(wait=0.05, hold=0.12)
+        self.assertFalse(ok)
+        self.assertEqual(self.u32.topmost_flags(), [-1, -2])
+
+    def test_title_priority_prefers_brand(self) -> None:
+        """标题里带项目路径的终端窗口不该盖过真正的客户端窗口。"""
+        terminal = FakeWindow(0x4004, "C:\\Users\\x\\AccessPilot - PowerShell",
+                              "CASCADIA_HOSTING_WINDOW_CLASS", pid=777)
+        self.u32.windows = [terminal, self.main, self.tray]
+        self.u32.foreground = self.browser.hwnd
+        self.assertEqual(health._find_existing_window(), self.main.hwnd)
+
+    def test_pick_main_window_prefers_full_product_title(self) -> None:
+        """真实踩过: 同事的"红杏托盘自测"窗口也含"红杏", 不能叫错窗口。"""
+        windows = [(0x6006, "TkTopLevel", "红杏托盘自测"),
+                   (0x1001, "TkTopLevel", "红杏 · 一键通行"),
+                   (0x7007, "Chrome_WidgetWin_1", "AccessPilot 文档")]
+        self.assertEqual(health._pick_main_window(windows), 0x1001)
+
+    def test_pick_main_window_ignores_unrelated_titles(self) -> None:
+        windows = [(0x8008, "Notepad", "购物清单")]
+        self.assertEqual(health._pick_main_window(windows), 0)
+
+    def test_brand_windows_beat_english_name_windows(self) -> None:
+        terminal = FakeWindow(0x4004, "C:\\src\\AccessPilot - PowerShell",
+                              "CASCADIA_HOSTING_WINDOW_CLASS", pid=777)
+        selftest = FakeWindow(0x6006, "红杏托盘自测", "TkTopLevel", pid=23356)
+        self.u32.windows = [terminal, selftest, self.main]
+        self.assertEqual(health._find_existing_window(), self.main.hwnd)
+
+    def test_invisible_windows_are_skipped(self) -> None:
+        hidden = FakeWindow(0x5005, "红杏(隐藏)", "TkTopLevel", visible=False, pid=4321)
+        self.u32.windows = [hidden, self.main]
+        self.assertEqual(health._find_existing_window(), self.main.hwnd)
+
+    def test_hidden_to_tray_window_is_still_brought_back(self) -> None:
+        """收进托盘的客户端(窗口隐藏)同样要被叫回来, 而不是"双击没反应"。"""
+        hidden = FakeWindow(0x5005, "红杏 · 一键通行", "TkTopLevel",
+                            visible=False, pid=4321)
+        self.u32.windows = [hidden]
+        self.u32.foreground = self.browser.hwnd
+        self.u32.lock_active = False
+        self.assertEqual(health._find_existing_window(), 0, "默认只认可见窗口")
+        self.assertTrue(health._activate_existing_window())
+        self.assertEqual(self.u32.foreground, hidden.hwnd)
+        self.assertIn(("ShowWindow", hidden.hwnd, 9), self.u32.calls,
+                      "必须先 SW_RESTORE 把隐藏窗口还原出来")
+
 
 if __name__ == "__main__":
     unittest.main()
