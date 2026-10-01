@@ -55,9 +55,38 @@ ANDROID_TUN = """tun:
 """
 
 
-def build_template(sub: subscription.Subscription, st) -> str:
-    """把完整配置渲染成安卓模板。"""
+def _write_text(path: Path, text: str) -> None:
+    """写文本文件, **强制 LF**, 不用平台默认换行.
+
+    真实事故(2026-10-01): `Path.write_text()` 在 Windows 上会把 `\\n` 翻译成
+    `\\r\\n`, 于是生成出来的 config.template.yaml(28,732 行) 和 nodes.yaml
+    (69,826 行) 全变成 CRLF。YAML 本身能读 CRLF, 所以它不会立刻炸 —— 但:
+      * 文件凭空大 2~3%;
+      * 更重要的是**它就躺在仓库和 APK 里**, 而任何人用 `read_text()` 去核对
+        换行时都会被 Python 的通用换行转换骗过去(我第一次核对就得出"没有 CRLF"
+        的错误结论, 是对方用 read_bytes 才查出来的)。
+    显式写 newline="\\n" 就没有这个问题。
+    """
+    path.write_text(text, encoding="utf-8", newline="\n")
+
+
+def build_template(sub: subscription.Subscription, st) -> tuple[str, list[dict]]:
+    """把完整配置渲染成安卓模板, 并返回**同一份** proxies 列表.
+
+    为什么要把 proxies 一起返回(真实事故, 2026-10-01):
+    最初只返回模板文本, nodes.yaml 是另外从 `sub.proxies` 生成的。但
+    `config.build_config()` 会往 proxies 里**追加本机才有的东西** ——
+    例如注册过的 `☁️ WARP` 出口。于是模板里的策略组引用了 `☁️ WARP`,
+    而 nodes.yaml 里根本没有它, 内核直接 fatal:
+
+        Parse config error: proxy group[1]: ♻️ 自动选择: '☁️ WARP' not found
+
+    这类"两个文件各自生成、边界对不上"的 bug 在真机上才暴露, 而且报错指向
+    策略组、真因在生成器。所以现在**只有一个事实来源**: 从 build_config 出来的
+    那份 proxies, 模板和 nodes.yaml 都用它。
+    """
     cfg = config.build_config(sub, st)
+    proxies = list(cfg.get("proxies") or [])
 
     # 1) tun 段换成安卓版(fd 模式)
     text = config.miniyaml.dump(cfg)
@@ -71,11 +100,10 @@ def build_template(sub: subscription.Subscription, st) -> str:
     text = re.sub(r'^listen: 0\.0\.0\.0:(.*)$', r'listen: 127.0.0.1:\1', text, flags=re.M)
 
     # 4) 节点列表整体换成占位符 —— 节点是运行时注入的, 不编进模板。
-    #    占位符必须顶格且是合法 YAML: 我们让它替换整个 proxies 块。
     text = re.sub(r"^proxies:\n(?:[ \t]+.*\n|\n)*",
                   "proxies:\n{{PROXIES}}\n", text, count=1, flags=re.M)
 
-    return text
+    return text, proxies
 
 
 def main() -> int:
@@ -96,21 +124,32 @@ def main() -> int:
     sub = subscription.load_profile(name)
     print(f"[i] 配置档 {name}: {len(sub.proxies)} 个节点")
 
-    # --- 配置模板 ---
-    tpl = build_template(sub, st)
-    (out / "config.template.yaml").write_text(tpl, encoding="utf-8")
+    # --- 配置模板 + 与其**一致**的节点列表 ---
+    tpl, proxies = build_template(sub, st)
+    _write_text(out / "config.template.yaml", tpl)
     print(f"[+] config.template.yaml  {len(tpl)} 字符")
     for ph in ("{{FD}}", "{{SECRET}}", "{{PROXIES}}"):
         n = tpl.count(ph)
         print(f"      占位符 {ph}: {n} 处" + ("" if n else "  ← 缺失!"))
 
     # --- 节点列表 ---
-    nodes = config.miniyaml.dump({"x": sub.proxies})  # 只为拿到正确缩进的列表
-    # miniyaml 会把列表放在 key 下面, 这里取列表体并缩进两格, 直接插进 proxies:
-    body = nodes.split("x:\n", 1)[1]
-    indented = "\n".join(("  " + ln) if ln.strip() else ln for ln in body.splitlines())
-    (out / "nodes.yaml").write_text(indented.rstrip() + "\n", encoding="utf-8")
-    print(f"[+] nodes.yaml  {len(sub.proxies)} 个节点")
+    #
+    # 用 `proxies` 作 key 去 dump, 然后**只把 key 那一行切掉** —— 剩下的列表体
+    # 缩进就是"插在 proxies: 下面"应该有的缩进, 一个空格都不用自己加。
+    #
+    # 真实事故一(缩进): 原来写的是 dump({"x": ...}) 再手工给每行加两格, 但 dump
+    # 出来本来就有一层缩进, 再加两格变成 4/6 格 —— 插进模板后节点被 YAML 解析成
+    # `proxies` 映射里的兄弟键, 内核报 "yaml: line N: did not find expected key",
+    # 而 N 指向 proxies: **上面**那一行, 真正的原因在 7 万行外的一个空格上。
+    #
+    # 真实事故二(不一致): 这份列表原来是从 `sub.proxies` 生成的, 而模板来自
+    # build_config() —— 后者会追加本机才有的 WARP 出口, 于是策略组引用了
+    # nodes.yaml 里没有的名字, 内核 fatal "proxy group[1]: ... '☁️ WARP' not found"。
+    # 现在两者共用 build_template() 返回的**同一份** proxies。
+    nodes = config.miniyaml.dump({"proxies": proxies})
+    body = nodes.split("proxies:\n", 1)[1]
+    _write_text(out / "nodes.yaml", body.rstrip() + "\n")
+    print(f"[+] nodes.yaml  {len(proxies)} 个节点 (与模板同一份数据源)")
 
     # --- geodata ---
     total = 0

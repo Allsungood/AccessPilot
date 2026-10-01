@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  红杏 Android · 明文流量策略
+
+  ## 为什么必须有这个文件
+
+  内核的 REST 控制接口是 `http://127.0.0.1:9090` —— **明文 HTTP**。而安卓从
+  9.0 起默认禁止明文流量，`android:usesCleartextTraffic="false"` 更是把整 App
+  的明文都关掉了。于是 `HttpURLConnection` 去连 loopback 会被拦下，
+  表现是"内核明明起来了、`/version` 用 curl 也返回 200，但 App 里连不上" ——
+  真机上实测到的就是这个：`awaitReady()` 20 秒超时然后内核被杀，日志里
+  一点线索都没有。
+
+  **loopback 并不自动豁免** —— 这一点很容易想当然。所以要把 127.0.0.1 和
+  localhost 显式列进白名单。
+
+  ## 为什么不做成全局允许明文
+
+  只放开 loopback，其它域名一律仍然禁止明文。这个 App 对外的流量全部走
+  内核隧道（HTTPS），没有任何理由去连外部的明文地址 —— 放开全局等于白白
+  扩大了攻击面。
+-->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">127.0.0.1</domain>
+        <domain includeSubdomains="false">localhost</domain>
+        <!-- IPv6 回环。内核绑的是 127.0.0.1，但有些 ROM 会把 localhost
+             解析成 ::1 —— 两个都列上，免得在个别机型上又踩一次。 -->
+        <domain includeSubdomains="false">::1</domain>
+    </domain-config>
+</network-security-config>

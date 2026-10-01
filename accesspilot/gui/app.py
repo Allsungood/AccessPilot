@@ -113,6 +113,16 @@ class App:
         # ---- 运行时状态 ----
         self._closing = False
         self._hidden = False
+        #: 窗口守护用: 启动时刻 / 已经把窗口拉回来过几次(见 _guard_window)。
+        #:
+        #: 这两个字段差点被我漏掉 —— 补丁脚本用 `"_started_at" in 源码` 判断
+        #: "字段是否已存在", 而那个字符串出现在**方法体里的使用处**,
+        #: 于是脚本报告"已存在"就跳过了初始化。结果守护函数一跑就
+        #: AttributeError, 被自己那个 `except Exception: pass` 静默吞掉,
+        #: 表现是"守护加了等于没加"。**判断字段在不在, 要看赋值处, 不是看
+        #: 字符串出现过没有。**
+        self._started_at = time.time()
+        self._guard_hits = 0
         self._task_busy = False
         self._nodes_loading = False
         self._poll_busy = False
@@ -469,11 +479,97 @@ class App:
         # 表格、轮询、节点列表全部排到首帧之后: 主循环一刻都不该为空着的
         # 控件商店买单。顺序不能反 —— 轮询结果会写进表格。
         self.root.after(1, self._startup)
+        self.root.after(400, self._guard_window)
         try:
             self.root.mainloop()
         finally:
             self._closing = True
         return 0
+
+    #: 启动后盯窗口的时长。过了它就不再管 —— 免得跟用户自己按的最小化较劲。
+    WINDOW_GUARD_S = 15.0
+
+    #: 盯的间隔。
+    WINDOW_GUARD_MS = 250
+
+    def _guard_window(self) -> None:
+        """启动后头十几秒盯住窗口: 被最小化或挪到屏幕外就恢复回来。
+
+        ## 为什么要做(真实故障, 2026-10-01)
+
+        双击 exe 后窗口正常出现约 5 秒, 然后变成
+            iconic=True  rect=(-21333,-21333)  158x26
+        而**进程还活着**、界面代码里没有任何一处调 iconify/withdraw(全仓 grep 过,
+        只有托盘隐藏那条路, 而 --no-tray 一样复现)。
+
+        已经排除的:
+          * 裸 Tk 窗口            -> 稳定不动
+          * 裸 Tk + 同样的 DPI 感知 -> 稳定不动(几何也照抄 1590x930+165+21)
+          * 同样的几何 + 同样的三级 DPI 降级 -> 稳定不动
+        所以触发条件在 App 自己的行为里, 最可疑的是 focus_force() 加短暂
+        -topmost 的那套"抢前台"组合 —— 但**根因还没定位**。
+
+        对一个"双击就用"的客户端来说, 窗口自己没了就是致命的: 用户看到的是
+        "点了没反应", 而这恰恰是我们最想避免的失败模式。所以在查清根因之前,
+        先用这个守护把体验兜住。
+
+        ## 边界
+
+        * 只在前 [WINDOW_GUARD_S] 秒内生效 —— 之后用户自己按最小化我们就不该管;
+        * 用户点过窗口(<Button-1>)也立刻停手;
+        * 每次恢复都打一行日志。**如果哪天根因修掉了, 这里应该永远是 0 次** ——
+          这行日志就是留给自己将来的证据。
+        """
+        if self._closing:
+            return
+        import time as _t
+
+        if _t.time() - self._started_at > self.WINDOW_GUARD_S:
+            return
+        try:
+            if not self._window_on_screen():
+                self._guard_hits += 1
+                hwnd = self._native_hwnd()
+                if hwnd:
+                    import ctypes
+
+                    # SW_RESTORE(9) + 置顶一下再取消: 单纯的 SW_RESTORE 在
+                    # "被移到屏幕外"这种情况下不会把窗口挪回来。
+                    ctypes.windll.user32.ShowWindow(hwnd, 9)
+                    ctypes.windll.user32.SetWindowPos(
+                        hwnd, -2, 0, 0, 0, 0, 0x0001 | 0x0002 | 0x0040)
+                    self._place_window()
+                print(f"[i] 窗口守护: 第 {self._guard_hits} 次把窗口拉回屏幕",
+                      file=sys.stderr)
+        except Exception:  # noqa: PERF203 - 守护绝不能把界面搞崩
+            pass
+        self.root.after(self.WINDOW_GUARD_MS, self._guard_window)
+
+    def _window_on_screen(self) -> bool:
+        """窗口是不是"正常摆在屏幕上". 判断不出来时一律返回 True(不折腾)。"""
+        hwnd = self._native_hwnd()
+        if not hwnd:
+            return True
+        try:
+            import ctypes
+            from ctypes import wintypes
+
+            u = ctypes.windll.user32
+            if u.IsIconic(hwnd):
+                return False
+            r = wintypes.RECT()
+            if not u.GetWindowRect(hwnd, ctypes.byref(r)):
+                return True
+            sw = u.GetSystemMetrics(0)
+            sh = u.GetSystemMetrics(1)
+            # 完全在屏幕外 / 尺寸塌缩成一个角 -> 认为不正常
+            if r.right <= 0 or r.bottom <= 0 or r.left >= sw or r.top >= sh:
+                return False
+            if (r.right - r.left) < 200 or (r.bottom - r.top) < 150:
+                return False
+            return True
+        except Exception:  # noqa: PERF203
+            return True
 
     def _startup(self) -> None:
         """首帧之后的收尾: 建剩余控件 → 同步托盘 → 开始轮询 → 拉节点列表。
