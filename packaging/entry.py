@@ -263,8 +263,12 @@ class _NullStream:
         pass
 
 
-def _install_streams() -> str:
-    """补齐 sys.stdout / sys.stderr / sys.stdin, 返回实际走了哪条退路。"""
+def _install_streams(*, want_console: bool = True) -> str:
+    """补齐 sys.stdout / sys.stderr / sys.stdin, 返回实际走了哪条退路。
+
+    want_console: GUI 路径必须传 False —— 挂父控制台会让主窗口以最小化状态
+                  出现(见 chain 处的实测记录)。命令行子命令保持默认 True。
+    """
     global _stream_mode
 
     # HONGXING_STREAM=log 强制走"双击启动"那条退路 —— 排查"用户说双击没反应"时,
@@ -290,6 +294,15 @@ def _install_streams() -> str:
         ("console", _attach_parent_console),
         ("log", _open_log_stream),
     ]
+    if not want_console:
+        # GUI 路径**不能**挂父控制台。实测(2026-10-01): 从终端启动
+        # `红杏.exe` 时挂了控制台, 主窗口会以**最小化**状态出现 ——
+        #     exe 正常启动:      IsIconic=True   rect=(-32000,-32000)
+        #     HONGXING_NO_CONSOLE=1: IsIconic=False  rect=(110,14) 1076x659
+        # 同一个 exe、同样的启动方式, 只差这一步。用户双击虽然拿不到父控制台
+        # (所以碰不到), 但从终端/脚本/快捷方式带参数启动就会踩到。
+        # 命令行子命令(--version / doctor)照旧走 console, 那边需要它才能打印。
+        chain = [item for item in chain if item[0] != "console"]
     if forced in ("console", "handle"):
         chain = [item for item in chain if item[0] == forced] + [("log", _open_log_stream)]
 
@@ -521,9 +534,13 @@ def _run_gui_package(argv: list[str]) -> int | None:
 
 
 def main() -> int:
-    mode = _install_streams()
-    _ensure_source_path()
+    # 先算出这次要干什么, 再决定要不要挂父控制台 —— GUI 路径挂控制台会让
+    # 主窗口以最小化状态出现(见 _install_streams 里的实测记录), 而命令行
+    # 子命令需要控制台才能打印。_normalized_argv() 是纯函数, 先调它没有副作用。
     argv = _normalized_argv() or ["gui"]
+    want_console = argv[0] != "gui"
+    mode = _install_streams(want_console=want_console)
+    _ensure_source_path()
 
     # 打包自检: 由 packaging/smoke_test.py 驱动, 普通用户不会用到这个开关
     if (argv and argv[0] == "--selftest") or os.environ.get("HONGXING_SELFTEST") == "1":
