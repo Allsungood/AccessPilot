@@ -1,26 +1,46 @@
 # 红杏 Android · 忽略规则
 #
-# 注意这里**不忽略** app/src/main/assets/ —— 那里面有随包的 geodata、规则集、
-# 配置模板和节点列表, 是产品的一部分。它们不算小(约 28 MB), 但缺了内核根本
-# 起不来(没有 geodata 时 mihomo 直接 exit 1), 所以必须进仓库。
-# 重新生成: python android/tools/build_assets.py
+# 注意: 本文件在 android/ 目录下, 所以下面所有模式都**相对 android/**,
+# 不能写成 android/app/... (踩过 —— 那样一条都不生效)。
+#
+# 关于随包资源与内核二进制(约 89 MB)为什么不进仓库:
+#   * mihomo 的 Android 二进制单个 61 MB, GitHub 单文件超过 50 MB 会告警;
+#   * 它们都是**可再生成的**: 内核从官方发布页下载, 资源由桌面端的配置生成。
+# 所以仓库里只留"怎么生成", 不留产物 —— 新克隆的仓库跑两条命令就能补齐:
+#
+#     python android/tools/fetch_core.py      # 下载 mihomo 到 jniLibs
+#     python android/tools/build_assets.py    # 从桌面配置生成 assets
+#
+# 这两个目录**不能**长期缺失: 缺 geodata 时 mihomo 直接 exit 1,
+# 缺 libmihomo.so 时 APK 里根本没有内核。构建前务必先跑上面两条。
 
-# Gradle
+# --- 可再生成的产物 ---
+app/src/main/jniLibs/
+app/src/main/assets/
+core-bin/
+
+# --- Gradle ---
 .gradle/
 build/
 app/build/
-local.properties          # 每台机器的 SDK 路径不同
 
-# IDE
+# --- IDE ---
 .idea/
 *.iml
 .DS_Store
-
-# 构建中间产物
 captures/
+
+# --- 本机配置 ---
+# 注意: 每行只能是一个模式。gitignore 只在**行首**把 # 当注释,
+# 写在行中间会整行变成一个匹配不到东西的模式(踩过)。
+local.properties
+
+# --- 构建产物与密钥 ---
 *.apk
 *.aab
 *.keystore
+*.jks
 
-# mihomo 原始下载包(解压后的 libmihomo.so 在 jniLibs 里, 那份要进仓库)
-core-bin/*.gz
+# --- 日志 ---
+build.log
+pyinstaller.log
