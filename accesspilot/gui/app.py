@@ -552,6 +552,16 @@ class App:
         hwnd = self._native_hwnd()
         if not hwnd:
             return True                      # 问不出来就别死扛着置顶
+        # 用 health.foreground_is_ours 而不是直接比 GetForegroundWindow:
+        # 托盘那个隐藏窗口偶尔会拿到前台, 只比主窗口的话这里会误判成
+        # "我失去前台了", 于是主窗口一直保持置顶不退(最长 30 秒)。
+        # 同进程的托盘窗口应该算"自己人"。
+        try:
+            from ..health import foreground_is_ours
+
+            return bool(foreground_is_ours(hwnd))
+        except Exception:  # noqa: PERF203 - health 缺失时退回直接比较
+            pass
         try:
             import ctypes
 
