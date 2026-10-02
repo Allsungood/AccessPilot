@@ -1,0 +1,4 @@
+RENAME at 11:28:09
+renamed -> tray.py.verifier-hidden
+spawned PID 16284 at 11:28:09
+RESTORED tray.py at 11:28:25

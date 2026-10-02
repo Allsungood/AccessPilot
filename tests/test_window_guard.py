@@ -1,22 +1,30 @@
-"""回归测试: 窗口守护"还要不要继续盯"的判断。
+"""回归测试: 窗口守护的两个判断, 以及"守护绝不允许静默失效"。
 
-## 背景(全部来自独立验收的实测数据, 不是我推演的)
+## 背景(全部来自实测采样, 不是推演)
 
 双击 exe 后窗口会**偶尔**自己最小化, 而进程还活着 —— 用户看到的是"双击没反应"。
-根因至今没定位, 所以有一个兜底守护: 发现窗口被最小化就恢复回来。
+根因至今没定位, 所以有一个兜底守护。采样(每 100ms/1s 一次)拿到的事实:
 
-验收方用 100ms 间隔采样 3 轮冷启动, 拿到两个关键事实:
+* 故障是**概率性**的: 发作时刻见过 t=3.77s, 也见过 **t=24.33s**; 而且 t=24.33s
+  那次之后窗口**一直最小化到采样结束**, 没人管。
+* 用户主动按最小化时, 窗口状态和故障**逐字节相同**(都是
+  `iconic=True rect=(-32000,-32000) 237x39`), 所以靠状态区分不了。
 
-1. **故障是概率性的** —— 3 轮里复现 1 轮(窗口首帧 t=1.45s, 自己最小化在 t=3.77s)。
-   所以"修好之后跑 N 次都正常"这种说法在 N 小的时候区分不了"修好了"和"运气好"。
-2. **它不只在头几秒** —— 另有一轮在 **t=32.31s** 才自己最小化, 那时固定的 15 秒
-   守护窗口早已过期, 窗口就一直最小化着。
+对策是看**时间上的因果**: 用户按最小化之前必然有一次点击, 故障发作时周围没有
+任何输入。归因只在**状态翻转的那一帧**做一次。
 
-第 2 条说明"只盯 15 秒"覆盖不到。但如果无脑延长守护时间, 又会去抢用户主动按的
-最小化(验收方实测: 守护窗口内按最小化会被弹回来)。
+## 这里锁的第二件事: 守护不许静默失效
 
-判据是:**"从我启动到现在一次键鼠输入都没有" ⟹ 窗口不可能是用户按小的。**
-这种情况下才放宽守护时长, 两种情况就都照顾到了。
+第一版"改进"把判断写在了重新排期之前, 而重新排期是普通语句:
+
+    if not self._guard_alive(...):
+        return                       # <- 永久停止
+    try: ...
+    self.root.after(...)             # <- 上面的 return 一执行, 这行永远到不了
+
+结果: t=15 秒后只要有**一次**判断为假(比如用户恰好在动鼠标), 守护就彻底消失,
+之后 t=24.33s 那次自己最小化再没人管。而"守护失效"和"故障本身"表现一模一样,
+光看现象根本分不出来 —— 所以必须用测试把它钉死, 而不是靠 review 时想起来。
 """
 from __future__ import annotations
 
@@ -32,53 +40,121 @@ from accesspilot.gui.app import App  # noqa: E402
 
 
 class GuardAliveTests(unittest.TestCase):
-    def test_inside_regular_window_always_guards(self) -> None:
-        """常规窗口内不看输入 —— 哪怕用户正在疯狂动鼠标也要兜住故障。"""
-        for idle in (None, 0, 50, 10_000):
-            self.assertTrue(App._guard_alive(1.0, idle), f"idle={idle}")
-            self.assertTrue(App._guard_alive(14.9, idle), f"idle={idle}")
+    def test_alive_inside_window(self) -> None:
+        self.assertTrue(App._guard_alive(0.0))
+        self.assertTrue(App._guard_alive(1.0))
+        self.assertTrue(App._guard_alive(App.WINDOW_GUARD_S - 0.01))
 
-    def test_after_regular_window_user_input_stops_the_guard(self) -> None:
-        """用户动过键鼠 -> 过了常规窗口就收手, 不抢他的最小化。"""
-        # age=20s, 最后一次输入在 1 秒前 -> 用户在操作
-        self.assertFalse(App._guard_alive(20.0, 1_000))
+    def test_dead_after_window(self) -> None:
+        self.assertFalse(App._guard_alive(App.WINDOW_GUARD_S + 0.01))
+        self.assertFalse(App._guard_alive(9999.0))
 
-    def test_after_regular_window_no_input_keeps_guarding(self) -> None:
-        """启动至今无人碰过键鼠 -> 可以放心继续盯(实测故障最晚在 t=32s)。"""
-        # age=32s, 最后一次输入在 300 秒前(= 启动之前) -> 至今无人操作
-        self.assertTrue(App._guard_alive(32.0, 300_000))
+    def test_window_covers_the_observed_late_strike(self) -> None:
+        """实测有 t=24.33s 才发作的一次 —— 窗口必须盖住它。
 
-    def test_idle_exactly_at_launch_counts_as_no_input(self) -> None:
-        """边界: idle == age 表示最后一次输入正好在启动那一刻(双击图标那次)。"""
-        self.assertTrue(App._guard_alive(30.0, 30_000))
-        # 早 1ms 也算"启动之前"
-        self.assertTrue(App._guard_alive(30.0, 30_001))
-        # 晚 1ms 就是启动之后有人动过
-        self.assertFalse(App._guard_alive(30.0, 29_999))
-
-    def test_unknown_idle_stops_after_regular_window(self) -> None:
-        """拿不到 idle 时按保守处理: 过了常规窗口就收手。
-
-        这里和 intent.py 的取舍**方向相反**, 是刻意的: 那边的误判代价是
-        "保活少跑一次", 这边的误判代价是"去抢用户的操作权"。抢用户的窗口
-        比漏兜一次更糟, 所以拿不准时选择不抢。
+        最初那版只盯 15 秒, 正好漏掉这一种, 而漏掉的表现就是窗口一直最小化着。
         """
-        self.assertFalse(App._guard_alive(20.0, None))
-        self.assertFalse(App._guard_alive(20.0, None))
+        self.assertTrue(App._guard_alive(24.33))
 
-    def test_hard_upper_bound(self) -> None:
-        """再久也要停 —— 否则一个忘了关的守护会永远盯着窗口。"""
-        self.assertFalse(App._guard_alive(App.WINDOW_GUARD_IDLE_S + 1, 10**9))
-        self.assertTrue(App._guard_alive(App.WINDOW_GUARD_IDLE_S - 1, 10**9))
 
-    def test_idle_window_is_longer_than_regular(self) -> None:
-        """源码级锁: 两档必须是"放宽"而不是写反了。"""
-        self.assertGreater(App.WINDOW_GUARD_IDLE_S, App.WINDOW_GUARD_S)
+class UserFightingTests(unittest.TestCase):
+    """归因只看**重复的节奏**。
+
+    原本的假设是"翻转那一帧 idle 小 = 用户按的", 但真机数据把它否了:
+    窗口在 t=46.72s 自己最小化时, 守护读到 idle = 15ms —— 而同一台机器单独
+    测 25 秒的 idle 分布是 2484~27406ms、0/248 次低于 1500ms、零输入事件,
+    且 app.py 与采样脚本里都没有任何 keybd_event/SendInput/mouse_event。
+    也就是说故障发作前**确实**有一次来路不明的真实输入, 那个推论直接失效。
+
+    换成的判据: 用户要收起窗口会**连着按**, 故障则隔很久才来一次。
+    """
+
+    def test_first_ever_minimize_is_not_a_fight(self) -> None:
+        """还没救过 -> 不可能是"较劲", 先救。"""
+        self.assertFalse(App._is_user_fighting(None))
+
+    def test_immediate_second_minimize_is_a_fight(self) -> None:
+        """刚救回来用户又按 -> 他真的想收起来, 让位。"""
+        self.assertTrue(App._is_user_fighting(0.0))
+        self.assertTrue(App._is_user_fighting(1.5))
+        self.assertTrue(App._is_user_fighting(App.FIGHT_WINDOW_S - 0.01))
+
+    def test_late_second_minimize_is_the_bug(self) -> None:
+        """实测故障两次发作相隔 22.4 秒(t=24.33 与 t=46.72)-> 必须判成故障。
+
+        这条把"用重复节奏区分"这个设计钉死: 阈值一旦调到 22 秒以上, 故障就会
+        被误判成"用户在按", 于是窗口一直最小化着 —— 正是要消灭的现象。
+        """
+        self.assertFalse(App._is_user_fighting(22.4))
+        self.assertFalse(App._is_user_fighting(App.FIGHT_WINDOW_S))
+        self.assertFalse(App._is_user_fighting(600.0))
+
+    def test_fight_window_is_well_below_observed_gap(self) -> None:
+        self.assertLess(App.FIGHT_WINDOW_S, 22.0)
+
+
+class GuardNeverDiesSilentlyTests(unittest.TestCase):
+    """守护最坏的失败模式是"静默失效" —— 它和故障本身表现一样, 看不出来。"""
+
+    def _app(self):
+        """不开窗地造一个 App: 只挂上 _guard_window 用到的那几个属性。"""
+        app = object.__new__(App)
+        app._closing = False
+        rescheduled: list = []
+
+        class FakeRoot:
+            def after(self, ms, fn):
+                rescheduled.append(ms)
+
+        app.root = FakeRoot()
+        return app, rescheduled
+
+    def test_reschedules_after_a_normal_tick(self) -> None:
+        app, resched = self._app()
+        app._guard_tick = lambda: None
+        App._guard_window(app)
+        self.assertEqual(resched, [App.WINDOW_GUARD_MS])
+
+    def test_reschedules_even_when_tick_raises(self) -> None:
+        """核心回归: 一次异常不许让守护永远消失。
+
+        原来重新排期是 try 之后的普通语句, 抛异常就再也排不上 —— 守护从此
+        不再运行, 而日志里一个字都没有。
+        """
+        app, resched = self._app()
+
+        def boom():
+            raise RuntimeError("模拟守护内部出错")
+
+        app._guard_tick = boom
+        App._guard_window(app)          # 不许把异常抛出去
+        self.assertEqual(resched, [App.WINDOW_GUARD_MS],
+                         "守护抛异常后没有再排期 —— 它会静默失效")
+
+    def test_does_not_reschedule_while_closing(self) -> None:
+        """退出中不要再排期, 否则窗口销毁后回调还会被触发。"""
+        app, resched = self._app()
+        app._closing = True
+        app._guard_tick = lambda: None
+        App._guard_window(app)
+        self.assertEqual(resched, [])
+
+    def test_tick_stops_after_window_expires(self) -> None:
+        """过了窗口就不再动作(排期仍在继续, 由 _guard_alive 每帧自己判断)。"""
+        app = object.__new__(App)
+        app._started_at = 0.0            # 很久以前启动
+        app._guard_hits = 0
+        app._window_was_ok = True
+        app._rescue_this = True
+        app._idle_ms = staticmethod(lambda: 0)
+        app._window_on_screen = lambda: False
+        app._native_hwnd = lambda: 0
+        App._guard_tick(app)
+        self.assertEqual(app._guard_hits, 0, "过了守护窗口还在动手")
 
 
 class IdleProbeTests(unittest.TestCase):
     def test_idle_probe_returns_sane_value(self) -> None:
-        """真调一次 GetLastInputInfo。拿不到(None)也算合法, 但不能是负数。"""
         v = App._idle_ms()
         if v is None:
             self.skipTest("这个环境拿不到 GetLastInputInfo")

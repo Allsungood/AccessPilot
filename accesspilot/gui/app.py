@@ -123,6 +123,14 @@ class App:
         #: 字符串出现过没有。**
         self._started_at = time.time()
         self._guard_hits = 0
+        #: 上一帧窗口是不是"正常摆在屏幕上"。用来找出状态**翻转**的那一帧 ——
+        #: 只有那一帧才做"是用户按的还是故障"的归因(见 _should_rescue)。
+        self._window_was_ok = True
+        #: 当前这一次"窗口不正常"要不要救。翻转时算一次, 之后一直沿用。
+        self._rescue_this = True
+        #: 上一次把窗口救回来的时刻 / 是否已经判定"用户在主动收起窗口"。
+        self._last_rescue_at = 0.0
+        self._gave_up = False
         self._task_busy = False
         self._nodes_loading = False
         self._poll_busy = False
@@ -486,41 +494,59 @@ class App:
             self._closing = True
         return 0
 
-    #: 启动后盯窗口的时长。过了它就不再管 —— 免得跟用户自己按的最小化较劲。
-    WINDOW_GUARD_S = 15.0
+    #: 启动后盯窗口的时长。
+    #:
+    #: 为什么敢盯到 120 秒(而不是最初那 15 秒) —— 因为**归因方式换了**:
+    #: 现在每次"窗口刚从正常变成不正常"时都会判断一次这是不是用户按的
+    #: (见 _should_rescue), 所以盯得久并不会去抢用户的最小化。
+    #:
+    #: 实测(独立验收 + 我自己采样)那个故障是概率性的, 发作时刻 t=3.77s 和
+    #: t=24.33s 都出现过。固定 15 秒的窗口会漏掉后一种, 而漏掉的表现就是
+    #: 窗口一直最小化着 —— 正是用户说的"双击没反应"。
+    WINDOW_GUARD_S = 120.0
 
-    #: 全程没人碰过键鼠时, 把盯的时间放宽到这里。
+    #: 判定"用户在跟我们较劲"的时间窗(秒)。
     #:
-    #: 为什么需要这一档 —— 独立验收的实测数据(3 轮冷启动, 每 100ms 采一次):
-    #: 故障是**概率性**的, 3 轮里复现 1 轮(窗口首帧 t=1.45, 自己最小化在 t=3.77);
-    #: 而且**不只在头几秒** —— 另有一轮在 t=32.31 才自己最小化, 那时常规窗口
-    #: 早就过期了, 窗口就一直最小化着。
-    #:
-    #: 而"从我启动到现在一次键鼠输入都没有"本身就是证据: **窗口不可能是用户按小的**。
-    #: 所以这种情况下可以放心地继续盯下去, 不会抢用户的操作权。
-    WINDOW_GUARD_IDLE_S = 120.0
+    #: 我们**刚**把窗口救回来、用户马上又把它最小化 —— 那是他真的想收起来, 让位。
+    #: 而那个故障两次发作之间隔得很远(实测 t=24.3s 和 t=46.7s, 相差 22 秒),
+    #: 所以这条判据不会把故障误判成"用户在按"。
+    FIGHT_WINDOW_S = 5.0
 
     #: 盯的间隔。
     WINDOW_GUARD_MS = 250
 
     @classmethod
-    def _guard_alive(cls, age: float, idle_ms: int | None) -> bool:
-        """还要不要继续盯窗口。
+    def _guard_alive(cls, age: float) -> bool:
+        """还在这段时间之内就继续盯。抽成纯函数是为了能直接测。"""
+        return age <= cls.WINDOW_GUARD_S
 
-        抽成纯函数是为了能直接测 —— 否则要真的开一个窗口等 15~120 秒,
-        这种测试没人会跑, 也就等于没测。
+    @classmethod
+    def _is_user_fighting(cls, since_last_rescue: float | None) -> bool:
+        """现在这一次最小化, 是不是用户在跟我们较劲。
 
-        * `age`     —— 从进程启动到现在多少秒
-        * `idle_ms` —— 系统范围内距上次键盘/鼠标输入的毫秒数; None = 拿不到
+        `since_last_rescue` = 距上一次把窗口救回来过了多少秒; None 表示还没救过。
 
-        `idle_ms >= age*1000` 的含义是"最后一次输入发生在**我启动之前**",
-        也就是启动至今无人操作。
+        ## 为什么不用"刚有没有键鼠输入"来判断(试过, 数据把它否了)
+
+        我原本的假设是: 用户按最小化之前必然有一次点击, 而故障发作时周围没有
+        任何输入 —— 所以翻转那一帧的 idle 大小就能区分二者。代码写完、测试也写
+        完了, 然后拿真机数据一验, **假设不成立**:
+
+            采样时窗口在 t=46.72s 自己最小化, 守护读到 idle = **15 ms**。
+
+        而我单独测过这台机器 25 秒的 idle 分布: 2484ms~27406ms、**0/248 次**
+        低于 1500ms、没有任何输入事件 —— 机器是真的没人碰。同时我也确认了
+        app.py 和采样脚本里都**没有**任何 keybd_event / SendInput / mouse_event。
+
+        也就是说: **那个故障发作之前, 确实有一次真实的输入事件**, 只是没人知道
+        它从哪来。于是"idle 小 = 用户按的"这个推论在这里直接反过来用不了了 ——
+        按这个判据, 故障会被判成"用户干的"而不去救, 窗口就一直最小化着。
+        (实测就是这样: 窗口从 t=46.72s 一直最小化到采样结束。)
+
+        所以换成一条**不依赖那个假设**的判据: 看**重复的节奏**。用户要收起窗口
+        会连着按, 故障则是隔很久才来一次。
         """
-        if age <= cls.WINDOW_GUARD_S:
-            return True
-        if age > cls.WINDOW_GUARD_IDLE_S:
-            return False
-        return idle_ms is not None and idle_ms >= age * 1000
+        return since_last_rescue is not None and since_last_rescue < cls.FIGHT_WINDOW_S
 
     @staticmethod
     def _idle_ms() -> int | None:
@@ -568,14 +594,7 @@ class App:
         "点了没反应", 而这恰恰是我们最想避免的失败模式。所以在查清根因之前,
         先用这个守护把体验兜住。
 
-        ## 边界(以及一个**做不到**的区分)
-
-        * 常规只在前 [WINDOW_GUARD_S] 秒内生效 —— 之后用户自己按最小化我们就不管了;
-        * 但若**启动至今一次键鼠输入都没有**, 则放宽到 [WINDOW_GUARD_IDLE_S] 秒:
-          那种情况下窗口不可能是用户按小的, 而实测故障确实是概率性的、
-          最晚一次在 t=32 秒才发作(见 WINDOW_GUARD_IDLE_S 的注释);
-        * 每次恢复都打一行日志。**如果哪天根因修掉了, 这里应该永远是 0 次** ——
-          这行日志就是留给自己将来的证据。
+        ## 一个**做不到**的区分
 
         ⚠️ **用户自己按的最小化, 和这个故障, 在系统看来是完全一样的。**
         别指望能区分开 —— 这条是实测出来的, 不是推测:
@@ -592,37 +611,84 @@ class App:
         "被挪到屏幕外还塌缩了"。我一度打算靠"位置是否异常"来区分二者,
         探针一跑就发现这条路根本不存在。
 
-        所以这里有一个**已知且无法消除的取舍**: 用户在启动后 15 秒内主动按
-        最小化, 会被守护弹回来。想靠"最近有没有键鼠输入"来区分也不行 ——
-        移动鼠标同样算输入, 那样反而会在真故障时误判成"用户干的"而袖手旁观,
-        把最想兜住的失败模式漏掉。两害相权, 选择保留守护、并把这个取舍写在
-        这里, 而不是加一个会让守护失效的猜测。
+        ## 那怎么区分"用户按的"和"故障"?
+
+        光看窗口状态**区分不了**(上面那段实测)。但可以看**时间上的因果**:
+
+            用户按最小化之前必然有一次点击 -> 翻转那一帧 idle 极小;
+            故障发作时周围没有任何输入     -> 翻转那一帧 idle 很大。
+
+        所以归因只在**状态翻转的那一帧**做一次(见 _should_rescue), 之后沿用这个
+        结论。用户按完最小化就不再碰键鼠了, idle 只会越来越大、越判越像"故障",
+        所以错过翻转帧就再也判不准 —— 这正是必须只在那一帧判断的理由。
+
+        残留误判(无法消除, 如实记着): 用户**一边持续移动鼠标**、窗口一边自己
+        最小化了, 会被误判成"用户按的"而不去救。
+
+        ## 边界
+
+        * 只在前 [WINDOW_GUARD_S] 秒内生效。这一档现在放宽到 120 秒, 但**不会**
+          因此去抢用户的最小化 —— 靠的就是上面那套翻转帧归因;
+        * 每次恢复都打一行日志; 判定为"用户按的"时也打一行。
+          **如果哪天根因修掉了, "拉回屏幕"那行应该永远是 0 次** ——
+          这行日志就是留给自己将来的证据。
         """
         if self._closing:
             return
-        import time as _t
-
-        age = _t.time() - self._started_at
-        if not self._guard_alive(age, self._idle_ms()):
-            return
         try:
-            if not self._window_on_screen():
-                self._guard_hits += 1
-                hwnd = self._native_hwnd()
-                if hwnd:
-                    import ctypes
-
-                    # SW_RESTORE(9) + 置顶一下再取消: 单纯的 SW_RESTORE 在
-                    # "被移到屏幕外"这种情况下不会把窗口挪回来。
-                    ctypes.windll.user32.ShowWindow(hwnd, 9)
-                    ctypes.windll.user32.SetWindowPos(
-                        hwnd, -2, 0, 0, 0, 0, 0x0001 | 0x0002 | 0x0040)
-                    self._place_window()
-                print(f"[i] 窗口守护: 第 {self._guard_hits} 次把窗口拉回屏幕",
-                      file=sys.stderr)
+            self._guard_tick()
         except Exception:  # noqa: PERF203 - 守护绝不能把界面搞崩
             pass
-        self.root.after(self.WINDOW_GUARD_MS, self._guard_window)
+        finally:
+            # 重新排期必须放在 finally 里。写成 try 之后的普通语句的话, 上面一旦
+            # 抛异常, 守护就**再也不会被排期** —— 表现为"守护悄没声地失效了",
+            # 而且日志里什么都没有。踩过: 加了时间判断之后, 一次不走运的判断就
+            # 让守护在 15 秒后彻底消失, 于是 t=24.33s 那次自己最小化没人管,
+            # 窗口就一直最小化着。守护这种代码, **静默失效是它最坏的失败模式**
+            # —— 因为它失效的表现和故障本身一模一样, 光看现象分不出来。
+            if not self._closing:
+                self.root.after(self.WINDOW_GUARD_MS, self._guard_window)
+
+    def _guard_tick(self) -> None:
+        """守护的一次检查(异常由调用方兜住)。"""
+        import time as _t
+
+        if not self._guard_alive(_t.time() - self._started_at):
+            return
+        if self._window_on_screen():
+            self._window_was_ok = True
+            return
+        now = _t.time()
+        if self._window_was_ok:
+            # 状态刚刚从"正常"翻成"不正常"。归因只看**重复的节奏**(见
+            # _is_user_fighting): 用户要收起窗口会连着按, 故障隔很久才来一次。
+            self._window_was_ok = False
+            since = None if not self._last_rescue_at else now - self._last_rescue_at
+            if self._gave_up or self._is_user_fighting(since):
+                self._gave_up = True
+                self._rescue_this = False
+                print(f"[i] 窗口守护: 刚救回来 {since:.1f} 秒又被最小化, "
+                      f"判定为你在主动收起窗口, 不再打扰", file=sys.stderr)
+            else:
+                self._rescue_this = True
+        if not self._rescue_this:
+            return
+        self._guard_hits += 1
+        self._last_rescue_at = now
+        hwnd = self._native_hwnd()
+        if hwnd:
+            import ctypes
+
+            # SW_RESTORE(9) + 置顶一下再取消: 单纯的 SW_RESTORE 在
+            # "被移到屏幕外"这种情况下不会把窗口挪回来。
+            ctypes.windll.user32.ShowWindow(hwnd, 9)
+            ctypes.windll.user32.SetWindowPos(
+                hwnd, -2, 0, 0, 0, 0, 0x0001 | 0x0002 | 0x0040)
+            self._place_window()
+        # idle 一并打出来: 它是排查这个故障最有用的一个数(实测故障发作前
+        # 15ms 有过一次来路不明的输入), 留着做证据。
+        print(f"[i] 窗口守护: 第 {self._guard_hits} 次把窗口拉回屏幕 "
+              f"(idle={self._idle_ms()} ms)", file=sys.stderr)
 
     def _window_on_screen(self) -> bool:
         """窗口是不是"正常摆在屏幕上". 判断不出来时一律返回 True(不折腾)。"""
