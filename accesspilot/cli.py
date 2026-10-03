@@ -1046,6 +1046,7 @@ def cmd_free(args: argparse.Namespace) -> int:
         keep: dict[str, int] = dict(alive)
         verified_ok = False  # 是否有节点通过"平台级验证"(能真正打开 X/Discord)
         ai_node: str = ""    # 实测能真正打开 ChatGPT 的最快节点(钉进 🤖 AI 服务)
+        select_node: str = ""  # 实测 X/Discord 都能用的最快节点(钉进 🚀 节点选择)
         if args.action == "auto":
             candidates = [n for n, d in alive.items() if d <= args.min_ms][: args.verify_top]
             if candidates:
@@ -1072,6 +1073,9 @@ def cmd_free(args: argparse.Namespace) -> int:
                     }
                     keep = dict(sorted(keep.items(), key=lambda kv: kv[1]))
                     verified_ok = True
+                    # 按平台实测延迟排序后的第一个 = X/Discord 都能用的里面最快的。
+                    # 这个值待会儿要拿去钉 🚀 节点选择, 见下面的长注释。
+                    select_node = next(iter(keep), "")
 
                     vrows = []
                     for r in sorted(good, key=lambda r: r.get("latency_ms") or 99999):
@@ -1159,11 +1163,34 @@ def cmd_free(args: argparse.Namespace) -> int:
 
             # 顶层组指向 url-test(自动选择), 它每 5 分钟重新选最快的;
             # 社交/流媒体跟随顶层, 形成"总是走当前最快验证节点"的链条。
-            for group in (rules.G_SELECT,):
+            # 🚀 节点选择 是**通用流量(含 X / Discord)**的入口, 它和下面的
+            # 🤖 AI 服务 一样**绝不能**挂在"自动选择"上, 只是判据不同:
+            # 自动选择是 url-test, 只看延迟, 而**延迟低完全不保证 X / Discord
+            # 能打开**。
+            #
+            # 真实故障(2026-10-03, 用户直接受影响): 刷新后 节点选择 -> 自动选择,
+            # 它按延迟挑中了 🇺🇸_美国_114(246ms, 全场第三快), 而那个节点**压根
+            # 没通过平台验证**。结果很迷惑人 —— ChatGPT 200(因为它走被钉住的
+            # AI 组), 但 x.com / discord.com 全部返回 000 连不上。
+            # 用户看到的是"代理明明开着, 但 X 和 Discord 打不开"。
+            #
+            # 之前只对 AI 组做了这个防呆, 是因为只踩过"自动选择挑中香港 ->
+            # ChatGPT 403"那一个坑; 这次证明**同一个坑在通用流量上一样成立**。
+            if select_node:
                 try:
-                    api.select(st, group, rules.G_AUTO)
-                except Exception:
-                    continue
+                    api.select(st, rules.G_SELECT, select_node)
+                    ok(f"🚀 节点选择 已钉住平台验证可用节点: {select_node[:44]}")
+                except Exception as e:  # noqa: PERF203
+                    warn(f"钉住通用节点失败({e}), 回退到自动选择")
+                    select_node = ""
+            if not select_node:
+                for group in (rules.G_SELECT,):
+                    try:
+                        api.select(st, group, rules.G_AUTO)
+                    except Exception:
+                        continue
+                warn("没有实测 X/Discord 都能用的节点, 🚀 节点选择 暂时跟随自动选择")
+                warn("  (自动选择只保证最快, 不保证能打开 X / Discord)")
             for group in (rules.G_SOCIAL, rules.G_MEDIA):
                 try:
                     api.select(st, group, rules.G_SELECT)
@@ -1188,7 +1215,11 @@ def cmd_free(args: argparse.Namespace) -> int:
                     warn(f"钉住 AI 节点失败({e}), 回退到自动选择")
                     ai_node = ""
 
-            ok(f"策略组已指向自动选择(当前最快: {best}, {keep[best]} ms, 每 5 分钟重选)")
+            if select_node:
+                ok(f"通用流量已钉住: {select_node[:40]} "
+                   f"({keep.get(select_node, '?')} ms, 实测 X/Discord 可用)")
+            else:
+                ok(f"策略组已指向自动选择(当前最快: {best}, {keep[best]} ms, 每 5 分钟重选)")
 
         print()
         print(dim(f"  安全提醒: {freenodes.SECURITY_NOTICE}"))
