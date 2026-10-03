@@ -44,6 +44,15 @@ android/local.properties
 # 体积大、只对当时那次排查有意义。同目录的 .py 验收脚本要留。
 artifacts/**/*.png
 
+# ---- 节点抓取缓存 / 采样转储 ----
+# cache/ 里是**真实的节点凭据**(服务器地址/UUID/密码)。虽然是公开的免费节点,
+# 但它是派生文件、随时可按 URL 重建, 没有任何理由进仓库。
+artifacts/**/cache/
+# 排查用的原始采样转储(每帧一条, 几百 KB 起)。同目录的 .py 脚本要留 ——
+# 脚本才是能复用的东西, 转储只是那一次的现场。
+artifacts/lead/*.json
+artifacts/nodes/*.json
+
 # ---- 编辑器 / 系统 ----
 .vscode/
 .idea/
