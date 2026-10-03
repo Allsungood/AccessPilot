@@ -386,13 +386,43 @@ class TestAiPinning(HealthTestCase):
         self.kernel.chain[rules.G_SELECT] = "香港节点"
         self.kernel.verify_map["香港节点"] = hk_result("香港节点")
 
-        r = health.failover_once()
+        # 记忆没过期时, 现在只做**一次廉价存活检查**(1 条请求), 不再做完整重验
+        # (4 条)。这里把存活检查打桩成"活着" —— 本用例的原意是"别花完整重验的
+        # 代价", 那个断言在下面仍然保留。
+        #
+        # 为什么契约从"一次都不测"改成了"测一次": 真实故障(2026-10-03)钉住的
+        # 节点死了, 而每一轮都把它原样钉回去, ChatGPT 一直打不开 —— 直到记忆
+        # 过期(默认 900 秒)。1 条请求/分钟换掉一个 15 分钟的盲区, 划算。
+        with mock.patch.object(health, "_quick_ai_check",
+                               return_value={"name": "韩国节点", "chatgpt_ok": True,
+                                             "chatgpt_loc": "KR"}):
+            r = health.failover_once()
         self.assertTrue(r["ok"], "出口本身(X/Discord)是好的, 不该被切掉")
         self.assertEqual(r["ai_node"], "韩国节点")
         self.assertEqual(self.kernel.chain[rules.G_AI], "韩国节点")
         self.assertEqual(self.kernel.verify_calls, ["香港节点"],
-                         "记忆里的 AI 节点还没过期, 不该再花请求重测它")
+                         "记忆里的 AI 节点还没过期, 不该再花**完整重验**的请求去测它")
         self.assertIn("ChatGPT 不可用", r["reason"])
+
+    def test_dead_pinned_ai_node_is_dropped_at_once(self) -> None:
+        """钉住的 AI 节点死了 -> **当轮**就丢掉, 不能一直钉到记忆过期。
+
+        真实故障(2026-10-03): 钉住的 🇫🇷_法国_102 返回 000, 而每一轮健康检查都把它
+        原样钉回去, 用户那边的表现是"X 和 Discord 都能开, 就 ChatGPT 打不开",
+        而且一坏就是十几分钟(默认 _ai_recheck = 900 秒)。
+        """
+        health._remember_ai("韩国节点")
+        self.kernel.chain[rules.G_SELECT] = "香港节点"
+        self.kernel.verify_map["香港节点"] = hk_result("香港节点")
+        self.kernel.candidates = ["美国节点"]
+        self.kernel.verify_map["美国节点"] = ok_result("美国节点", loc="US")
+
+        with mock.patch.object(health, "_quick_ai_check",
+                               return_value={"name": "韩国节点", "chatgpt_ok": False,
+                                             "detail": "URLError"}):
+            health.failover_once()
+        self.assertNotEqual(self.kernel.chain[rules.G_AI], "韩国节点",
+                            "已经死掉的节点被原样钉回去了")
 
     def test_stale_ai_pin_is_rechecked(self) -> None:
         health._remember_ai("韩国节点")

@@ -604,6 +604,12 @@ def _select(st: AppState, group: str, name: str, *, quiet: bool = False) -> bool
         api.select(st, group, name)
         return True
     except Exception as e:  # noqa: PERF203
+        # 名字失效(节点列表刷新过, 每次 free auto 都会重新编号)时要**顺手把
+        # 记忆清掉**。不清的话, 每一轮健康检查都会拿同一个已经不存在的名字再试
+        # 一次, 界面上的红字就一直消不掉 —— 用户看到的是"它卡在同一个错上",
+        # 而正确的行为是"发现那个节点没了, 忘掉它, 重新选一个"。
+        if "已经不在当前配置里" in str(e):
+            _forget_ai_if(name)
         if not quiet:
             _record_error(e)
         return False
@@ -757,7 +763,12 @@ def _ensure_ai_pin(
             # **第一个周期**(默认 60 秒)就发现, 而不是等记忆过期。
             r = _quick_ai_check(st, remembered, timeout=timeout)
             probed[remembered] = r
-            if freenodes.chatgpt_usable(r):
+            # ⚠️ 这里**必须显式再 select 一次**, 不能依赖 _quick_ai_check 内部的
+            # 副作用。那个函数确实会切组(它得把流量导到被测节点上), 但那是它的
+            # *手段*不是它的*职责* —— 一旦它被替换/打桩/改了实现, "检查过了"
+            # 就不再等于"组已经切过去了", 而 AI 组会静默地留在原地。
+            # (这个 bug 真的写出来过: 单测立刻抓到 chain[G_AI] 还是香港节点。)
+            if freenodes.chatgpt_usable(r) and _select(st, rules.G_AI, remembered):
                 return remembered, f"{remembered} 存活确认(未过期)"
             # 死了 / 出口变了: 必须忘掉它, 否则下一轮还会再钉回去。
             _forget_ai_if(remembered)

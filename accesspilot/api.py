@@ -115,12 +115,29 @@ def set_mode(st: AppState, value: str) -> None:
 
 
 def select(st: AppState, group: str, node: str) -> None:
-    _call(
-        st,
-        f"/proxies/{urllib.parse.quote(group, safe='')}",
-        method="PUT",
-        body={"name": node},
-    )
+    """把策略组切到某个节点。"""
+    try:
+        _call(
+            st,
+            f"/proxies/{urllib.parse.quote(group, safe='')}",
+            method="PUT",
+            body={"name": node},
+        )
+    except Fail as e:
+        # 内核在这一步只会回 `Selector update error: proxy not exist`, 而
+        # _call 会把它包成 `控制接口返回 HTTP 400: /proxies/%F0%9F%9A%80...`
+        # —— 界面上就是这么原样显示的(用户截图里那条红字)。
+        #
+        # 对用户来说那条信息完全没用: 它既没说清发生了什么, 也没说该怎么办。
+        # 真实成因几乎总是同一个: **节点列表被刷新过, 这个名字已经不在配置里了**
+        # (每次 free auto 都会重新编号: `SGP #5` 可能变成 `SGP #2`)。
+        # 所以这里换成人话, 并且把节点名带上 —— 排查时需要它。
+        if "proxy not exist" in str(e):
+            raise Fail(
+                f"节点「{node}」已经不在当前配置里了"
+                f"(节点列表刷新过? 名字会随刷新变化), 已自动重新选择"
+            ) from None
+        raise
 
 
 #: 测速目标。用 HTTPS/443: 部分节点只放行 443, 用 80 端口测会误判为不可用。
