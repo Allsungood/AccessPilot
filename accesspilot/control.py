@@ -516,10 +516,29 @@ def select_node(name: str) -> Status:
 
 
 def pick_best_node(*, limit: int = 40) -> Status:
-    """把当前最快的可用节点设为出口。
+    """把当前最好的可用节点设为出口 —— 界面上的「自动选最优」。
 
     为什么不用内核的 url-test: 它只看延迟, 不看**能不能真的打开网页**
     (实测出现过"测速 30ms 但打开 X 要十几秒")。这里用平台级验证过的节点。
+
+    ## 两遍扫描, 以及为什么必须顺手对齐 AI 组
+
+    第一遍找**同时**满足「X/Discord 可用」和「ChatGPT 可用」的节点, 找到就把
+    **两个组都钉到它**; 找不到才退而求其次, 只钉通用组。
+
+    为什么"顺手对齐 AI 组"不是多此一举 —— 真实故障(2026-10-03, 用户拿 Google
+    的报错来问):
+
+        "检测到您的计算机网络中存在异常流量"
+        IP 地址：84.239.42.49 ≠ 172.245.237.196
+
+    这个按钮原来**只切 🚀 节点选择**, 而 🤖 AI 服务 还钉在别的节点上。于是
+    `gemini.google.com`(走 AI 组)和 `gstatic.com` / `googleapis.com`(走通用组)
+    从**两个不同的 IP** 出去, Google 判定成异常流量。任何跨组用域名的站点
+    (Google 系、微软系)都会中招, 不止 Gemini。
+
+    所以出口一致性必须在这里也维持住 —— 只在 `free auto` 里对齐是不够的,
+    用户随手点一下这个按钮就会把它破坏掉。
     """
     st = load_state()
     try:
@@ -530,13 +549,30 @@ def pick_best_node(*, limit: int = 40) -> Status:
         nodes = list_nodes(limit=limit, alive_only=True)
         if not nodes:
             return _fail("没有可用节点, 请先刷新节点池")
+
+        probes: list[tuple[str, dict]] = []
         for n in nodes[:limit]:
             r = freenodes.verify_node(st, n.name, timeout=8.0)
             if freenodes.fully_usable(r):
-                api.select(st, rules.G_SELECT, n.name)
-                st.selected[rules.G_SELECT] = n.name
-                save_state(st)
-                return snapshot()
+                probes.append((n.name, r))
+                # 第一遍: 两样都行的节点直接用, 不必再往下测(省请求)
+                if freenodes.chatgpt_usable(r):
+                    break
+        if not probes:
+            return _fail("没有实测可用的节点, 建议重新抓取节点池")
+
+        # 优先取"两样都行"的; 一个都没有时才只用通用组那一批。
+        shared = [(n, r) for n, r in probes if freenodes.chatgpt_usable(r)]
+        chosen, result = (shared[0] if shared else probes[0])
+
+        api.select(st, rules.G_SELECT, chosen)
+        st.selected[rules.G_SELECT] = chosen
+        if shared:
+            # 同一个出口给两个组 —— 见上面那段 Google 报错
+            api.select(st, rules.G_AI, chosen)
+            st.selected[rules.G_AI] = chosen
+        save_state(st)
+        return snapshot()
     except Exception as e:  # noqa: PERF203
         return _fail(str(e) or type(e).__name__)
     return _fail("测了一圈没有真正可用的节点, 建议刷新节点池")

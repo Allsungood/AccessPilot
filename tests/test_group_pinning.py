@@ -139,5 +139,32 @@ class SharedExitTests(unittest.TestCase):
         self.assertIn("两个来源 IP", self.src)
 
 
+class PickBestNodeKeepsOneExitTests(unittest.TestCase):
+    """界面上的「自动选最优」也必须维持出口一致。
+
+    这个按钮原来**只切 🚀 节点选择**, 不碰 🤖 AI 服务 —— 用户随手点一下,
+    两个组就又指向不同节点了, 而 `free auto` 里做的对齐会被它破坏掉。
+    真实后果就是那条 Google 报错(同一会话两个来源 IP)。
+
+    出口一致性是个**不变量**, 只在某一个入口维持是不够的。
+    """
+
+    def setUp(self) -> None:
+        self.src = (ROOT / "accesspilot" / "control.py").read_text(encoding="utf-8")
+
+    def test_prefers_a_node_usable_for_both_groups(self) -> None:
+        self.assertIn("shared = [(n, r) for n, r in probes", self.src,
+                      "pick_best_node 没有优先选「两样都行」的节点")
+        self.assertIn("if freenodes.chatgpt_usable(r):", self.src)
+
+    def test_also_aligns_the_ai_group(self) -> None:
+        m = re.search(r"def pick_best_node\(.*?\n(?=def )", self.src, re.S)
+        self.assertIsNotNone(m)
+        body = m.group(0)
+        self.assertIn("rules.G_AI", body,
+                      "pick_best_node 只切了通用组, AI 组还指着别的节点 —— "
+                      "出口会分叉, Google 会报异常流量")
+
+
 if __name__ == "__main__":
     unittest.main()
