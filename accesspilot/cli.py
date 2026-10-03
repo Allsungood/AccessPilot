@@ -1092,22 +1092,53 @@ def cmd_free(args: argparse.Namespace) -> int:
                                 [[r[0], r[2], r[3], r[4], r[5]] for r in vrows]))
                     ok(f"平台验证: {len(good)}/{len(candidates)} 个节点真正可用")
 
+                    # 平台验证只能回答"**能不能**打开", 回答不了"**快不快**"。
+                    # 用户抱怨的"网速慢"就出在这儿: 同一批节点里吞吐能差上百倍
+                    # (实测 291 KB/s vs 2.3 KB/s), 而延迟几乎一样 —— 所以按
+                    # 延迟选出来的"最快"节点, 完全可能慢得没法用。
+                    #
+                    # 只在**已经通过平台验证的**节点里测吞吐: 那是几十个而不是
+                    # 几千个, 而且是唯一值得花时间测的那一批(没验证过的节点,
+                    # 测出多快都没意义 —— 它可能压根打不开 X)。
+                    speed: dict[str, float] = {}
+                    if len(good) > 1 and args.speed_seconds > 0:
+                        print(bold(f"实测吞吐 {len(good)} 个已验证节点 "
+                                   f"(每个约 {args.speed_seconds:.0f}s) ..."))
+                        srows = freenodes.rank_by_speed(
+                            st, [r["name"] for r in good],
+                            seconds=args.speed_seconds,
+                            progress=lambda i, n: sys.stdout.write(f"\r    {i}/{n}   "),
+                        )
+                        sys.stdout.write("\r" + " " * 44 + "\r")
+                        speed = {r["name"]: float(r["kbps"] or 0) for r in srows}
+                        for r in srows[:5]:
+                            print(dim(f"    {r['kbps']:>8.1f} KB/s  {r['name'][:44]}"))
+                        ok(f"实测最快: {srows[0]['name'][:40]} ({srows[0]['kbps']} KB/s)")
+
                     # ChatGPT 走独立的出口要求(X/Discord 全绿**不代表**能上
                     # ChatGPT: 香港节点就是 X/Discord 全过、ChatGPT 403)。
-                    # 挑最快的可用节点钉进 AI 组。
+                    # 挑**吞吐最高**的可用节点钉进 AI 组 —— 以前按延迟挑,
+                    # 结果钉住一个"能打开但慢得让人以为打不开"的节点。
                     ai_capable = sorted(
                         (r for r in good if freenodes.chatgpt_usable(r)),
-                        key=lambda r: r.get("latency_ms") or 99999,
+                        key=lambda r: -speed.get(r["name"], 0.0),
                     )
                     if ai_capable:
                         ai_node = ai_capable[0]["name"]
                         ok(f"ChatGPT 可用节点: {ai_node} "
                            f"(出口 {ai_capable[0].get('chatgpt_loc') or '?'}, "
-                           f"{ai_capable[0].get('latency_ms')} ms) -> 将钉进 🤖 AI 服务")
+                           f"{ai_capable[0].get('latency_ms')} ms, "
+                           f"{speed.get(ai_node, 0):.0f} KB/s) -> 将钉进 🤖 AI 服务")
                     else:
                         warn("这批节点里没有一个能打开 ChatGPT(出口地区不受支持)")
                         for r in sorted(good, key=lambda r: r.get("latency_ms") or 99999)[:3]:
                             warn(f"  {r['name'][:40]} -> {freenodes.chatgpt_reason(r)}")
+
+                    # 通用流量(含 X/Discord)也按**吞吐**挑, 不按延迟。
+                    if speed:
+                        select_node = max(speed, key=lambda n: speed[n])
+                        ok(f"通用流量选中最快的已验证节点: "
+                           f"{select_node[:40]} ({speed[select_node]:.0f} KB/s)")
                 else:
                     warn("平台验证无一通过: 当前这批免费节点只能连上, 不能真正使用")
                     warn("将保留纯测速结果; 建议过几小时再 accesspilot free auto")
@@ -1724,6 +1755,9 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--min-ms", type=int, default=4000, help="auto: 只平台验证延迟低于此值的节点")
     sp.add_argument("--verify-top", type=int, default=25, help="auto: 最多平台验证几个最快节点")
     sp.add_argument("--verify-timeout", type=float, default=10.0, help="auto: 平台验证单请求超时(秒)")
+    sp.add_argument("--speed-seconds", type=float, default=6.0,
+                    help="auto: 对已验证节点逐个实测吞吐的时长(秒), 0=跳过。"
+                         "延迟低不等于下得动, 差过上百倍, 所以要单独测")
     sp.set_defaults(func=cmd_free)
 
     sp = sub.add_parser("_watchdog", help=argparse.SUPPRESS)

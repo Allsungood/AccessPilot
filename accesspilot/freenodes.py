@@ -585,6 +585,94 @@ def fully_usable(r: dict[str, Any]) -> bool:
     return bool(r.get("x_ok") and r.get("x_asset_ok") and r.get("discord_ok"))
 
 
+#: 测吞吐用的目标文件。
+#:
+#: ⚠️ **别用 speed.cloudflare.com**。它会对反复请求回 HTTP 429, 而 429 的响应体
+#: 只有 1 个字节 —— 于是测出来是"0 KB/s", 看起来像节点死了, 其实是**测速工具自己
+#: 被限流了**。我第一版就是用它, 把目标打成限流状态之后, 同一批节点的读数全部
+#: 不可信(还读出过一个 291 KB/s, 换 cachefly 实测只有 31 KB/s)。
+#: 测速工具被限流, 是最容易被忽略的假数据来源。
+SPEED_TEST_URL = "https://cachefly.cachefly.net/10mb.test"
+
+
+def measure_speed(
+    st: Any, node: str, *, seconds: float = 8.0, url: str = SPEED_TEST_URL,
+) -> dict[str, Any]:
+    """把这个节点切上去, 实测**吞吐**(KB/s)。
+
+    ## 为什么必须有这个, 而不是继续用延迟
+
+    内核的 url-test 测的是**延迟**(握手 + 一个 204 响应), 而用户感受到的是
+    **吞吐**。在免费节点上这两件事几乎不相关 —— 实测同一批里:
+
+        EPODONIOS #1329   291 KB/s        🇩🇪 德国 | DEU    22.8 KB/s
+        🇫🇷_法国_102       197 KB/s        socks5-47.242...   2.3 KB/s
+
+    相差上百倍, 而它们的延迟差不多。所以"自动选择最快的节点"在用户体验上是错的:
+    它挑的是**响应最快**的, 不是**下得动**的 —— 用户看到的是"连接是通的但很慢"。
+
+    用**限时**而不是"下完整个文件": 10 MB 在 20 KB/s 的节点上要 8 分钟,
+    而我们只需要一个速率估计。读满 [seconds] 秒就停, 拿已读字节数算速率。
+    """
+    import urllib.request
+
+    out: dict[str, Any] = {"name": node, "kbps": 0.0, "bytes": 0, "ok": False,
+                           "detail": ""}
+    try:
+        from . import api as _api
+
+        _api.select(st, "🚀 节点选择", node)
+    except Exception as e:  # noqa: PERF203
+        out["detail"] = f"选择失败: {type(e).__name__}"
+        return out
+
+    # 切组是异步生效的(内核要重建连接), 不等一下会测到**上一个**节点。
+    time.sleep(0.6)
+
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({
+        "http": f"http://127.0.0.1:{st.mixed_port}",
+        "https": f"http://127.0.0.1:{st.mixed_port}",
+    }))
+    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+    got, t0 = 0, time.time()
+    try:
+        with opener.open(req, timeout=seconds + 4) as resp:
+            while time.time() - t0 < seconds:
+                chunk = resp.read(65536)
+                if not chunk:
+                    break
+                got += len(chunk)
+    except Exception as e:  # noqa: PERF203
+        out["detail"] = type(e).__name__
+        elapsed = max(time.time() - t0, 0.001)
+        # 即便报错也可能已经下到一部分: 有数据就仍然给出速率, 比直接判 0 有用。
+        if got:
+            out.update(kbps=round(got / elapsed / 1024, 1), bytes=got, ok=True)
+        return out
+
+    elapsed = max(time.time() - t0, 0.001)
+    out.update(kbps=round(got / elapsed / 1024, 1), bytes=got, ok=got > 0)
+    return out
+
+
+def rank_by_speed(
+    st: Any, nodes: list[str], *, seconds: float = 8.0,
+    progress: Callable[[int, int], None] | None = None,
+) -> list[dict[str, Any]]:
+    """逐个实测吞吐, 返回按速率降序的结果。
+
+    必须**顺序**跑: 每个节点要先把策略组切到它自己再下载, 并发会让流量走到
+    别的节点上, 结果是"测了一堆节点其实都在测同一个"(和 verify_many 同理)。
+    """
+    rows: list[dict[str, Any]] = []
+    for i, n in enumerate(nodes, 1):
+        rows.append(measure_speed(st, n, seconds=seconds))
+        if progress:
+            progress(i, len(nodes))
+    rows.sort(key=lambda r: -float(r.get("kbps") or 0))
+    return rows
+
+
 SECURITY_NOTICE = (
     "这些节点由陌生人运营, 对方能看到你的流量去向(HTTPS 内容看不到)。\n"
     "      请勿在使用免费节点时登录银行/邮箱等敏感账号; ChatGPT 账号尤其不建议。"

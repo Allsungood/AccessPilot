@@ -53,6 +53,7 @@ GetForegroundWindow 复查。见 _activate_existing_window(): 常规激活 -> �
 from __future__ import annotations
 
 import ctypes
+import re
 import sys
 import threading
 import time
@@ -60,7 +61,7 @@ from typing import Any
 
 from . import api, freenodes, paths, process, rules
 from .state import AppState, load_state
-from .util import json_dump, json_load
+from .util import http_request, json_dump, json_load
 
 # --------------------------------------------------------------------------- #
 # 可调参数(见 configure())
@@ -745,8 +746,21 @@ def _ensure_ai_pin(
 
     if remembered and remembered not in probed:
         if time.time() - remembered_at < _ai_recheck:
-            if _select(st, rules.G_AI, remembered, quiet=True):
-                return remembered, f"{remembered} 上次实测可用(未过期)"
+            # ⚠️ 这里以前是「没过期就原样钉回去, **一次都不测**」—— 那正是
+            # "ChatGPT 明明钉着却打不开"的来源: 节点在这段时间里死了, 而每一轮
+            # 都把它原封不动钉回去, 一直钉到记忆过期(默认 15 分钟)或轮到扫描
+            # (默认 10 分钟)为止。用户看到的是"代理通、X 和 Discord 都能开,
+            # 就 ChatGPT 打不开", 而且一坏就是十几分钟 —— 实测踩到过
+            # (2026-10-03: 钉住的 🇫🇷_法国_102 返回 000, 各组都没发现)。
+            #
+            # 现在每轮发**一条**请求确认它还活着。代价很小, 但能在节点死后的
+            # **第一个周期**(默认 60 秒)就发现, 而不是等记忆过期。
+            r = _quick_ai_check(st, remembered, timeout=timeout)
+            probed[remembered] = r
+            if freenodes.chatgpt_usable(r):
+                return remembered, f"{remembered} 存活确认(未过期)"
+            # 死了 / 出口变了: 必须忘掉它, 否则下一轮还会再钉回去。
+            _forget_ai_if(remembered)
         else:
             r = _probe(st, remembered, timeout=timeout)
             probed[remembered] = r
@@ -773,6 +787,45 @@ def _ensure_ai_pin(
     if _select(st, rules.G_AI, rules.G_SELECT, quiet=True):
         return "", "没找到实测能上 ChatGPT 的节点, AI 组暂时跟随 🚀 节点选择"
     return "", "没找到可用节点, 且无法改回跟随 🚀 节点选择"
+
+
+def _quick_ai_check(st: AppState, node: str, *, timeout: float) -> dict[str, Any]:
+    """只回答一个问题: 这个节点**现在**还能不能上 ChatGPT。
+
+    比 [freenodes.verify_node] 便宜(1 条请求 vs 4 条)。之所以敢省, 是因为这里
+    要回答的问题很窄 —— "**记忆里那个**已经通过完整验证的节点, 是不是还活着、
+    出口有没有变"。X 主页 / X 静态资源 / Discord 那三项上一轮已经过了, 没必要
+    每轮重测; 而死掉的节点在**任何**一条请求上都会失败, 用哪条测都一样。
+
+    异常一律返回"未通过"而不抛出去: 这个函数是在健康轮的中间被调用的,
+    它抛异常会把整轮带崩, 那比少测一次糟得多。
+    """
+    failed: dict[str, Any] = {
+        "name": node, "x_ok": False, "x_asset_ok": False, "discord_ok": False,
+        "chatgpt_ok": False, "latency_ms": -1, "detail": "",
+    }
+    try:
+        api.select(st, rules.G_AI, node)
+    except Exception as e:  # noqa: PERF203
+        failed["detail"] = f"选择失败: {type(e).__name__}"
+        return failed
+
+    proxy = f"http://127.0.0.1:{st.mixed_port}"
+    try:
+        status, _, body = http_request(
+            freenodes.CHATGPT_TRACE_URL, timeout=timeout, proxy=proxy)
+    except Exception as e:  # noqa: PERF203
+        failed["detail"] = type(e).__name__
+        return failed
+
+    out = dict(failed)
+    out["chatgpt_status"] = status
+    out["chatgpt_ok"] = status == 200
+    if status == 200:
+        m = re.search(rb"loc=([A-Za-z]{2})", body or b"")
+        if m:
+            out["chatgpt_loc"] = m.group(1).decode().upper()
+    return out
 
 
 def _probe(st: AppState, node: str, *, timeout: float) -> dict[str, Any]:
