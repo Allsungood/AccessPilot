@@ -97,5 +97,47 @@ class SelectGroupPinningTests(unittest.TestCase):
         self.assertIn("不保证能打开 X / Discord", self.src)
 
 
+class SharedExitTests(unittest.TestCase):
+    """两个组要尽量共用**同一个出口节点**。
+
+    ## 真实故障(2026-10-03, 用户拿 Google 的报错来问)
+
+        "我们的系统检测到您的计算机网络中存在异常流量"
+        IP 地址：84.239.42.49 ≠ 172.245.237.196
+
+    原因是线上配置里:
+        gemini.google.com -> 🤖 AI 服务     (钉在节点 A)
+        gstatic.com       -> 🚀 节点选择     (钉在节点 B)
+        googleapis.com    -> 🚀 节点选择
+        google.com        -> 🚀 节点选择
+
+    一次 Gemini 页面加载同时用到两组域名, 于是**同一个会话从两个 IP 出去**,
+    Google 判定成异常流量。
+
+    佐证(同一个代理, 两个目标两个出口):
+        api.ipify.org             -> 84.239.42.49
+        chatgpt.com/cdn-cgi/trace -> 103.106.229.236
+
+    这个坑**不限于 Google**: 任何跨组用域名的站点都会这样。
+    """
+
+    def setUp(self) -> None:
+        self.src = (ROOT / "accesspilot" / "cli.py").read_text(encoding="utf-8")
+
+    def test_prefers_a_node_that_satisfies_both_groups(self) -> None:
+        # 缩进不写死: 这段代码嵌在几层 if 里, 用 \s* 匹配以免挪一层就失效。
+        m = re.search(
+            r"if speed:\s*\n\s*shared = \[r\[\"name\"\] for r in ai_capable\]"
+            r"(.*?)\n\s*else:", self.src, re.S)
+        self.assertIsNotNone(m, "找不到共用出口那一段 —— 代码结构变了, 请复核")
+        # 关键: 选了 shared 里的节点之后, **两个组都要用它是同一个值**
+        self.assertIn("ai_node = select_node", m.group(1),
+                      "只改了通用组没改 AI 组, 两个出口还是不一样")
+
+    def test_warns_when_sharing_is_impossible(self) -> None:
+        """找不到两边都行的节点时必须说明后果, 不能默默分两个出口。"""
+        self.assertIn("两个来源 IP", self.src)
+
+
 if __name__ == "__main__":
     unittest.main()

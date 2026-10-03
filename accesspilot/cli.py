@@ -1134,11 +1134,40 @@ def cmd_free(args: argparse.Namespace) -> int:
                         for r in sorted(good, key=lambda r: r.get("latency_ms") or 99999)[:3]:
                             warn(f"  {r['name'][:40]} -> {freenodes.chatgpt_reason(r)}")
 
-                    # 通用流量(含 X/Discord)也按**吞吐**挑, 不按延迟。
+                    # 通用流量的出口 —— 这里有一条**比"挑最快"更重要的约束**:
+                    # 两个组必须尽量用**同一个节点**。
+                    #
+                    # 真实故障(2026-10-03, 用户拿 Google 的报错来问):
+                    #   "检测到您的计算机网络中存在异常流量"
+                    #   IP 地址：84.239.42.49 ≠ 172.245.237.196
+                    #
+                    # 原因: gemini.google.com 走 🤖 AI 服务, 而 gstatic.com /
+                    # googleapis.com / google.com 走 🚀 节点选择 —— **两个组钉的是
+                    # 不同节点**。于是一次页面加载里, 一部分请求从 A 出去、一部分
+                    # 从 B 出去, Google 看到同一个会话有两个来源 IP, 判定成异常流量。
+                    #
+                    # 佐证(同一个代理, 两个目标两个出口):
+                    #   api.ipify.org             -> 84.239.42.49
+                    #   chatgpt.com/cdn-cgi/trace -> 103.106.229.236
+                    #
+                    # 这个坑的适用范围**不限于 Google**: 任何跨组的站点(Google 系、
+                    # 微软系)都会这样。所以只要存在**同时**满足"X/Discord 可用"和
+                    # "ChatGPT 可用"的节点, 两个组就都钉它 —— 一个出口, 谁都不会
+                    # 看到两个来源 IP。ai_capable 天然就是这样的节点(它是 good 的子集)。
                     if speed:
-                        select_node = max(speed, key=lambda n: speed[n])
-                        ok(f"通用流量选中最快的已验证节点: "
-                           f"{select_node[:40]} ({speed[select_node]:.0f} KB/s)")
+                        shared = [r["name"] for r in ai_capable]
+                        if shared:
+                            select_node = max(shared, key=lambda n: speed.get(n, 0.0))
+                            ai_node = select_node
+                            ok(f"通用组与 AI 组共用同一出口: {select_node[:40]} "
+                               f"({speed.get(select_node, 0):.0f} KB/s)")
+                        else:
+                            select_node = max(speed, key=lambda n: speed[n])
+                            ok(f"通用流量选中最快的已验证节点: "
+                               f"{select_node[:40]} ({speed[select_node]:.0f} KB/s)")
+                            warn("没有既通 X/Discord 又能上 ChatGPT 的节点, 两组只能用不同出口")
+                            warn("  (同一个网站若同时用到两组的域名, 会看到两个来源 IP, "
+                                 "可能被判定为异常流量)")
                 else:
                     warn("平台验证无一通过: 当前这批免费节点只能连上, 不能真正使用")
                     warn("将保留纯测速结果; 建议过几小时再 accesspilot free auto")
