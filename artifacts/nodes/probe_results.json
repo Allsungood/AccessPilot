@@ -1,0 +1,182 @@
+[
+ {
+  "url": "https://node.freeclashnode.com/uploads/2026/10/0-20261002.yaml",
+  "status": 0,
+  "bytes": 0,
+  "nodes": 0,
+  "proxy_used": false,
+  "error": "URLError: <urlopen error [WinError 10054] 远程主机强迫关闭了一个现有的连接。>",
+  "secs": 1.17
+ },
+ {
+  "url": "https://node.freeclashnode.com/uploads/2026/10/0-20261002.txt",
+  "status": 0,
+  "bytes": 0,
+  "nodes": 0,
+  "proxy_used": false,
+  "error": "URLError: <urlopen error [WinError 10054] 远程主机强迫关闭了一个现有的连接。>",
+  "secs": 1.14
+ },
+ {
+  "url": "https://nodefree.org/dy/2026/10/20261002.yaml",
+  "status": 0,
+  "bytes": 0,
+  "nodes": 0,
+  "proxy_used": false,
+  "error": "URLError: <urlopen error [Errno 11001] getaddrinfo failed>",
+  "secs": 3.4
+ },
+ {
+  "url": "https://nodefree.org/dy/2026/10/20261002.txt",
+  "status": 0,
+  "bytes": 0,
+  "nodes": 0,
+  "proxy_used": false,
+  "error": "URLError: <urlopen error [Errno 11001] getaddrinfo failed>",
+  "secs": 7.16
+ },
+ {
+  "url": "https://a.nodeshare.xyz/uploads/2026/10/0-20261002.yaml",
+  "status": 0,
+  "bytes": 0,
+  "nodes": 0,
+  "proxy_used": false,
+  "error": "URLError: <urlopen error [WinError 10054] 远程主机强迫关闭了一个现有的连接。>",
+  "secs": 1.34
+ },
+ {
+  "url": "https://a.nodeshare.xyz/uploads/2026/10/0-20261002.txt",
+  "status": 0,
+  "bytes": 0,
+  "nodes": 0,
+  "proxy_used": false,
+  "error": "URLError: <urlopen error [WinError 10054] 远程主机强迫关闭了一个现有的连接。>",
+  "secs": 1.34
+ },
+ {
+  "url": "https://free.datiya.com/uploads/20261002-clash.yaml",
+  "status": 0,
+  "bytes": 0,
+  "nodes": 0,
+  "proxy_used": false,
+  "error": "URLError: <urlopen error [WinError 10054] 远程主机强迫关闭了一个现有的连接。>",
+  "secs": 0.55
+ },
+ {
+  "url": "https://free.datiya.com/uploads/20261002.txt",
+  "status": 0,
+  "bytes": 0,
+  "nodes": 0,
+  "proxy_used": false,
+  "error": "URLError: <urlopen error [WinError 10054] 远程主机强迫关闭了一个现有的连接。>",
+  "secs": 0.55
+ },
+ {
+  "url": "https://clash.zzux.com/daily/20261002.yaml",
+  "status": 0,
+  "bytes": 0,
+  "nodes": 0,
+  "proxy_used": false,
+  "error": "URLError: <urlopen error timed out>",
+  "secs": 20.34
+ },
+ {
+  "url": "https://oneclash.cc/wp-content/uploads/2026/10/20261002.yaml",
+  "status": 0,
+  "bytes": 0,
+  "nodes": 0,
+  "proxy_used": false,
+  "error": "URLError: <urlopen error [WinError 10054] 远程主机强迫关闭了一个现有的连接。>",
+  "secs": 0.8
+ },
+ {
+  "url": "https://www.mibei77.com/wp-content/uploads/2026/10/20261002.yaml",
+  "status": 0,
+  "bytes": 0,
+  "nodes": 0,
+  "proxy_used": false,
+  "error": "URLError: <urlopen error [WinError 10054] 远程主机强迫关闭了一个现有的连接。>",
+  "secs": 1.39
+ },
+ {
+  "url": "https://v2rayshare.com/uploads/2026/10/0-20261002.yaml",
+  "status": 0,
+  "bytes": 0,
+  "nodes": 0,
+  "proxy_used": false,
+  "error": "URLError: <urlopen error [Errno 11001] getaddrinfo failed>",
+  "secs": 2.57
+ },
+ {
+  "url": "https://freev2ray.com/uploads/2026/10/0-20261002.yaml",
+  "status": 0,
+  "bytes": 0,
+  "nodes": 0,
+  "proxy_used": false,
+  "error": "URLError: <urlopen error timed out>",
+  "secs": 40.2
+ },
+ {
+  "url": "https://ssrsub.com/free/20261002.yaml",
+  "status": 404,
+  "bytes": 1486,
+  "nodes": 0,
+  "proxy_used": false,
+  "error": "",
+  "secs": 1.65
+ },
+ {
+  "url": "https://clashgithub.com/wp-content/uploads/2026/10/20261002.yaml",
+  "status": 404,
+  "bytes": 340705,
+  "nodes": 0,
+  "proxy_used": false,
+  "error": "",
+  "secs": 3.07
+ },
+ {
+  "url": "https://freeclash.github.io/uploads/2026/10/0-20261002.yaml",
+  "status": 404,
+  "bytes": 9115,
+  "nodes": 0,
+  "proxy_used": false,
+  "error": "",
+  "secs": 10.18
+ },
+ {
+  "url": "https://testingcf.jsdelivr.net/gh/peasoft/NoMoreWalls@master/list.txt",
+  "status": 200,
+  "bytes": 115964,
+  "nodes": 538,
+  "proxy_used": false,
+  "error": "",
+  "secs": 2.69
+ },
+ {
+  "url": "https://ghfast.top/https://raw.githubusercontent.com/peasoft/NoMoreWalls/master/list.txt",
+  "status": 0,
+  "bytes": 0,
+  "nodes": 0,
+  "proxy_used": false,
+  "error": "URLError: <urlopen error [WinError 10054] 远程主机强迫关闭了一个现有的连接。>",
+  "secs": 0.45
+ },
+ {
+  "url": "https://gh-proxy.com/https://raw.githubusercontent.com/peasoft/NoMoreWalls/master/list.txt",
+  "status": 200,
+  "bytes": 122240,
+  "nodes": 557,
+  "proxy_used": false,
+  "error": "",
+  "secs": 0.83
+ },
+ {
+  "url": "https://raw.githubusercontent.com/peasoft/NoMoreWalls/master/list.txt",
+  "status": 200,
+  "bytes": 122240,
+  "nodes": 557,
+  "proxy_used": false,
+  "error": "",
+  "secs": 1.22
+ }
+]

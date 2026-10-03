@@ -1,0 +1,90 @@
+{
+  "existing_union": 12123,
+  "all_union": 12354,
+  "rows": [
+    {
+      "name": "MatinGhanbari/v2ray-configs/subscriptions/filtered/subs/hysteria2.txt",
+      "path": "gh/MatinGhanbari/v2ray-configs@main/subscriptions/filtered/subs/hysteria2.txt",
+      "uniq": 136,
+      "marginal": 134,
+      "overlap": 2
+    },
+    {
+      "name": "MatinGhanbari/v2ray-configs/subscriptions/v2ray/all_sub.txt",
+      "path": "gh/MatinGhanbari/v2ray-configs@main/subscriptions/v2ray/all_sub.txt",
+      "uniq": 3764,
+      "marginal": 75,
+      "overlap": 3689
+    },
+    {
+      "name": "MatinGhanbari/v2ray-configs/subscriptions/filtered/subs/vmess.txt",
+      "path": "gh/MatinGhanbari/v2ray-configs@main/subscriptions/filtered/subs/vmess.txt",
+      "uniq": 2092,
+      "marginal": 31,
+      "overlap": 2061
+    },
+    {
+      "name": "MatinGhanbari/v2ray-configs/subscriptions/base64/all_sub.txt",
+      "path": "gh/MatinGhanbari/v2ray-configs@main/subscriptions/base64/all_sub.txt",
+      "uniq": 3763,
+      "marginal": 24,
+      "overlap": 3739
+    },
+    {
+      "name": "MatinGhanbari/v2ray-configs/subscriptions/v2ray/super-sub.txt",
+      "path": "gh/MatinGhanbari/v2ray-configs@main/subscriptions/v2ray/super-sub.txt",
+      "uniq": 200,
+      "marginal": 3,
+      "overlap": 197
+    },
+    {
+      "name": "MatinGhanbari/v2ray-configs/subscriptions/filtered/subs/vless.txt",
+      "path": "gh/MatinGhanbari/v2ray-configs@main/subscriptions/filtered/subs/vless.txt",
+      "uniq": 245,
+      "marginal": 1,
+      "overlap": 244
+    },
+    {
+      "name": "MatinGhanbari/v2ray-configs/subscriptions/filtered/subs/trojan.txt",
+      "path": "gh/MatinGhanbari/v2ray-configs@main/subscriptions/filtered/subs/trojan.txt",
+      "uniq": 363,
+      "marginal": 1,
+      "overlap": 362
+    },
+    {
+      "name": "MatinGhanbari/v2ray-configs/subscriptions/filtered/subs/ss.txt",
+      "path": "gh/MatinGhanbari/v2ray-configs@main/subscriptions/filtered/subs/ss.txt",
+      "uniq": 1059,
+      "marginal": 0,
+      "overlap": 1059
+    }
+  ],
+  "per_existing": {
+    "ripaojiedian/freenode": 12,
+    "freefq/free": 14,
+    "mahdibland/V2RayAggregator": 200,
+    "free18/v2ray": 133,
+    "Pawdroid/Free-servers": 7,
+    "peasoft/NoMoreWalls": 554,
+    "ermaozi/get_subscribe": 619,
+    "0xRadikal/Free-v2ray-Configs": 2,
+    "mfuu/v2ray": 0,
+    "lza6/free-VPN": 8,
+    "w1770946466/Auto_proxy": 524,
+    "vveg26/getProxy": 0,
+    "barry-far/V2ray-Configs": 0,
+    "aiboboxx/v2rayfree": 0,
+    "zhangkaiitugithub/passcro": 126,
+    "hans-thomas/v2ray-subscription": 131,
+    "chengaopan/AutoMergePublicNodes": 560,
+    "ALIILAPRO/v2rayNG-Config": 2420,
+    "snakem982/proxypool(v2ray)": 59,
+    "Epodonios/v2ray-configs": 4831,
+    "mahdibland/sub_merge": 4260,
+    "snakem982/proxypool(clash)": 64,
+    "[每日]https://node.freeclashnode.com/uploads/{ym}/{i}-{ymd}.txt": 0,
+    "freeclashnode.com": 0,
+    "clashnode.cc": 0,
+    "[每日]https://node.freeclashnode.com/uploads/{ym}/{i}-{ymd}.yaml": 0
+  }
+}

@@ -1,0 +1,330 @@
+{
+  "existing_union": 11872,
+  "all_union": 12214,
+  "rows": [
+    {
+      "name": "zhangkaiitugithub/passcro/speednodes.txt",
+      "path": "gh/zhangkaiitugithub/passcro@main/speednodes.txt",
+      "uniq": 126,
+      "marginal": 126,
+      "overlap": 0
+    },
+    {
+      "name": "chengaopan/AutoMergePublicNodes/list_raw.txt",
+      "path": "gh/chengaopan/AutoMergePublicNodes@main/list_raw.txt",
+      "uniq": 560,
+      "marginal": 90,
+      "overlap": 470
+    },
+    {
+      "name": "chengaopan/AutoMergePublicNodes/list.txt",
+      "path": "gh/chengaopan/AutoMergePublicNodes@main/list.txt",
+      "uniq": 560,
+      "marginal": 90,
+      "overlap": 470
+    },
+    {
+      "name": "snakem982/proxypool/source/clash-meta-2.yaml",
+      "path": "gh/snakem982/proxypool@main/source/clash-meta-2.yaml",
+      "uniq": 64,
+      "marginal": 52,
+      "overlap": 12
+    },
+    {
+      "name": "hans-thomas/v2ray-subscription/servers.txt",
+      "path": "gh/hans-thomas/v2ray-subscription@master/servers.txt",
+      "uniq": 131,
+      "marginal": 44,
+      "overlap": 87
+    },
+    {
+      "name": "snakem982/proxypool/source/v2ray-2.txt",
+      "path": "gh/snakem982/proxypool@main/source/v2ray-2.txt",
+      "uniq": 57,
+      "marginal": 25,
+      "overlap": 32
+    },
+    {
+      "name": "ermaozi01/free_clash_vpn/subscribe/clash.yml",
+      "path": "gh/ermaozi01/free_clash_vpn@main/subscribe/clash.yml",
+      "uniq": 7,
+      "marginal": 5,
+      "overlap": 2
+    },
+    {
+      "name": "chengaopan/AutoMergePublicNodes/config.yml",
+      "path": "gh/chengaopan/AutoMergePublicNodes@main/config.yml",
+      "uniq": 0,
+      "marginal": 0,
+      "overlap": 0
+    },
+    {
+      "name": "snakem982/proxypool/source/nodelist.txt",
+      "path": "gh/snakem982/proxypool@main/source/nodelist.txt",
+      "uniq": 0,
+      "marginal": 0,
+      "overlap": 0
+    },
+    {
+      "name": "snakem982/proxypool/.github/workflows/updateclash.yaml",
+      "path": "gh/snakem982/proxypool@main/.github/workflows/updateclash.yaml",
+      "uniq": 0,
+      "marginal": 0,
+      "overlap": 0
+    },
+    {
+      "name": "zhangkaiitugithub/passcro/speednodes.yaml",
+      "path": "gh/zhangkaiitugithub/passcro@main/speednodes.yaml",
+      "uniq": 0,
+      "marginal": 0,
+      "overlap": 0
+    },
+    {
+      "name": "snakem982/proxypool/source/v2ray.txt",
+      "path": "gh/snakem982/proxypool@main/source/v2ray.txt",
+      "uniq": 0,
+      "marginal": 0,
+      "overlap": 0
+    },
+    {
+      "name": "chengaopan/AutoMergePublicNodes/list.yml",
+      "path": "gh/chengaopan/AutoMergePublicNodes@main/list.yml",
+      "uniq": 0,
+      "marginal": 0,
+      "overlap": 0
+    },
+    {
+      "name": "MatinGhanbari/v2ray-configs/.github/workflows/update-configs.yml",
+      "path": "gh/MatinGhanbari/v2ray-configs@master/.github/workflows/update-configs.yml",
+      "uniq": 0,
+      "marginal": 0,
+      "overlap": 0
+    },
+    {
+      "name": "Flik6/getNode/clash.yaml",
+      "path": "gh/Flik6/getNode@main/clash.yaml",
+      "uniq": 0,
+      "marginal": 0,
+      "overlap": 0
+    },
+    {
+      "name": "snakem982/proxypool/source/clash-meta.yaml",
+      "path": "gh/snakem982/proxypool@main/source/clash-meta.yaml",
+      "uniq": 0,
+      "marginal": 0,
+      "overlap": 0
+    },
+    {
+      "name": "chengaopan/AutoMergePublicNodes/list.meta.yml",
+      "path": "gh/chengaopan/AutoMergePublicNodes@main/list.meta.yml",
+      "uniq": 0,
+      "marginal": 0,
+      "overlap": 0
+    },
+    {
+      "name": "Flik6/getNode/v2ray.txt",
+      "path": "gh/Flik6/getNode@main/v2ray.txt",
+      "uniq": 0,
+      "marginal": 0,
+      "overlap": 0
+    },
+    {
+      "name": "MrMohebi/xray-proxy-grabber-telegram/collected-proxies/row-url/all.txt",
+      "path": "gh/MrMohebi/xray-proxy-grabber-telegram@master/collected-proxies/row-url/all.txt",
+      "uniq": 0,
+      "marginal": 0,
+      "overlap": 0
+    },
+    {
+      "name": "chengaopan/AutoMergePublicNodes/snippets/nodes.yml",
+      "path": "gh/chengaopan/AutoMergePublicNodes@main/snippets/nodes.yml",
+      "uniq": 0,
+      "marginal": 0,
+      "overlap": 0
+    },
+    {
+      "name": "anaer/Sub/clash.yaml",
+      "path": "gh/anaer/Sub@main/clash.yaml",
+      "uniq": 0,
+      "marginal": 0,
+      "overlap": 0
+    },
+    {
+      "name": "MrMohebi/xray-proxy-grabber-telegram/.github/workflows/dont-let-grow-all-row-proxies-schedule.yaml",
+      "path": "gh/MrMohebi/xray-proxy-grabber-telegram@master/.github/workflows/dont-let-grow-all-row-proxies-schedule.yaml",
+      "uniq": 0,
+      "marginal": 0,
+      "overlap": 0
+    },
+    {
+      "name": "aiboboxx/clashfree/clash20260725.yml",
+      "path": "gh/aiboboxx/clashfree@main/clash20260725.yml",
+      "uniq": 0,
+      "marginal": 0,
+      "overlap": 0
+    },
+    {
+      "name": "MrMohebi/xray-proxy-grabber-telegram/collected-proxies/xray-json/actives_all.txt",
+      "path": "gh/MrMohebi/xray-proxy-grabber-telegram@master/collected-proxies/xray-json/actives_all.txt",
+      "uniq": 0,
+      "marginal": 0,
+      "overlap": 0
+    },
+    {
+      "name": "aiboboxx/clashfree/clash20260724.yml",
+      "path": "gh/aiboboxx/clashfree@main/clash20260724.yml",
+      "uniq": 0,
+      "marginal": 0,
+      "overlap": 0
+    },
+    {
+      "name": "aiboboxx/clashfree/clash20260726.yml",
+      "path": "gh/aiboboxx/clashfree@main/clash20260726.yml",
+      "uniq": 0,
+      "marginal": 0,
+      "overlap": 0
+    },
+    {
+      "name": "MrMohebi/xray-proxy-grabber-telegram/collected-proxies/clash-meta/actives_under_1500ms.yaml",
+      "path": "gh/MrMohebi/xray-proxy-grabber-telegram@master/collected-proxies/clash-meta/actives_under_1500ms.yaml",
+      "uniq": 0,
+      "marginal": 0,
+      "overlap": 0
+    },
+    {
+      "name": "ermaozi01/free_clash_vpn/subscribe/v2ray.txt",
+      "path": "gh/ermaozi01/free_clash_vpn@main/subscribe/v2ray.txt",
+      "uniq": 7,
+      "marginal": 0,
+      "overlap": 7
+    },
+    {
+      "name": "aiboboxx/clashfree/clash20260728.yml",
+      "path": "gh/aiboboxx/clashfree@main/clash20260728.yml",
+      "uniq": 0,
+      "marginal": 0,
+      "overlap": 0
+    },
+    {
+      "name": "ts-sf/fly/.github/workflows/subscribe.yaml",
+      "path": "gh/ts-sf/fly@main/.github/workflows/subscribe.yaml",
+      "uniq": 0,
+      "marginal": 0,
+      "overlap": 0
+    },
+    {
+      "name": "MrMohebi/xray-proxy-grabber-telegram/collected-proxies/clash-meta/all.yaml",
+      "path": "gh/MrMohebi/xray-proxy-grabber-telegram@master/collected-proxies/clash-meta/all.yaml",
+      "uniq": 0,
+      "marginal": 0,
+      "overlap": 0
+    },
+    {
+      "name": "aiboboxx/clashfree/clash20260729.yml",
+      "path": "gh/aiboboxx/clashfree@main/clash20260729.yml",
+      "uniq": 0,
+      "marginal": 0,
+      "overlap": 0
+    },
+    {
+      "name": "ALIILAPRO/v2rayNG-Config/_config.yml",
+      "path": "gh/ALIILAPRO/v2rayNG-Config@main/_config.yml",
+      "uniq": 0,
+      "marginal": 0,
+      "overlap": 0
+    },
+    {
+      "name": "Epodonios/v2ray-configs/Sub3.txt",
+      "path": "gh/Epodonios/v2ray-configs@main/Sub3.txt",
+      "uniq": 628,
+      "marginal": 0,
+      "overlap": 628
+    },
+    {
+      "name": "ALIILAPRO/v2rayNG-Config/server.txt",
+      "path": "gh/ALIILAPRO/v2rayNG-Config@main/server.txt",
+      "uniq": 2420,
+      "marginal": 0,
+      "overlap": 2420
+    },
+    {
+      "name": "Epodonios/v2ray-configs/Sub4.txt",
+      "path": "gh/Epodonios/v2ray-configs@main/Sub4.txt",
+      "uniq": 691,
+      "marginal": 0,
+      "overlap": 691
+    },
+    {
+      "name": "MrMohebi/xray-proxy-grabber-telegram/collected-proxies/clash-meta/actives_under_1000ms.yaml",
+      "path": "gh/MrMohebi/xray-proxy-grabber-telegram@master/collected-proxies/clash-meta/actives_under_1000ms.yaml",
+      "uniq": 0,
+      "marginal": 0,
+      "overlap": 0
+    },
+    {
+      "name": "ALIILAPRO/v2rayNG-Config/sub.txt",
+      "path": "gh/ALIILAPRO/v2rayNG-Config@main/sub.txt",
+      "uniq": 2421,
+      "marginal": 0,
+      "overlap": 2421
+    },
+    {
+      "name": "Epodonios/v2ray-configs/Sub1.txt",
+      "path": "gh/Epodonios/v2ray-configs@main/Sub1.txt",
+      "uniq": 565,
+      "marginal": 0,
+      "overlap": 565
+    },
+    {
+      "name": "Epodonios/v2ray-configs/Sub5.txt",
+      "path": "gh/Epodonios/v2ray-configs@main/Sub5.txt",
+      "uniq": 664,
+      "marginal": 0,
+      "overlap": 664
+    },
+    {
+      "name": "Epodonios/v2ray-configs/Sub6.txt",
+      "path": "gh/Epodonios/v2ray-configs@main/Sub6.txt",
+      "uniq": 459,
+      "marginal": 0,
+      "overlap": 459
+    },
+    {
+      "name": "Epodonios/v2ray-configs/Sub2.txt",
+      "path": "gh/Epodonios/v2ray-configs@main/Sub2.txt",
+      "uniq": 692,
+      "marginal": 0,
+      "overlap": 692
+    },
+    {
+      "name": "aiboboxx/clashfree/clash20260727.yml",
+      "path": "gh/aiboboxx/clashfree@main/clash20260727.yml",
+      "uniq": 0,
+      "marginal": 0,
+      "overlap": 0
+    }
+  ],
+  "per_existing": {
+    "Pawdroid/Free-servers": 7,
+    "free18/v2ray": 133,
+    "ripaojiedian/freenode": 12,
+    "mahdibland/V2RayAggregator": 200,
+    "peasoft/NoMoreWalls": 554,
+    "freefq/free": 14,
+    "ermaozi/get_subscribe": 598,
+    "w1770946466/Auto_proxy": 524,
+    "0xRadikal/Free-v2ray-Configs": 2,
+    "vveg26/getProxy": 0,
+    "lza6/free-VPN": 8,
+    "aiboboxx/v2rayfree": 0,
+    "mfuu/v2ray": 0,
+    "barry-far/V2ray-Configs": 0,
+    "ALIILAPRO/v2rayNG-Config": 2420,
+    "mahdibland/sub_merge": 4260,
+    "Epodonios/v2ray-configs": 4831,
+    "[每日]https://node.freeclashnode.com/uploads/{ym}/{i}-{ymd}.txt": 0,
+    "[每日]https://node.freeclashnode.com/uploads/{ym}/{i}-{ymd}.yaml": 0,
+    "clashnode.cc": 0,
+    "freeclashnode.com": 0
+  }
+}

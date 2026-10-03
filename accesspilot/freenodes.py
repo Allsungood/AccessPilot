@@ -68,6 +68,38 @@ SOURCES: list[tuple[str, str]] = [
     # 超大聚合源(单源就有数千节点, 靠 TCP 预筛控制规模)
     ("mahdibland/sub_merge", "gh/mahdibland/V2RayAggregator@master/sub/sub_merge_base64.txt"),
     ("Epodonios/v2ray-configs", "gh/Epodonios/v2ray-configs@main/All_Configs_Sub.txt"),
+    # 2026-10-02 实测新增。判据不是"这个源存在", 而是**相对现有全部源并集的
+    # 边际贡献** —— 现有并集 9921 个唯一节点, 加它之后 11873, **净增 1951**。
+    #
+    # 同批测了 28 个候选, 只留了这一个, 另外两个被数据否掉:
+    #   * barry-far/V2ray-Config : 去重后 4831 个, 但**边际只有 2 个** ——
+    #     它和已有的 Epodonios 是同一个上游(两者去重后数量一模一样), 加了不涨。
+    #   * mahdibland/ShadowsocksAggregator : 200 个, **边际 0** —— 全部已有。
+    # 这就是为什么要用"边际"而不是"这个源有多少节点"来衡量: 后者的数字好看得多,
+    # 但对用户一点用都没有(下载它还要多花时间)。
+    ("ALIILAPRO/v2rayNG-Config", "gh/ALIILAPRO/v2rayNG-Config@main/server.txt"),
+    # 2026-10-02 第二轮: 第一轮手写路径 28 个里 24 个是 404(猜文件名猜错了),
+    # 所以改用 jsDelivr 的文件树接口**自动发现**真实路径(见
+    # artifacts/nodes/discover_sources.py), 再逐个测边际。下面这些是活下来的。
+    #
+    # 每个源后面的数字是**实测边际** —— 相对"当时现有全部源的并集"新增多少。
+    # 一起测的还有 Epodonios 的 Sub1~6.txt(565~692 个节点)和 ALIILAPRO 的
+    # sub.txt(2421 个), 三个数字都挺大, 但边际**全是 0** —— 它们是已收录文件的
+    # 子集(Sub* 是 All_Configs_Sub.txt 的分片)。收进来只会拖慢抓取。
+    ("zhangkaiitugithub/passcro", "gh/zhangkaiitugithub/passcro@main/speednodes.txt"),   # +126
+    ("chengaopan/AutoMergePublicNodes", "gh/chengaopan/AutoMergePublicNodes@main/list.txt"),  # +90
+    ("snakem982/proxypool(clash)", "gh/snakem982/proxypool@main/source/clash-meta-2.yaml"),   # +52
+    ("hans-thomas/v2ray-subscription", "gh/hans-thomas/v2ray-subscription@master/servers.txt"),  # +44
+    ("snakem982/proxypool(v2ray)", "gh/snakem982/proxypool@main/source/v2ray-2.txt"),    # +25
+    # 2026-10-02 第三轮: 这个仓库有 88 个订阅文件(按协议 + 分片), 抓 8 个**整份**
+    # 就够, 不需要抓 39 个分片。注意 hysteria2 那条: 134 个里只有 **2 个**是已有
+    # 的 —— 我们池子里几乎全是 vmess/vless, hysteria2 基本是空白, 所以这一条
+    # 虽然绝对数量不大, 但"新协议"本身就是价值(不同协议在不同网络下的可用性差别
+    # 很大, 一种被封了还有另一种)。
+    ("MatinGhanbari/hysteria2", "gh/MatinGhanbari/v2ray-configs@main/subscriptions/filtered/subs/hysteria2.txt"),  # +134
+    ("MatinGhanbari/v2ray-all", "gh/MatinGhanbari/v2ray-configs@main/subscriptions/v2ray/all_sub.txt"),   # +75
+    ("MatinGhanbari/vmess", "gh/MatinGhanbari/v2ray-configs@main/subscriptions/filtered/subs/vmess.txt"),  # +31
+    ("MatinGhanbari/base64-all", "gh/MatinGhanbari/v2ray-configs@main/subscriptions/base64/all_sub.txt"),  # +24
 ]
 
 _MIRRORS = [

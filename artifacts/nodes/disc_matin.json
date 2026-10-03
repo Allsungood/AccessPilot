@@ -1,0 +1,16 @@
+[
+  {
+    "repo": "MatinGhanbari/v2ray-configs",
+    "ref": "@main",
+    "picks": [
+      "subscriptions/v2ray/super-sub.txt",
+      "subscriptions/v2ray/all_sub.txt",
+      "subscriptions/base64/all_sub.txt",
+      "subscriptions/filtered/subs/vless.txt",
+      "subscriptions/filtered/subs/vmess.txt",
+      "subscriptions/filtered/subs/ss.txt",
+      "subscriptions/filtered/subs/trojan.txt",
+      "subscriptions/filtered/subs/hysteria2.txt"
+    ]
+  }
+]

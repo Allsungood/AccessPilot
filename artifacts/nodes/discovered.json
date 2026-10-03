@@ -1,0 +1,257 @@
+[
+  {
+    "repo": "snakem982/proxypool",
+    "ref": "@main",
+    "files": 42,
+    "picks": [
+      "source/v2ray.txt",
+      "source/v2ray-2.txt",
+      "source/nodelist.txt",
+      "source/clash-meta.yaml",
+      "source/clash-meta-2.yaml",
+      ".github/workflows/updateclash.yaml"
+    ]
+  },
+  {
+    "repo": "vpei/Free-Node-Merge",
+    "ref": "",
+    "files": 0,
+    "picks": [],
+    "why": "URLError: <urlopen error _ssl.c:989: The handshake operation"
+  },
+  {
+    "repo": "vpei/free-node",
+    "ref": "",
+    "files": 0,
+    "picks": [],
+    "why": "HTTPError: HTTP Error 404: Not Found"
+  },
+  {
+    "repo": "chengaopan/AutoMergePublicNodes",
+    "ref": "@main",
+    "files": 56,
+    "picks": [
+      "list.txt",
+      "list.yml",
+      "config.yml",
+      "list_raw.txt",
+      "list.meta.yml",
+      "snippets/nodes.yml"
+    ]
+  },
+  {
+    "repo": "abshare/abshare.github.io",
+    "ref": "@master",
+    "files": 1,
+    "picks": []
+  },
+  {
+    "repo": "Flik6/getNode",
+    "ref": "@main",
+    "files": 5,
+    "picks": [
+      "v2ray.txt",
+      "clash.yaml"
+    ]
+  },
+  {
+    "repo": "Argh94/ProxyCollector",
+    "ref": "",
+    "files": 0,
+    "picks": [],
+    "why": "HTTPError: HTTP Error 404: Not Found"
+  },
+  {
+    "repo": "MhdiTaheri/V2rayCollector",
+    "ref": "@main",
+    "files": 21,
+    "picks": []
+  },
+  {
+    "repo": "zhangkaiitugithub/passcro",
+    "ref": "@main",
+    "files": 5,
+    "picks": [
+      "speednodes.txt",
+      "speednodes.yaml"
+    ]
+  },
+  {
+    "repo": "mksshare/mksshare.github.io",
+    "ref": "",
+    "files": 0,
+    "picks": [],
+    "why": "HTTPError: HTTP Error 404: Not Found"
+  },
+  {
+    "repo": "Leon406/SubCrawler",
+    "ref": "",
+    "files": 0,
+    "picks": [],
+    "why": "HTTPError: HTTP Error 403: Forbidden"
+  },
+  {
+    "repo": "yebekhe/TelegramV2rayCollector",
+    "ref": "",
+    "files": 0,
+    "picks": [],
+    "why": "HTTPError: HTTP Error 404: Not Found"
+  },
+  {
+    "repo": "MatinGhanbari/v2ray-configs",
+    "ref": "@master",
+    "files": 143,
+    "picks": [
+      ".github/workflows/update-configs.yml"
+    ]
+  },
+  {
+    "repo": "soroushmirzaei/telegram-configs-collector",
+    "ref": "@main",
+    "files": 182,
+    "picks": []
+  },
+  {
+    "repo": "mheidari98/.proxy",
+    "ref": "@main",
+    "files": 11,
+    "picks": []
+  },
+  {
+    "repo": "Rokate/Proxy-Sub",
+    "ref": "",
+    "files": 0,
+    "picks": [],
+    "why": "HTTPError: HTTP Error 404: Not Found"
+  },
+  {
+    "repo": "MrMohebi/xray-proxy-grabber-telegram",
+    "ref": "@master",
+    "files": 59,
+    "picks": [
+      "collected-proxies/row-url/all.txt",
+      "collected-proxies/clash-meta/all.yaml",
+      "collected-proxies/xray-json/actives_all.txt",
+      ".github/workflows/dont-let-grow-all-row-proxies-schedule.yaml",
+      "collected-proxies/clash-meta/actives_under_1000ms.yaml",
+      "collected-proxies/clash-meta/actives_under_1500ms.yaml"
+    ]
+  },
+  {
+    "repo": "Surfboardv2ray/TGParse",
+    "ref": "",
+    "files": 0,
+    "picks": [],
+    "why": "HTTPError: HTTP Error 403: Forbidden"
+  },
+  {
+    "repo": "anaer/Sub",
+    "ref": "@main",
+    "files": 2,
+    "picks": [
+      "clash.yaml"
+    ]
+  },
+  {
+    "repo": "Jsnzkpg/Jsnzkpg",
+    "ref": "@master",
+    "files": 2,
+    "picks": []
+  },
+  {
+    "repo": "aiboboxx/clashfree",
+    "ref": "@main",
+    "files": 11,
+    "picks": [
+      "clash20260724.yml",
+      "clash20260725.yml",
+      "clash20260726.yml",
+      "clash20260727.yml",
+      "clash20260728.yml",
+      "clash20260729.yml"
+    ]
+  },
+  {
+    "repo": "ermaozi01/free_clash_vpn",
+    "ref": "@main",
+    "files": 40,
+    "picks": [
+      "subscribe/clash.yml",
+      "subscribe/v2ray.txt"
+    ]
+  },
+  {
+    "repo": "V2RaySSR/Free-V2ray",
+    "ref": "",
+    "files": 0,
+    "picks": [],
+    "why": "HTTPError: HTTP Error 404: Not Found"
+  },
+  {
+    "repo": "mermeroo/V2RAY-and-CLASH-Configs",
+    "ref": "",
+    "files": 0,
+    "picks": [],
+    "why": "HTTPError: HTTP Error 404: Not Found"
+  },
+  {
+    "repo": "ndsphonemy/proxy-sub",
+    "ref": "",
+    "files": 0,
+    "picks": [],
+    "why": "HTTPError: HTTP Error 403: Forbidden"
+  },
+  {
+    "repo": "ts-sf/fly",
+    "ref": "@main",
+    "files": 9,
+    "picks": [
+      ".github/workflows/subscribe.yaml"
+    ]
+  },
+  {
+    "repo": "v2rayfree/v2rayfree",
+    "ref": "",
+    "files": 0,
+    "picks": [],
+    "why": "HTTPError: HTTP Error 404: Not Found"
+  },
+  {
+    "repo": "Alvin9999/new-pac",
+    "ref": "",
+    "files": 0,
+    "picks": [],
+    "why": "HTTPError: HTTP Error 404: Not Found"
+  },
+  {
+    "repo": "hans-thomas/v2ray-subscription",
+    "ref": "@master",
+    "files": 3,
+    "picks": [
+      "servers.txt"
+    ]
+  },
+  {
+    "repo": "ALIILAPRO/v2rayNG-Config",
+    "ref": "@main",
+    "files": 7,
+    "picks": [
+      "sub.txt",
+      "server.txt",
+      "_config.yml"
+    ]
+  },
+  {
+    "repo": "Epodonios/v2ray-configs",
+    "ref": "@main",
+    "files": 96,
+    "picks": [
+      "Sub1.txt",
+      "Sub2.txt",
+      "Sub3.txt",
+      "Sub4.txt",
+      "Sub5.txt",
+      "Sub6.txt"
+    ]
+  }
+]

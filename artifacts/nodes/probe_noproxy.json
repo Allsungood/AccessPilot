@@ -1,0 +1,215 @@
+[
+  {
+    "name": "[对照] peasoft/NoMoreWalls",
+    "path": "gh/peasoft/NoMoreWalls@master/list.txt",
+    "ok": true,
+    "host": "testingcf.jsdelivr.net",
+    "parsed": 575,
+    "uniq": 554,
+    "new": 430
+  },
+  {
+    "name": "mahdibland/ShadowsocksAggregator",
+    "path": "gh/mahdibland/ShadowsocksAggregator@master/Eternity",
+    "ok": true,
+    "host": "testingcf.jsdelivr.net",
+    "parsed": 200,
+    "uniq": 200,
+    "new": 193
+  },
+  {
+    "name": "mheidari98/.proxy",
+    "path": "gh/mheidari98/.proxy@main/all.txt",
+    "ok": false,
+    "why": "Fail: HTTP 404"
+  },
+  {
+    "name": "soroushmirzaei/tg-collector",
+    "path": "gh/soroushmirzaei/telegram-configs-collector@main/splitted/mixed",
+    "ok": false,
+    "why": "Fail: HTTP 404"
+  },
+  {
+    "name": "Rokate/Proxy-Sub",
+    "path": "gh/Rokate/Proxy-Sub@main/v2ray.txt",
+    "ok": false,
+    "why": "Fail: HTTP 404"
+  },
+  {
+    "name": "MrMohebi/xray-grabber",
+    "path": "gh/MrMohebi/xray-proxy-grabber-telegram@master/collected-proxies/row-url/all.txt",
+    "ok": false,
+    "why": "Fail: HTTP 404"
+  },
+  {
+    "name": "Leon406/SubCrawler",
+    "path": "gh/Leon406/SubCrawler@main/sub/share.txt",
+    "ok": false,
+    "why": "Fail: HTTP 404"
+  },
+  {
+    "name": "Surfboardv2ray/TGParse",
+    "path": "gh/Surfboardv2ray/TGParse@main/configs/sub.txt",
+    "ok": false,
+    "why": "Fail: HTTP 404"
+  },
+  {
+    "name": "yebekhe/TelegramV2rayCollector",
+    "path": "gh/yebekhe/TelegramV2rayCollector@main/sub/normal/mix",
+    "ok": false,
+    "why": "Fail: HTTP 404"
+  },
+  {
+    "name": "anaer/Sub(clash)",
+    "path": "gh/anaer/Sub@main/clash.yaml",
+    "ok": false,
+    "why": "解析不出节点"
+  },
+  {
+    "name": "MatinGhanbari/v2ray-configs",
+    "path": "gh/MatinGhanbari/v2ray-configs@main/All_Configs_Sub.txt",
+    "ok": false,
+    "why": "Fail: HTTP 404"
+  },
+  {
+    "name": "ermaozi01/free_clash_vpn",
+    "path": "gh/ermaozi01/free_clash_vpn@main/README.md",
+    "ok": false,
+    "why": "解析不出节点"
+  },
+  {
+    "name": "Jsnzkpg/Jsnzkpg",
+    "path": "gh/Jsnzkpg/Jsnzkpg@main/Jsnzkpg",
+    "ok": false,
+    "why": "Fail: HTTP 404"
+  },
+  {
+    "name": "ndsphonemy/proxy-sub",
+    "path": "gh/ndsphonemy/proxy-sub@main/README.md",
+    "ok": false,
+    "why": "解析不出节点"
+  },
+  {
+    "name": "mermeroo/V2RAY-and-CLASH",
+    "path": "gh/mermeroo/V2RAY-and-CLASH-Configs@main/sub.txt",
+    "ok": false,
+    "why": "Fail: HTTP 404"
+  },
+  {
+    "name": "aiboboxx/clashfree",
+    "path": "gh/aiboboxx/clashfree@main/clash.yml",
+    "ok": false,
+    "why": "Fail: HTTP 404"
+  },
+  {
+    "name": "[对照] Epodonios/v2ray-configs",
+    "path": "gh/Epodonios/v2ray-configs@main/All_Configs_Sub.txt",
+    "ok": true,
+    "host": "testingcf.jsdelivr.net",
+    "parsed": 7757,
+    "uniq": 4831,
+    "new": 3235
+  },
+  {
+    "name": "ALIILAPRO/v2rayNG-Config",
+    "path": "gh/ALIILAPRO/v2rayNG-Config@main/server.txt",
+    "ok": true,
+    "host": "testingcf.jsdelivr.net",
+    "parsed": 2760,
+    "uniq": 2420,
+    "new": 2253
+  },
+  {
+    "name": "ts-sf/fly",
+    "path": "gh/ts-sf/fly@main/v2ray.txt",
+    "ok": false,
+    "why": "Fail: HTTP 404"
+  },
+  {
+    "name": "V2RaySSR/Free-V2ray",
+    "path": "gh/V2RaySSR/Free-V2ray@master/README.md",
+    "ok": false,
+    "why": "Fail: HTTP 404"
+  },
+  {
+    "name": "mfuu/v2ray(mihomo)",
+    "path": "gh/mfuu/v2ray@master/mihomo.yaml",
+    "ok": false,
+    "why": "Fail: HTTP 404"
+  },
+  {
+    "name": "v2rayfree/v2rayfree",
+    "path": "gh/v2rayfree/v2rayfree@main/v2",
+    "ok": false,
+    "why": "Fail: HTTP 404"
+  },
+  {
+    "name": "free18/v2ray(yaml)",
+    "path": "gh/free18/v2ray@main/v.yaml",
+    "ok": false,
+    "why": "Fail: HTTP 404"
+  },
+  {
+    "name": "barry-far/V2ray-Config(单数)",
+    "path": "gh/barry-far/V2ray-Config@main/All_Configs_Sub.txt",
+    "ok": true,
+    "host": "testingcf.jsdelivr.net",
+    "parsed": 7759,
+    "uniq": 4831,
+    "new": 3236
+  },
+  {
+    "name": "[每日]https://free.datiya.com/uploads/{ymd}.txt",
+    "path": "https://free.datiya.com/uploads/{ymd}.txt",
+    "ok": false,
+    "why": "解析不出节点"
+  },
+  {
+    "name": "[每日]https://oneclash.cc/wp-content/uploads/{ym}/{ymd}.txt",
+    "path": "https://oneclash.cc/wp-content/uploads/{ym}/{ymd}.txt",
+    "ok": false,
+    "why": "解析不出节点"
+  },
+  {
+    "name": "[每日]https://node.freeclashnode.com/uploads/{ym}/{i}-{ymd}.txt",
+    "path": "https://node.freeclashnode.com/uploads/{ym}/{i}-{ymd}.txt",
+    "ok": false,
+    "why": "解析不出节点"
+  },
+  {
+    "name": "LearnHacking-net/Free-V2ray",
+    "path": "gh/LearnHacking-net/Free-V2ray-Config@main/README.md",
+    "ok": false,
+    "why": "Fail: HTTP 404"
+  },
+  {
+    "name": "ndeal/v2ray",
+    "path": "gh/ndeal/v2ray@main/v2ray.txt",
+    "ok": false,
+    "why": "Fail: HTTP 404"
+  },
+  {
+    "name": "ripaojiedian/freenode(v2)",
+    "path": "gh/ripaojiedian/freenode@main/v2",
+    "ok": false,
+    "why": "Fail: HTTP 404"
+  },
+  {
+    "name": "hans-thomas/v2ray-subscription",
+    "path": "gh/hans-thomas/v2ray-subscription@main/v2ray",
+    "ok": false,
+    "why": "Fail: HTTP 404"
+  },
+  {
+    "name": "[每日]https://nodefree.org/dy/{ym}/{ymd}.txt",
+    "path": "https://nodefree.org/dy/{ym}/{ymd}.txt",
+    "ok": false,
+    "why": "解析不出节点"
+  },
+  {
+    "name": "[每日]https://www.v2rayshare.com/wp-content/uploads/{ym}/{ymd}.txt",
+    "path": "https://www.v2rayshare.com/wp-content/uploads/{ym}/{ymd}.txt",
+    "ok": false,
+    "why": "解析不出节点"
+  }
+]
