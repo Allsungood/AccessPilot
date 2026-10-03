@@ -9,6 +9,8 @@ import org.json.JSONObject
 import java.io.BufferedReader
 import java.io.IOException
 import java.net.HttpURLConnection
+import java.net.InetSocketAddress
+import java.net.Socket
 import java.net.URL
 import java.net.URLEncoder
 
@@ -58,6 +60,40 @@ internal class MihomoApi(
 
     /** `/version` 是否可达。比解析版本号更轻, 用于就绪轮询。 */
     suspend fun isUp(): Boolean = version().isOk
+
+    /**
+     * 控制端口是不是已经**在接受 TCP 连接**了。
+     *
+     * ## 为什么不能只用 [isUp] 判断就绪
+     *
+     * 因为**两种完全不同的故障在 [isUp] 眼里长得一模一样** —— 都是 false:
+     *
+     * 1. 内核还没起来 / 还在慢启动 -> 端口没开;
+     * 2. 内核起来了、端口也开了, 但 `HttpURLConnection` 被 Android 的
+     *    **网络明文策略**拦住了。
+     *
+     * 上一轮真机上就是这个坑: `awaitReady()` 干等到超时然后把内核杀掉,
+     * 而事后用 `run-as curl` 打同一个 `/version` 却返回 200 —— 因为
+     * **curl 是原生程序, 根本不经过 Android 的明文策略**, 而
+     * `HttpURLConnection` 要经过。两者的差值正是"策略拦截"的指纹。
+     *
+     * 一条裸 TCP 连接就能把这两件事分开, 而且它不经过任何策略:
+     *   * 端口没开            -> 内核确实还没绑上, 该等 / 该查内核日志;
+     *   * 端口开了但 HTTP 不通 -> 内核是好的, 该改的是我们的明文策略。
+     *
+     * 这个区分直接决定该动哪一边。上一轮就是因为分不开, 只能靠猜。
+     */
+    suspend fun isPortOpen(): Boolean = withContext(Dispatchers.IO) {
+        try {
+            Socket().use { s ->
+                s.connect(InetSocketAddress(host, port), TCP_PROBE_TIMEOUT_MS)
+                true
+            }
+        } catch (_: Exception) {
+            // 连不上就是没开 —— 这个探测的语义只有"开/没开", 不需要区分原因。
+            false
+        }
+    }
 
     // ---------------------------------------------------------------- 配置
 
@@ -261,6 +297,9 @@ internal class MihomoApi(
 
         const val DELAY_TIMEOUT_MS = 5_000
         const val HTTP_TIMEOUT_MS = 2_000
+
+        /** 裸 TCP 探测的超时。比 HTTP 短: 本机回环上要么立刻成功, 要么就是没在听。 */
+        const val TCP_PROBE_TIMEOUT_MS = 1_000
         const val HTTP_SLACK_MS = 1_500
 
         /** 逐个测速时的并发上限, 见 [testDelay] 的注释。 */

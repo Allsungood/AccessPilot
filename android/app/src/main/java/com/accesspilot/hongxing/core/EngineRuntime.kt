@@ -73,9 +73,23 @@ internal object EngineRuntime {
     /**
      * 准备运行时。幂等 —— `onCreate` 可能被调用多次 (服务被杀后重启)。
      *
-     * 刻意**不做**任何耗时操作 (解压资源、起进程): 那些都要等真的点"连接"时
-     * 再做。前台服务的 `onCreate` 有严格的时间预算, 在这里复制 40 MB 资源
-     * 会被系统判定成 ANR。
+     * 刻意**不做**任何耗时操作 (解压资源、起进程) 在主线程上: 前台服务的
+     * `onCreate` 有严格的时间预算, 在这里复制 40 MB 资源会被判定成 ANR。
+     *
+     * ## 但**必须**顺手把离线节点列表填上
+     *
+     * 用户的原始抱怨就是"节点列表缺失"。上一轮把根因定位在 `-d` 工作目录
+     * 不一致, 那只解决了"内核找不到 nodes.yaml"; **还有一半没解决**:
+     * [refreshNodes] 本来只在两条路径上被调用 ——
+     *   1. `start()` 成功后 (`scope.launch { refreshNodes() }`)
+     *   2. 界面上的"刷新"按钮
+     * 也就是说: **内核没起来时, 除非用户主动点刷新, 列表永远是空的**。
+     * 而对一个还没连上的用户来说,"有哪些节点可选"正是他点那个大开关之前
+     * 最需要看到的东西 —— 否则就是在盲赌。
+     *
+     * 所以初始化时就异步跑一次 [refreshNodes]。它此时走的是离线分支
+     * (只读 `nodes.yaml`, 不发任何网络请求), 代价是解析约 70,000 行 YAML,
+     * 放在 [scope] 上不阻塞任何东西。
      */
     fun init(context: Context) {
         val app = context.applicationContext
@@ -85,6 +99,28 @@ internal object EngineRuntime {
         store = s
         assets = AssetInstaller(app, s)
         _status.update { it.copy(mode = s.mode, node = s.selectedNode) }
+        loadOfflineNodes()
+    }
+
+    /**
+     * 把离线节点列表填进状态。
+     *
+     * 用 [scope] 而不是新开一个作用域: 它和看门狗/流量轮询一样属于"引擎运行时
+     * 的活", 意图上就该跟 [shutdown] 一起停。而且它是**一次性的短任务**,
+     * 即使被取消也只是少填一次列表, 不会有副作用。
+     *
+     * 失败不报错: 这时内核可能压根没装过资源, 列表空是合理的初始状态,
+     * 不该在用户还没做任何操作时就在界面上弹一条红字。
+     */
+    private fun loadOfflineNodes() {
+        scope.launch {
+            runCatching {
+                val nodes = offlineNodes()
+                if (nodes.isNotEmpty()) {
+                    _status.update { it.copy(nodes = nodes, nodeCount = nodes.size) }
+                }
+            }
+        }
     }
 
     val secret: String get() = requireStore().secret
@@ -215,32 +251,59 @@ internal object EngineRuntime {
                 tunFd = fd,
             )
 
-            if (!mgr.awaitReady(onProgress = { waited ->
+            // 就绪探测返回三种结论, 不是一个 Boolean —— 因为「内核没起来」和
+            // 「内核好着、是我们的请求被明文策略拦了」这两件事的**修法完全不同**,
+            // 而旧的 Boolean 把它们压成同一个 false, 于是只能靠猜。
+            var apiNote = ""
+            when (val outcome = mgr.awaitReady(onProgress = { waited ->
                     // 让界面上的"正在启动内核…"带上秒数: 首次启动要加载
                     // geodata + 规则集, 几十秒是正常的, 但一个不动的转圈
                     // 会被当成卡死 —— 而用户唯一的出路是杀 App, 那更糟。
                     _status.update { it.copy(message = "正在启动内核… ${waited}s") }
-                })
-            ) {
-                // 内核起了又死 / 或者压根没起来。日志是唯一能说明原因的东西,
-                // 所以把它接在错误信息后面 —— 让用户能直接截图给我们。
-                val log = mgr.tailLog(LOG_IN_ERROR_BYTES)
-                // 顺带把"就绪探测"那一步的**原始错误**也记下来: "内核启动失败"
-                // 和"内核起来了但我们连不上它的 REST API"是两件完全不同的事,
-                // 而它们的表象一模一样。没有这一行就只能靠猜。
-                val probe = apiClient.version().fold(
-                    onOk = { "OK (version=$it)" },
-                    onErr = { "失败: $it" },
-                )
-                lastReadyProbe = "pid=${mgr.pid} 存活=${mgr.isAlive()} /version $probe"
-                android.util.Log.w("HongxingMain", "内核就绪探测: $lastReadyProbe")
-                mgr.stop()
-                failure = buildString {
-                    append("内核启动失败或提前退出")
-                    append("\n就绪探测: /version ").append(probe)
-                    if (log.isNotBlank()) append("\n").append(log)
+                })) {
+                is ReadyOutcome.Ready -> Unit
+
+                // 内核在听 TCP, 只是我们的 HTTP 打不通。
+                //
+                // **这里绝对不能 stop()。** 改之前就是那样: 一路等到超时,
+                // 然后把内核杀掉 —— 用户失去的是一条本来能用的隧道, 只因为
+                // 我们的控制面连不上它。降级成"能上网, 但节点切换不可用"
+                // 显然好得多。
+                is ReadyOutcome.ApiBlocked -> {
+                    lastReadyProbe = "TCP 已就绪但 REST 不通 " +
+                        "(等了 ${outcome.waitedMs}ms): ${outcome.lastError}"
+                    android.util.Log.w("HongxingMain", "内核就绪探测: $lastReadyProbe")
+                    apiNote = "内核已启动，但控制接口连不上，节点切换暂不可用"
                 }
-                return@withLock Result.success(failure!!)
+
+                else -> {
+                    // 内核起了又死 / 或者压根没起来。日志是唯一能说明原因的东西,
+                    // 所以把它接在错误信息后面 —— 让用户能直接截图给我们。
+                    val log = mgr.tailLog(LOG_IN_ERROR_BYTES)
+                    // 顺带把"就绪探测"那一步的**原始错误**也记下来: "内核启动失败"
+                    // 和"内核起来了但我们连不上它的 REST API"是两件完全不同的事,
+                    // 而它们的表象一模一样。没有这一行就只能靠猜。
+                    val probe = apiClient.version().fold(
+                        onOk = { "OK (version=$it)" },
+                        onErr = { "失败: $it" },
+                    )
+                    val why = when (outcome) {
+                        is ReadyOutcome.ProcessDied -> "内核进程已退出"
+                        is ReadyOutcome.PortNeverOpened ->
+                            "内核存活, 但控制端口始终没开 (已等 ${outcome.waitedMs}ms)"
+                        else -> "未知原因"
+                    }
+                    lastReadyProbe = "pid=${mgr.pid} 存活=${mgr.isAlive()} /version $probe"
+                    android.util.Log.w("HongxingMain", "内核就绪探测: $lastReadyProbe")
+                    mgr.stop()
+                    failure = buildString {
+                        append("内核启动失败或提前退出")
+                        append("\n").append(why)
+                        append("\n就绪探测: /version ").append(probe)
+                        if (log.isNotBlank()) append("\n").append(log)
+                    }
+                    return@withLock Result.success(failure!!)
+                }
             }
 
             engine = mgr
@@ -253,7 +316,10 @@ internal object EngineRuntime {
                     phase = EnginePhase.Connected,
                     vpnPermission = true,
                     error = "",
-                    message = "",
+                    // 正常情况下是空的; 只有"内核好着但 REST 连不上"时才会
+                    // 带一句话上来 —— 那种情况我们必须连上, 但要让用户知道
+                    // 节点切换暂时用不了, 而不是等他点了没反应才发现。
+                    message = apiNote,
                     mode = st.mode,
                     node = st.selectedNode,
                 )

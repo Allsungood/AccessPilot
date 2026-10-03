@@ -37,6 +37,34 @@ import java.io.IOException
  * `cache.db` (存着用户选中的节点)。直接打死的话缓存可能写坏, 下次启动
  * 用户会发现节点被重置了 —— 一个和"断开连接"看不出关系的问题。
  */
+/**
+ * 就绪探测的结论。
+ *
+ * 为什么不是一个 `Boolean`: 那会把三件**修法完全不同**的事压成同一个 false ——
+ * 「内核没起来」「内核起来又死了」「内核好着、是我们的请求被明文策略拦了」。
+ * 上一轮真机上就是被这个压缩害的: 分不清, 只能猜, 耗了很久。
+ */
+internal sealed interface ReadyOutcome {
+    /** 内核在听端口, REST 也通。 */
+    data object Ready : ReadyOutcome
+
+    /**
+     * 内核在听 TCP, 但 HTTP 一直不通 —— **内核是好的, 不要杀它**。
+     *
+     * 这几乎只可能是 Android 的网络明文策略拦住了 `HttpURLConnection`
+     * (内核的控制接口是明文 `http://127.0.0.1:9090`)。判据是
+     * [MihomoApi.isPortOpen]: 裸 TCP 连接不经过任何策略, 所以"TCP 通而
+     * HTTP 不通"这个组合本身就是策略拦截的指纹。
+     */
+    data class ApiBlocked(val waitedMs: Long, val lastError: String) : ReadyOutcome
+
+    /** 进程中途死了 —— 配置错、规则集缺失, 这类要早失败。 */
+    data object ProcessDied : ReadyOutcome
+
+    /** 进程还活着, 但端口一直没开: 真的还在慢启动(或压根没绑上)。 */
+    data class PortNeverOpened(val waitedMs: Long) : ReadyOutcome
+}
+
 internal class MihomoEngine(private val api: MihomoApi) {
 
     /** 子进程 pid; -1 = 没有在跑的内核。 */
@@ -131,25 +159,53 @@ internal class MihomoEngine(private val api: MihomoApi) {
     suspend fun awaitReady(
         timeoutMs: Long = READY_TIMEOUT_MS,
         onProgress: ((Long) -> Unit)? = null,
-    ): Boolean {
+    ): ReadyOutcome {
         val startedAt = System.currentTimeMillis()
         val deadline = startedAt + timeoutMs
         var nextReport = startedAt + PROGRESS_INTERVAL_MS
+        var lastError = ""
 
         while (System.currentTimeMillis() < deadline) {
-            if (api.isUp()) return true
+            val probe = api.version()
+            // 注意 ApiResult 是**文件顶层**的 internal sealed class, 不是
+            // MihomoApi 的嵌套类 —— 写成 MihomoApi.ApiResult 解析不了(编译期
+            // 报 Unresolved reference)。而且 Err 是非泛型的, 可以直接 is 判断,
+            // 不需要星投影。
+            if (probe.isOk) return ReadyOutcome.Ready
+            if (probe is ApiResult.Err) lastError = probe.error
             // 内核可能在启动过程中就退了 (配置写错、规则集缺失)。
             // 与其干等到超时, 不如现在就报出来, 用户能早几秒看到真正的错因。
-            if (!isAlive()) return false
+            if (!isAlive()) return ReadyOutcome.ProcessDied
 
             val now = System.currentTimeMillis()
+            val waited = now - startedAt
+
+            // 端口已经开了、但 HTTP 一直不通 —— 这几乎只可能是我们的请求
+            // 被明文策略拦住了, 而**内核本身是好的**。
+            //
+            // 这一段是本文件里最要紧的改动。改之前: awaitReady 只看 HTTP,
+            // 于是"策略拦住"和"内核没起来"表现完全一样, 一路等到超时, 然后
+            // 调用方把**好着的内核杀掉** —— 用户失去的是一条本来能用的隧道,
+            // 只因为我们的控制面连不上它。
+            //
+            // 宽限期是为了不误判: 内核刚绑上端口的那一小段时间里 REST 可能
+            // 还没就绪, 那属于正常启动, 不是被拦。
+            if (waited >= API_GRACE_MS && api.isPortOpen()) {
+                return ReadyOutcome.ApiBlocked(waited, lastError)
+            }
+
             if (onProgress != null && now >= nextReport) {
                 nextReport = now + PROGRESS_INTERVAL_MS
-                onProgress((now - startedAt) / 1000)
+                onProgress(waited / 1000)
             }
             delay(READY_POLL_MS)
         }
-        return api.isUp()
+        // 最后一次机会: 超时那一刻可能刚好通了。
+        return if (api.isUp()) {
+            ReadyOutcome.Ready
+        } else {
+            ReadyOutcome.PortNeverOpened(System.currentTimeMillis() - startedAt)
+        }
     }
 
     // ---------------------------------------------------------------- 存活
@@ -319,6 +375,14 @@ internal class MihomoEngine(private val api: MihomoApi) {
         /** 就绪等待上限。冷启动要拉 geodata + 20 个规则集 + 6000 多个节点,
          *  低端机上确实可能超过 20 秒 —— 见 [awaitReady] 里那段真实时间线。 */
         const val READY_TIMEOUT_MS = 60_000L
+
+        /**
+         * 判定"端口开着但 HTTP 不通"之前要等的宽限期。
+         *
+         * 不能一上来就判: 内核刚绑上端口的那一小段时间里 REST 可能还没就绪,
+         * 那属于正常启动。给够宽限, 才不会把正常启动误判成策略拦截。
+         */
+        const val API_GRACE_MS = 8_000L
         const val READY_POLL_MS = 200L
         const val EXIT_POLL_MS = 300L
 
