@@ -23,6 +23,17 @@ set_target_properties(hongxing_launcher PROPERTIES
 # 让编译器帮忙盯一眼。O2 是因为它只有几百行, 编大点无所谓。
 target_compile_options(hongxing_launcher PRIVATE -Wall -Wextra -O2)
 
+# 16 KB 页对齐。**这一行是必须的, 不是优化**:
+# Android 15 起有设备跑在 16 KB 页的内核上, 这类设备**加载不了 4 KB 对齐的 .so**。
+# NDK r27 的默认 max-page-size 仍是 4096 (r28 才改成默认 16384), 所以不显式指定的话,
+# 编出来的 libhongxing_launcher.so 的 p_align 就是 4096 —— 实测确认过。
+# 后果不是"性能差一点", 而是 System.loadLibrary 直接失败:
+# NativeLauncher.available == false → 没有它就无法把 TUN 的 fd 交给内核进程
+# → 界面上表现为"连接失败", 且**每次重试都失败**。
+# (APK 里另外两个库 libmihomo.so / libandroidx.graphics.path.so 都是 16384,
+#  只有我们自己编的这个不是 —— 差异就是这么来的。)
+target_link_options(hongxing_launcher PRIVATE "-Wl,-z,max-page-size=16384")
+
 # 只依赖 libc。**刻意不链 android/log**: 子进程的日志走文件重定向,
 # 父进程这一侧没有任何需要打日志的地方 (出错是抛 Java 异常)。
 # 依赖越少, 这个库在 ABI 层面出问题的机会就越少。
