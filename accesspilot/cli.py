@@ -681,11 +681,22 @@ def cmd_doctor(args: argparse.Namespace) -> int:
             with socket.socket() as s:
                 s.settimeout(0.5)
                 if s.connect_ex(("127.0.0.1", port)) == 0:
-                    free = False
-                    detail = f"{port} 已被占用" + (
-                        " (本工具内核)" if process.is_running() else " (可能是其他程序)"
+                    # 端口被占 ≠ 有问题。占着它的如果**就是我们自己正在跑的内核**,
+                    # 那是最正常的状态。旧写法在这里一律记成"异常", 于是一台完全
+                    # 健康的机器上执行 accesspilot doctor 会打印"存在 2 项异常"
+                    # 并返回退出码 1 —— 用户被自己的体检工具吓了一跳, 而真正的
+                    # 问题反而被这两条噪音淹没了。
+                    owner_is_ours = process.is_running() and any(
+                        process._process_name(p).lower().startswith(("mihomo", "clash"))  # noqa: SLF001
+                        for p in process._listeners(port)  # noqa: SLF001
                     )
-        except Exception:
+                    free = bool(owner_is_ours)
+                    detail = (
+                        f"{port} 由本工具内核正常监听中"
+                        if owner_is_ours
+                        else f"{port} 已被其他程序占用"
+                    )
+        except Exception:  # noqa: PERF203
             pass
         checks.append((label, free, detail))
 
@@ -1952,14 +1963,19 @@ def cmd_watchdog(args: argparse.Namespace) -> int:
     core_pid = int(args.pid)
     from . import guard
 
-    deadline = time.time() + 7 * 24 * 3600
-    shallow_every = 2.0
+    # 循环不设总时长上限。原来这里是 `deadline = now + 7*24*3600`, 到点就静默
+    # 退出 —— 用户连续开机超过一周之后, 自愈层就悄悄没了, 而没有任何提示。
+    # 退出条件本来就该只有一个: 内核没了(上面的 crash 分支会 return)。
     deep_every = 60.0
     next_shallow = 0.0
     next_deep = time.time() + deep_every
 
-    while time.time() < deadline:
-        time.sleep(shallow_every)
+    while True:
+        # 睡多久 = 掉线窗口有多长。有人在抢开关时压到 0.5 秒 ——
+        # 实测外部程序 19~40 秒就会把 ProxyEnable 改回 0, 而 0.5 秒轮询一次
+        # 只是读一个注册表键, 开销可以忽略。这让"被改掉"到"贴回去"的窗口
+        # 从 1.1 秒缩到 0.4 秒左右, 用户基本感觉不到。
+        time.sleep(guard.recommended_interval(default=2.0, under_fire=0.5))
         if not process._pid_alive(core_pid):  # noqa: SLF001
             # 内核没了: 先把系统代理收回来, 绝不让它指向死端口
             st = load_state()
@@ -1975,8 +1991,11 @@ def cmd_watchdog(args: argparse.Namespace) -> int:
 
         now = time.time()
         if now >= next_shallow:
-            # 曝光窗口 = 检查间隔。有人在抢开关时压到 2 秒(见 guard 的说明)。
-            next_shallow = now + guard.recommended_interval(default=10.0, under_fire=2.0)
+            # 曝光窗口 = 检查间隔。**必须和上面 sleep 用同一个值** ——
+            # 只把 sleep 改快、闸门还卡在 2 秒的话, 实际节奏仍然是 2 秒一次,
+            # 睡了等于白睡。
+            interval = guard.recommended_interval(default=10.0, under_fire=0.5)
+            next_shallow = now + interval
             deep = now >= next_deep
             if deep:
                 next_deep = now + deep_every
