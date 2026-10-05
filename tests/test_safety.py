@@ -149,5 +149,78 @@ class TestFreeDoesNotHijackProxy(unittest.TestCase):
         self.assertNotIn("system_proxy=None", src)
 
 
+class TestPruneNeverEmptiesProfile(unittest.TestCase):
+    """回归: 每小时的自动刷新不能把用户的节点列表清空。
+
+    prune_profile 原来只校验了"测速结果不为空", 没校验"结果里真的有节点属于
+    这个配置档"。当测速结果里的名字一个都不在配置档里时, 它会写出 sub.proxies=[],
+    用户的节点就被清空了 —— 而且是计划任务干的, 用户完全无从知道。
+    """
+
+    def _sub(self):
+        from accesspilot.subscription import Subscription
+
+        return Subscription(name="free", proxies=[{
+            "name": "节点A", "type": "ss", "server": "1.1.1.1", "port": 443,
+            "cipher": "aes-128-gcm", "password": "x",
+        }])
+
+    def test_refuses_to_write_empty_profile(self) -> None:
+        from accesspilot import freenodes
+        from accesspilot.util import Fail
+
+        saved: list = []
+        with mock.patch.object(freenodes.sub_mod, "load_profile", return_value=self._sub()), \
+             mock.patch.object(freenodes.sub_mod, "save_profile",
+                               side_effect=lambda s: saved.append(s)):
+            with self.assertRaises(Fail):
+                freenodes.prune_profile("free", {"一个都不存在的节点": 10})
+        self.assertEqual(saved, [], "绝不能写出空配置档")
+
+    def test_normal_prune_still_works(self) -> None:
+        from accesspilot import freenodes
+
+        saved: list = []
+        with mock.patch.object(freenodes.sub_mod, "load_profile", return_value=self._sub()), \
+             mock.patch.object(freenodes.sub_mod, "save_profile",
+                               side_effect=lambda s: saved.append(s)):
+            before, after = freenodes.prune_profile("free", {"节点A": 20})
+        self.assertEqual((before, after), (1, 1))
+        self.assertEqual(len(saved), 1, "正常情况下应当写入")
+
+
+class TestAccelDoesNotKillUnrelatedProcesses(unittest.TestCase):
+    """回归: 加速器启动时不能按"进程名像 python 就杀"。
+
+    旧实现在端口被占时会 taskkill 掉任何名字以 python/accesspilot 开头的进程 ——
+    用户自己跑着的 Python 程序、另一个 accesspilot 命令都可能被无声杀掉,
+    而那段代码的注释写的却是"给出明确报错"。
+    """
+
+    def test_start_accel_refuses_foreign_listener(self) -> None:
+        from accesspilot import process
+        from accesspilot.util import Fail
+
+        with mock.patch.object(process, "accel_running", return_value=False), \
+             mock.patch.object(process, "_listeners", return_value=[999999]), \
+             mock.patch.object(process, "_process_name", return_value="python.exe"), \
+             mock.patch.object(process, "_read_accel_pid", return_value=None), \
+             mock.patch.object(process, "_kill_pid") as kill:
+            with self.assertRaises(Fail):
+                process.start_accel(load_state())
+        kill.assert_not_called()
+
+    def test_stop_accel_wont_kill_a_pid_that_is_not_listening(self) -> None:
+        from accesspilot import process
+
+        with mock.patch.object(process, "_read_accel_pid",
+                               return_value={"pid": 999999, "port": 7895}), \
+             mock.patch.object(process, "_pid_alive", return_value=True), \
+             mock.patch.object(process, "_listeners", return_value=[]), \
+             mock.patch.object(process, "_kill_pid") as kill:
+            process.stop_accel()
+        kill.assert_not_called()
+
+
 if __name__ == "__main__":
     unittest.main()

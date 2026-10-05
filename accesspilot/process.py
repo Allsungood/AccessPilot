@@ -538,10 +538,24 @@ def start_accel(st: AppState | None = None, *, port: int | None = None) -> int:
     if accel_running():
         return int(_read_accel_pid()["pid"])  # type: ignore[arg-type]
     listen_port = port or st.accel_port
-    # 端口被其它程序占用时给出明确报错, 而不是静默失败
+    # 端口被占用时的处理。**绝不能**按"进程名像 python 就杀" ——
+    # 用户自己跑着的 Python 程序、另一个 accesspilot 命令、甚至本程序的界面进程
+    # 都可能中招被无声杀掉, 而这段代码上面的注释原本写的是"给出明确报错"。
+    # 正确做法: 只清理**确实是我们自己残留的加速器**(pid 文件里记着的那个),
+    # 其它情况一律报错, 把决定权交回给人。
     for other in _listeners(listen_port):
-        if other != os.getpid() and _process_name(other).lower().startswith(("python", "accesspilot")):
+        if other == os.getpid():
+            continue
+        recorded = _read_accel_pid() or {}
+        if int(recorded.get("pid") or 0) == other:
+            warn(f"清理残留的直连加速器 pid={other} (端口 {listen_port})")
             _kill_pid(other)
+            _wait_port_free(listen_port)
+        else:
+            raise Fail(
+                f"直连加速端口 {listen_port} 已被 {_process_name(other)}(pid={other}) 占用;\n"
+                f"      请先关闭占用它的程序, 或执行 accesspilot accel off 后重试"
+            )
     env = os.environ.copy()
     pkg_parent = str(Path(__file__).resolve().parent.parent)
     env["PYTHONPATH"] = pkg_parent + os.pathsep + env.get("PYTHONPATH", "")
@@ -581,8 +595,17 @@ def stop_accel() -> bool:
     data = _read_accel_pid()
     killed = False
     if data and _pid_alive(int(data["pid"])):  # type: ignore[arg-type]
-        _kill_pid(int(data["pid"]))  # type: ignore[arg-type]
-        killed = True
+        pid = int(data["pid"])  # type: ignore[arg-type]
+        port = int(data.get("port") or 0)  # type: ignore[arg-type]
+        # 双重核对再动手: pid 文件是上一次运行留下的, 而 Windows 会复用 PID。
+        # 只按 pid 直接 taskkill, 有可能杀掉一个完全无关的进程。
+        if port and pid in _listeners(port) and _process_name(pid).lower().startswith(
+            ("python", "accesspilot")
+        ):
+            _kill_pid(pid)
+            killed = True
+        else:
+            warn(f"加速器 PID {pid} 已不是我们启动的那个进程, 不杀它(避免误杀)")
     paths.accel_pid_file().unlink(missing_ok=True)
     return killed
 

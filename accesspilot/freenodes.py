@@ -425,6 +425,16 @@ def prune_profile(name: str, alive: dict[str, int], *, keep_min: int = 1) -> tup
     ordered = [n for n, _ in sorted(alive.items(), key=lambda kv: kv[1])]
     by_name = {str(p.get("name")): p for p in sub.proxies}
     sub.proxies = [by_name[n] for n in ordered if n in by_name]
+    # 绝不写出一份空配置档。上面那道 keep_min 只校验了"测速结果不为空",
+    # **没有**校验"结果里真的有节点属于这个配置档"。当 alive 里的名字一个都不在
+    # 配置档里时(换了抓取源 / 节点被改名 / 配置档在别处被重建过), 那道守卫会
+    # 放行, 而下面这一行会把 sub.proxies 写成 [] —— 用户的节点列表就被清空了,
+    # 而且是每小时一次的自动刷新干的, 他根本不会知道是谁干的。
+    if before and not sub.proxies:
+        raise Fail(
+            f"清理结果为空({len(alive)} 个测速结果没有一个还在配置档「{name}」里), "
+            "拒绝写入以免把节点列表清空"
+        )
     sub.updated = time.time()
     sub_mod.save_profile(sub)
     return before, len(sub.proxies)
