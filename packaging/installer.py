@@ -459,15 +459,79 @@ def unregister_uninstall() -> None:
 # --------------------------------------------------------------------------- #
 
 
+def force_clear_system_proxy() -> bool:
+    """兜底: 不经红杏, 直接从注册表关掉"指向本机端口"的系统代理。
+
+    为什么安装器必须自己会这一手 —— 这是实测踩出来的:
+    `红杏.exe stop` 跑的是**旧版本**, 而旧版本自己可能有缺陷。v0.9.0 的
+    `stop` 实测会超时(它踩了 WM_SETTINGCHANGE 广播 25 秒那个坑, 一次 stop
+    最坏要几分钟), 于是 timeout=40 直接把它掐了。而掐掉之后跟着的 taskkill
+    只能杀掉内核进程, **不会**还原系统代理 —— 结果就是系统代理留在一个没人
+    监听的端口上, 这台机器上所有网站都打不开, 包括本来直连的国内站点。
+
+    这就是 stop_app 的 docstring 里说的"顺序反了会把系统代理留在死端口上",
+    但光"先调用 stop"是不够的: 被调用的那个 stop 本身可能就是坏的。
+    所以这里不看红杏的脸色, 直接读注册表、直接改。
+
+    安全边界: 只关 **ProxyServer 指向本机** 的那一种。用户自己的公司代理、
+    别的工具设的代理一律不碰。
+    """
+    if sys.platform != "win32":
+        return False
+    import ctypes
+    import winreg
+
+    key_path = r"Software\Microsoft\Windows\CurrentVersion\Internet Settings"
+    server = ""
+    try:
+        with winreg.OpenKey(
+            winreg.HKEY_CURRENT_USER, key_path, 0, winreg.KEY_READ | winreg.KEY_SET_VALUE
+        ) as key:
+            try:
+                if not int(winreg.QueryValueEx(key, "ProxyEnable")[0]):
+                    return False
+            except FileNotFoundError:
+                return False
+            try:
+                server = str(winreg.QueryValueEx(key, "ProxyServer")[0])
+            except FileNotFoundError:
+                server = ""
+            # ProxyServer 可能是 "http=127.0.0.1:7890;https=..." 这种形式
+            host = server.split("=")[-1].split(";")[0].rsplit(":", 1)[0].strip().lower()
+            if host not in ("127.0.0.1", "localhost", "::1", "[::1]"):
+                say(f"[!] 系统代理指向 {server or '(空)'}, 不是本机 — 不动它")
+                return False
+            winreg.SetValueEx(key, "ProxyEnable", 0, winreg.REG_DWORD, 0)
+    except OSError as exc:
+        say(f"[!] 无法读写系统代理设置: {exc}")
+        return False
+    try:
+        wininet = ctypes.windll.Wininet  # type: ignore[attr-defined]
+        wininet.InternetSetOptionW(0, 39, 0, 0)  # SETTINGS_CHANGED
+        wininet.InternetSetOptionW(0, 37, 0, 0)  # REFRESH
+    except Exception:  # noqa: BLE001
+        pass
+    say(f"[+] 已强制关闭系统代理(它原来指向 {server}, 而内核马上就要没了)")
+    return True
+
+
 def stop_app(prog_dir: Path | None) -> None:
-    """先 stop 再杀进程 —— 顺序反了会把系统代理留在死端口上。"""
+    """先 stop 再杀进程 —— 顺序反了会把系统代理留在死端口上。
+
+    最后那道 force_clear_system_proxy() 不是可选项: 上面那次 stop 超时是
+    真实发生过的(v0.9.0 会卡在 25 秒的 WM_SETTINGCHANGE 广播上), 而
+    taskkill 不会还原系统代理。
+    """
     exe = (prog_dir / EXE_NAME) if prog_dir else None
     if exe and exe.is_file():
         say("[i] 让红杏停止内核并还原系统代理 …")
-        run([str(exe), "stop"], timeout=40, quiet=False)
+        rc = run([str(exe), "stop"], timeout=40, quiet=False)
+        if rc != 0:
+            say("[!] 红杏自己没能收尾(可能它本身有问题) — 下面走兜底")
     for image in KILL_IMAGES:
         run(["taskkill", "/IM", image, "/F"], quiet=True)
     time.sleep(0.6)
+    force_clear_system_proxy()
 
 
 def purge_data() -> None:
