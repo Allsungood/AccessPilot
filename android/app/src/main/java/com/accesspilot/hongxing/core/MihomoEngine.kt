@@ -128,6 +128,10 @@ internal class MihomoEngine(private val api: MihomoApi) {
             tunFd = tunFd,
             logPath = logFile.absolutePath,
             pidPath = pidFile.absolutePath,
+            // 只允许执行 nativeLibraryDir 下的文件。这个 JNI 入口本身不知道
+            // "我们要跑的是 mihomo", 所以边界必须由调用方画出来 —— 而
+            // **[exe].parentFile 就是 nativeLibraryDir** (见 resolveExecutable)。
+            trustedDir = exe.parentFile?.absolutePath,
         )
     }
 
@@ -236,12 +240,6 @@ internal class MihomoEngine(private val api: MihomoApi) {
      * 一个疏忽都会影响整个 App 进程 (信号处置是进程级的), 为了一个
      * "什么时候通知我"的语义不值得。
      */
-    suspend fun awaitExit(): Int {
-        val p = pid
-        if (p <= 0) return -1
-        while (isAlive()) delay(EXIT_POLL_MS)
-        return reap(p)
-    }
     /**
      * 收尸。返回退出码, -1 = 还没退出 / 收不到。
      *
@@ -335,7 +333,87 @@ internal class MihomoEngine(private val api: MihomoApi) {
         }
     }
 
+    /**
+     * **非挂起**的硬杀: 直接 SIGKILL, 有界地等一小会儿, 然后收尸。
+     *
+     * ## 为什么不能拿 [stop] 顶替它
+     *
+     * [stop] 是 suspend 的, 而它的调用点有两处是**不能挂起**的:
+     *  - 服务 `onDestroy` (那里没有等待的余地);
+     *  - 取消路径上的 `finally` —— 协程已经是 cancelled 状态, 任何 suspend
+     *    调用都会立刻抛 `CancellationException`, 于是"清理"变成空操作, 而
+     *    mihomo 是 `setsid()` 出去的, 它会带着 TUN fd 和 9090 一直活着
+     *    (审计 N4 的核心)。
+     *
+     * 为什么这里直接上 SIGKILL 而不是先 SIGTERM: 走到这条路的场景全是"必须
+     * 立刻收干净" (服务要销毁 / 启动已经失败), 没有再等 1.5 秒的余地。代价是
+     * mihomo 可能来不及把 `cache.db` 落完 —— 相对于"留下一个占着 9090 的孤儿
+     * 进程", 这个代价可以接受。正常断开走的仍然是 [stop] 那条优雅路径。
+     *
+     * @return true = 进程确实不在了 (顺带已经收尸); false = 它还在跑
+     */
+    fun killBlocking(graceMs: Long = KILL_BLOCK_GRACE_MS): Boolean {
+        val p = pid
+        if (p <= 0) return true
+
+        signal(p, OsConstants.SIGKILL)
+        val deadline = System.currentTimeMillis() + graceMs
+        while (isAlive() && System.currentTimeMillis() < deadline) {
+            Thread.sleep(EXIT_POLL_MS)
+        }
+
+        // 不管判定成没成功, 都先试一次收尸: **进程死了就该被 wait**, 这和我们
+        // 有没有成功杀掉它是两件独立的事 (见 [stop] 里那段真实事故: 真机上当场
+        // 看到 `Z [libmihomo.so]` 躺在 ps 里)。
+        val collected = reap(p) >= 0
+        if (collected || !isAlive()) {
+            reap(p)
+            pid = -1
+            runCatching { pidFile.delete() }
+            return true
+        }
+        return false
+    }
+
     // ---------------------------------------------------------------- 日志
+
+    /**
+     * 日志超过上限就把它清空, 从头再写。
+     *
+     * ## 为什么必须要有这一步 (审计 N11)
+     *
+     * 原生侧把 mihomo 的 stdout+stderr 一起重定向进这个文件, 而模板里是
+     * `log-level: info` —— **每条 dial / DNS 失败都写一行**。一个挂了几天的
+     * 隧道在烂节点上能把这个文件写到几百 MB: 全是 filesDir 里的磁盘占用, 界面
+     * 上没有任何提示, 而且它挤的是同一块空间 (设备写满之后连资源安装都会失败)。
+     * 而读它的地方只有 [tailLog], 最多看最后 8 KB —— 历史一行都不需要。
+     *
+     * ## 为什么可以就地清空 (而不是改名/滚动)
+     *
+     * 写端是 mihomo 进程里那个 **O_APPEND** 的 fd: 它的偏移量在每次 write 时由
+     * 内核重新按"文件当前末尾"计算, 所以 ftruncate 到 0 之后, 下一行会从 0 开始
+     * 写, 不会留出一个塞满 NUL 的稀疏文件。改名反而做不到 —— 写端拿着的是
+     * inode, 改名对它没有影响, 结果是"新文件永远是空的、旧的越写越大"。
+     *
+     * 清空而不是截掉前面一段: 后者的代价是一次几 MB 的读+写, 而 [tailLog] 只
+     * 关心最新几行 —— 直接清掉最省事, 也最不容易写错。
+     *
+     * @return true = 这次真的清了一次 (调用方一般只需要忽略)
+     */
+    fun capLogFile(maxBytes: Long = LOG_MAX_BYTES): Boolean {
+        if (!::logFile.isInitialized) return false
+        return try {
+            if (!logFile.isFile || logFile.length() <= maxBytes) return false
+            // 追加一个标记再清空: 用户把日志贴给我们时, 至少能看出"这里被截过",
+            // 而不会以为中间那几小时的记录是我们弄丢的。
+            logFile.appendText("\n--- 日志超过 ${maxBytes / 1024 / 1024} MB, 已从这里清空重写 ---\n")
+            java.io.FileOutputStream(logFile, false).use { }
+            true
+        } catch (_: IOException) {
+            // 清不掉不是错误: 日志文件的唯一用途是排错, 不该因为它反过来拖垮隧道。
+            false
+        }
+    }
 
     /**
      * 读日志尾部。
@@ -372,6 +450,17 @@ internal class MihomoEngine(private val api: MihomoApi) {
         const val LOG_FILE_NAME = "mihomo.log"
         const val PID_FILE_NAME = "mihomo.pid"
 
+        /** 内核可执行文件在 `nativeLibraryDir` 里的名字。见 [resolveExecutable]。 */
+        const val EXECUTABLE_NAME = "libmihomo.so"
+
+        /**
+         * 日志大小上限。超过就地清空重写, 见 [capLogFile]。
+         *
+         * 4 MB: 出问题时最后这 4 MB 里一定有原因 (而 [tailLog] 只看最后 8 KB),
+         * 平时它占的空间也可以忽略。
+         */
+        const val LOG_MAX_BYTES = 4L * 1024 * 1024
+
         /** 就绪等待上限。冷启动要拉 geodata + 20 个规则集 + 6000 多个节点,
          *  低端机上确实可能超过 20 秒 —— 见 [awaitReady] 里那段真实时间线。 */
         const val READY_TIMEOUT_MS = 60_000L
@@ -393,6 +482,15 @@ internal class MihomoEngine(private val api: MihomoApi) {
         const val STOP_GRACE_MS = 1_500L
         const val KILL_GRACE_MS = 1_000L
 
+        /**
+         * [killBlocking] 在 SIGKILL 之后的等待上限。
+         *
+         * 必须比 [KILL_GRACE_MS] 短得多: 它的两个调用点一个是服务 `onDestroy`
+         * (主线程), 一个是取消路径上的 finally —— 那里花掉的时间是用户直接
+         * 感觉到的卡顿, 而 SIGKILL 之后进程几乎立刻就没了, 400 ms 足够。
+         */
+        const val KILL_BLOCK_GRACE_MS = 400L
+
         const val LOG_TAIL_BYTES = 8 * 1024
 
         /**
@@ -408,7 +506,29 @@ internal class MihomoEngine(private val api: MihomoApi) {
          * 塞进 assets —— 名字看着别扭, 但那是唯一能被执行的去处。
          */
         fun resolveExecutable(nativeLibraryDir: String): String =
-            File(nativeLibraryDir, "libmihomo.so").absolutePath
+            File(nativeLibraryDir, EXECUTABLE_NAME).absolutePath
+
+        /**
+         * `/proc/<pid>` 里那个进程**是不是我们起的 mihomo**。
+         *
+         * ## 为什么不能只信 pid 数字 (审计 K3)
+         *
+         * `mihomo.pid` 是给"App 被杀死之后下一次启动"用的线索。但 Android 的 pid
+         * 是**循环复用**的: 上一次那个内核早就没了, 而它的 pid 号可能已经属于
+         * 任何一个别的进程 —— 拿着 pid 文件就 `kill` 等于随机杀进程, 后果可能
+         * 比"留下一个孤儿"严重得多。
+         *
+         * cmdline 是内核给出的、我们改不了的事实: mihomo 是以
+         * `<nativeLibraryDir>/libmihomo.so -d <dir> -f <cfg>` 起的, argv[0] 就是
+         * 它。所以判据是"cmdline 里出现过 [EXECUTABLE_NAME]"。
+         */
+        fun isCoreProcess(targetPid: Int): Boolean {
+            if (targetPid <= 1) return false
+            val raw = runCatching { File("/proc/$targetPid/cmdline").readBytes() }.getOrNull()
+                ?: return false
+            // cmdline 的各项之间是 NUL, 直接当文本找子串就够了 (文件名本身不含 NUL)。
+            return raw.toString(Charsets.UTF_8).contains(EXECUTABLE_NAME)
+        }
 
         /** 启动桥自己的库名, 供自检/诊断使用。 */
         const val BRIDGE_LIBRARY = "hongxing_launcher"

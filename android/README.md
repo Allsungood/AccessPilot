@@ -16,7 +16,7 @@ VpnService 建 TUN → 拿到文件描述符(fd)
 | applicationId | `com.accesspilot.hongxing`（debug 加 `.debug` 后缀，可与正式版共存） |
 | ABI | 目前只打包 `arm64-v8a` |
 | 界面 | Compose + Material 3，无任何第三方 UI 库 |
-| 测试 | 63 个单元测试（AssetInstaller 13 / ConfigBuilder 26 / MihomoApi 24） |
+| 测试 | 66 个单元测试（AssetInstaller 16 / ConfigBuilder 26 / MihomoApi 24） |
 
 ---
 
@@ -50,9 +50,56 @@ proxies**：两边各自生成过一次，结果模板里的策略组引用了 `
 
 ### 2. 构建
 
+**debug**（界面/自测用）：
+
 ```bash
 cd android
-./gradlew assembleDebug          # 产物 app/build/outputs/apk/debug/app-debug.apk
+./gradlew assembleDebug             # 产物 app/build/outputs/apk/debug/app-debug.apk
+```
+
+Gradle 版本由 wrapper 固定（8.11.1）。第一次跑 `./gradlew` 会去
+`services.gradle.org` 下载那份发行包（约 130 MB）；不想下载、或者机器上已经装了
+Gradle 8.11.1 的话，用绝对路径那条即可（**这也是这台开发机上实际在用的方式**，
+仓库过去没有 wrapper，README 里的 `./gradlew` 谁都跑不起来 —— 审计 N12）：
+
+```bash
+D:\Android\gradle-8.11.1\bin\gradle.bat -p C:\Users\Administrator\AccessPilot\android :app:assembleDebug
+```
+
+**release**（要发出去的包）需要一份签名凭据，缺了它**构建会直接失败**：
+
+```bash
+D:\Android\gradle-8.11.1\bin\gradle.bat -p C:\Users\Administrator\AccessPilot\android :app:assembleRelease
+```
+
+凭据的四个查找位置（命令行 > 环境变量 > 仓库内 > 用户主目录）：
+
+| 来源 | 说明 |
+|---|---|
+| `-Phongxing.keystoreProperties=<路径>` | 命令行显式指定 |
+| `$env:HONGXING_KEYSTORE_PROPERTIES` | 环境变量 |
+| `android/keystore.properties` | 仓库内（已被 `.gitignore`），方便 CI |
+| `%USERPROFILE%\hongxing-keystore.properties` | 本机在用的位置 |
+
+properties 里要四项：`storeFile` / `storePassword` / `keyAlias` / `keyPassword`。
+本机的 keystore、密码和备份说明在 `C:\Users\Administrator\hongxing-keystore-README.txt`
+—— **那两个文件丢了就再也发不了更新**，务必异地备份。
+
+release 构建有两道闸门，都是必须过的（过去只有 `logger.warn`，于是"没有内核 /
+没有 launcher / 没有资源"的 APK 能被当成正式包发出去 —— 审计 N15）：
+
+1. `verifyReleaseReadiness`：查签名凭据、NDK、`jniLibs/arm64-v8a/libmihomo.so`、
+   `assets/nodes.yaml`、`assets/ruleset/*` 的数量；
+2. `packageRelease` 之后：把打好的 APK 当 zip 打开，确认内核、启动桥、geodata、
+   规则集**真的在里面**，再用 SDK 的 `apksigner verify --print-certs` 验签名，
+   见到 `CN=Android Debug` 直接失败（审计 N1）。
+
+手工复核签名：
+
+```bash
+D:\Android\Sdk\build-tools\35.0.0\apksigner.bat verify --print-certs ^
+    app\build\outputs\apk\release\app-release.apk
+# 期望: Signer #1 certificate DN: CN=hongxing, OU=AccessPilot Android, ...
 ```
 
 已知坑：**不要并发跑多个 Gradle 调用**。并发的增量构建会产生假错误
@@ -128,6 +175,19 @@ adb shell run-as com.accesspilot.hongxing.debug cat files/selfcheck.txt
 `--ez connect true` 两个入口在 `onCreate` 和 `onNewIntent` **都**接了，
 否则只有第一次能触发，看起来像探针坏了。
 
+**这两个 extra 只在 debug 包里有效**（审计 K4）。它们是 `exported="true"` 的
+launcher Activity 上的入口，任何 App 或 adb 都能塞进来：`connect` 会替用户把
+VPN 拉起来，`fdprobe` 会建 TUN 并经启动桥跑 `/system/bin/sh`。所以正式包里
+它们被 `BuildConfig.DEBUG_ENTRYPOINTS`（构建类型写死的编译期常量，release =
+false）挡死了 —— 服务侧的 `ACTION_FD_PROBE` 同样挡了一道。
+
+```bash
+adb shell am start -n com.accesspilot.hongxing.debug/com.accesspilot.hongxing.MainActivity --ez connect true
+```
+
+（包名带 `.debug` 后缀 —— 正式包的 `com.accesspilot.hongxing` 上这两条命令
+什么都不会发生，这是**设计如此**，不是坏了。）
+
 ---
 
 ## 已知限制
@@ -150,3 +210,37 @@ adb shell run-as com.accesspilot.hongxing.debug cat files/selfcheck.txt
   adb shell "ps -A | grep mihomo; ip addr show tun0 | head -2"
   adb shell run-as com.accesspilot.hongxing.debug cat files/selfcheck.txt
   ```
+
+---
+
+## 只能上真机才能确认的四件事（v1.0.0 之前必须跑一遍）
+
+代码这一侧已经改到位，但下面每一条的**结论都依赖设备行为**，静态检查给不出答案。
+用 debug 包（`--ez connect true` / 界面上的大开关）跑：
+
+1. **断开之后 TUN 真的没了**（对应 K1/fd 所有权）
+   ```bash
+   # 连上 -> 点"断开"
+   adb shell ip addr show tun0            # 期望: 报 "does not exist"
+   adb shell "ls -l /proc/$(pidof com.accesspilot.hongxing.debug)/fd | grep -c tun"   # 期望: 0
+   ```
+   改之前这里是"接口还在、没人读"—— 表现是断开之后**整台设备上不了网**。
+
+2. **第一次点开关不会马上弹"连接失败"**（对应 K2/每次尝试一个 id）
+   冷启动 App，点一次大开关：红色横幅**不应该**出现；按钮应该走
+   正在连接… → 已连接。
+
+3. **没有孤儿内核**（对应 K3/N3/N4）
+   ```bash
+   adb shell am force-stop com.accesspilot.hongxing.debug   # 连接状态下强杀
+   adb shell ps -A | grep libmihomo                          # 期望: 没有残留
+   # 再启动 App 并连接, 然后:
+   adb shell run-as com.accesspilot.hongxing.debug cat files/mihomo.pid
+   adb shell ps -A | grep libmihomo                          # 期望: 只有一个, 且 pid 对得上
+   ```
+
+4. **DNS 不再监听 0.0.0.0**（对应 N8）
+   连接后从同一 Wi-Fi 下的另一台机器：
+   ```bash
+   dig @<手机IP> -p 1053 example.com     # 期望: 超时/拒绝, 而不是给出答案
+   ```

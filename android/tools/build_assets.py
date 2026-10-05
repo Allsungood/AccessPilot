@@ -96,8 +96,24 @@ def build_template(sub: subscription.Subscription, st) -> tuple[str, list[dict]]
     #    secret 每次安装随机, 由运行时注入 —— 不能把开发机上的密钥打进 APK。
     text = re.sub(r'^secret: .*$', 'secret: "{{SECRET}}"', text, count=1, flags=re.M)
 
-    # 3) DNS 里如果有监听地址, 安卓上要绑到本机
-    text = re.sub(r'^listen: 0\.0\.0\.0:(.*)$', r'listen: 127.0.0.1:\1', text, flags=re.M)
+    # 3) DNS 里如果有监听地址, 安卓上要绑到本机。
+    #
+    # 这里的 bug 值得记一笔 (审计 N8): 原来的正则只匹配**不带引号**的
+    # `listen: 0.0.0.0:1053`, 而 miniyaml.dump 输出的是带引号的
+    # `listen: "0.0.0.0:1053"` —— 于是这条"加固"从来没生效过, 打出来的
+    # config.template.yaml 里 dns 服务一直监听着 0.0.0.0:1053: 同一个 Wi-Fi 下
+    # 任何设备都能把这部手机当**开放 DNS 解析器**用 (走用户的代理出网, 还能当
+    # DNS 放大反射器)。安卓这条路根本不需要那个 socket —— 隧道里的域名解析由
+    # tun.dns-hijack 截走, 所以绑回 127.0.0.1 是纯收益。
+    #
+    # 现在两种写法都能匹配, 并统一输出带引号的形式 (原来的替换结果不带引号,
+    # 值里含冒号时对 YAML 解析器是个隐患, 不该在这里赌)。
+    text = re.sub(r'^listen:\s*"?0\.0\.0\.0:([^"\n]+)"?\s*$',
+                  r'listen: "127.0.0.1:\1"', text, flags=re.M)
+    # 兜底: 任何形式的 0.0.0.0 监听都不该出现在随包模板里。
+    leftover = [ln for ln in text.splitlines() if "0.0.0.0" in ln]
+    if leftover:
+        raise SystemExit("[x] 模板里还有监听 0.0.0.0 的行, 拒绝生成:\n    " + "\n    ".join(leftover))
 
     # 4) 节点列表整体换成占位符 —— 节点是运行时注入的, 不编进模板。
     text = re.sub(r"^proxies:\n(?:[ \t]+.*\n|\n)*",

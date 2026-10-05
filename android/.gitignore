@@ -41,6 +41,21 @@ local.properties
 *.keystore
 *.jks
 
+# 正式版签名凭据。**永远不许进仓库** —— 它里面是私钥的密码, 泄露 = 别人能签出
+# 一个"看起来是官方更新"的包。本机实际放的位置在仓库外面:
+#   C:\Users\Administrator\hongxing-release.keystore
+#   C:\Users\Administrator\hongxing-keystore.properties
+# 但 build.gradle.kts 也支持把它们放在 android/ 目录下 (keystore.properties),
+# 那是最容易被 `git add .` 顺手提交进来的位置, 所以这里显式列出来。
+hongxing-release.keystore
+hongxing-keystore.properties
+keystore.properties
+
+# --- Kotlin 增量编译的失败日志 ---
+# 并发跑 Gradle 时会在这里留下 errors-*.log (审计 N12 里提到的那个坑),
+# 它们是构建噪声, 不是源码。
+.kotlin/
+
 # --- 日志 ---
 build.log
 pyinstaller.log

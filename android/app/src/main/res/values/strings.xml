@@ -64,7 +64,12 @@
     <string name="nodes_latency_ms">%1$d ms</string>
     <string name="nodes_latency_unknown">未测速</string>
     <string name="nodes_empty_title">还没有节点</string>
-    <string name="nodes_empty_body">点上面的「刷新」，从订阅里重新拉一次列表</string>
+    <!--
+      文案必须和 refreshNodes() 实际做的事一致: 现在它读的是**设备上已经装好的**
+      配置和 nodes.yaml (内核没起来时走的就是这条离线路径), 不是去订阅服务器拉。
+      原来写的是"从订阅里重新拉一次列表", 用户按它去点会以为网络出了问题。
+    -->
+    <string name="nodes_empty_body">点上面的「刷新」，重新读一次设备上的节点列表</string>
     <string name="nodes_empty_refreshing">正在拉取节点…</string>
 
     <!-- ===== 出错 ===== -->
@@ -80,6 +85,12 @@
     <string name="notification_channel_desc">显示红杏是否正在保护网络</string>
     <string name="notification_connecting">正在建立隧道…</string>
     <string name="notification_protecting">正在保护网络</string>
+    <!--
+      内核没能在预期时间内退出时换成这一条 (EngineRuntime.stop 会刻意保留隧道,
+      否则在途流量会走直连)。通知必须留着 —— 用户就靠上面那个「断开」按钮重试,
+      通知一消失他就只剩"杀掉 App"这一条路了。
+    -->
+    <string name="notification_disconnect_failed">断开没成功，点下面的「断开」再试一次</string>
     <string name="notification_disconnect">断开</string>
 
     <!-- ===== 开发用: 假引擎状态切换器(正式接线时界面上不会出现) ===== -->

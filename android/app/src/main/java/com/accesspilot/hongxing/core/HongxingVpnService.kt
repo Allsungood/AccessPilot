@@ -13,7 +13,9 @@ import android.os.Build
 import android.os.IBinder
 import android.os.ParcelFileDescriptor
 import androidx.core.app.NotificationCompat
+import com.accesspilot.hongxing.BuildConfig
 import com.accesspilot.hongxing.R
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -30,6 +32,19 @@ import kotlinx.coroutines.withContext
  *   establish() 拿 TUN fd  ->  交给内核 (EngineRuntime.start)  ->  startForeground
  *   停内核 (EngineRuntime.stop)  ->  关 TUN fd  ->  stopForeground + stopSelf
  * ```
+ *
+ * ## TUN fd 的所有权只有一份 (审计 K1)
+ *
+ * [tunnel] 这个 `ParcelFileDescriptor` 是 TUN 的**唯一所有者**: `establish()`
+ * 返回它, `close()` 关掉它, 而"隧道还在不在"这个事实就等于"它是不是 null"。
+ * VpnService 的语义正是如此 —— 隧道活到这个 fd 被关掉 (或者进程死掉) 为止。
+ *
+ * 传给内核的是它的一个 `dup()` ([coreTunnel]): 子进程通过 fork 继承的是
+ * **同一个打开文件描述的另一个引用**, 父进程那份在 fork 完成之后就可以关了。
+ * 改之前这里是 `detachFd()`, 之后父进程手上只剩一个整数, **没有任何对象能负责
+ * 关它** —— 于是 `closeTunnel()` 永远是空操作: 每连一次漏一个 fd, 而"断开"
+ * 之后 tun0 和 `0.0.0.0/0` 路由还挂在一个没有读者的接口上, 整台设备上不了网,
+ * 直到进程被杀。
  *
  * ## 为什么是前台服务, 而不是让 Activity 自己拿着
  *
@@ -53,9 +68,25 @@ class HongxingVpnService : VpnService() {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
-    /** 系统给的 TUN。**必须持有到内核停掉为止** —— 提前 close 等于断隧道。 */
+    /**
+     * 系统给的 TUN —— **唯一所有者**。见类注释。
+     *
+     * 必须持有到内核停掉为止: 提前 close 等于断隧道, 而且内核手上那份引用
+     * 也会变成"接不到新流量"的空壳。
+     */
     @Volatile
     private var tunnel: ParcelFileDescriptor? = null
+
+    /**
+     * 交给内核的那一份 `dup()`。
+     *
+     * 它只需要活到 `fork()` 完成 —— 那一刻子进程已经拿到了同一份打开文件描述
+     * 的另一个引用, 父进程这一份就是多余的。留着它的坏处很具体: 多一个引用计数
+     * 之后, "谁还开着这个 TUN"变得难以判断, 而断开时我们要的正是"内核一死,
+     * 关掉我们这份, 接口就必须消失"。
+     */
+    @Volatile
+    private var coreTunnel: ParcelFileDescriptor? = null
 
     private var foregroundStarted = false
 
@@ -64,14 +95,30 @@ class HongxingVpnService : VpnService() {
     override fun onCreate() {
         super.onCreate()
         EngineRuntime.init(this)
+        // 内核**意外**死亡时由运行时回调这里。为什么必须是服务: TUN 的 fd 归它,
+        // 也只有它能关 (见 [closeTunnel] 与 EngineRuntime 的看门狗)。
+        EngineRuntime.onEngineDied = {
+            scope.launch {
+                // 内核已经死了, 这个 TUN 现在没有读者 —— 留着它等于把整台设备的
+                // 流量吸进黑洞。关掉至少让流量回到直连, 然后按"没在连接"收尾。
+                closeTunnel()
+                teardown()
+            }
+        }
+        // `startService` 失败时 (Android 12+ 的后台启动限制) 界面仍然要能断开,
+        // 那条退路在进程内直接调 EngineRuntime.stop, 而"关 TUN"只能由服务做。
+        EngineRuntime.tunnelCloser = { closeTunnel() }
         createNotificationChannel()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // 这一次请求的尝试 id (见 EngineRuntime.AttemptState)。`<= 0` = 不是界面
+        // 发起的 (通知栏那个"断开"按钮), 没有人等结论。
+        val attempt = intent?.getLongExtra(EXTRA_ATTEMPT, NO_ATTEMPT) ?: NO_ATTEMPT
         when (intent?.action) {
             ACTION_STOP -> {
                 // 通知栏那个"断开"按钮走这里。
-                scope.launch { disconnectAndStop() }
+                scope.launch { disconnectAndStop(attempt) }
             }
 
             ACTION_START -> {
@@ -80,7 +127,7 @@ class HongxingVpnService : VpnService() {
                 // 把进程干掉。所以这里先挂一个"正在连接"的通知占位, 等内核
                 // 真的起来了再换成正式文案 —— 不能让"等内核"这段时间裸奔。
                 startForegroundWith(getString(R.string.notification_connecting))
-                scope.launch { connect() }
+                scope.launch { connect(attempt) }
             }
 
             ACTION_FD_PROBE -> {
@@ -89,7 +136,14 @@ class HongxingVpnService : VpnService() {
                 //
                 // 为什么必须由服务来做: `Builder` 是 VpnService 的内部类,
                 // 需要一个由系统创建并挂好 Binder 的真实例, 外面 new 不出来。
-                scope.launch { runFdProbe() }
+                //
+                // 这一整条路 (以及 Activity 那边的 --ez fdprobe) 在正式包里是死的:
+                // 它会建 TUN、还会经启动桥跑 `/system/bin/sh`, 而入口是导出的
+                // launcher Activity —— 任何 App 或 adb 都能塞 extra 进来。开关是
+                // **编译期常量**, 见 MainActivity 里那段说明。
+                if (BuildConfig.DEBUG_ENTRYPOINTS) {
+                    scope.launch { runFdProbe() }
+                }
             }
 
             else -> {
@@ -105,9 +159,20 @@ class HongxingVpnService : VpnService() {
      *
      * 对界面来说这只是一次普通的 stop, 所以不单独区分。
      */
-    private suspend fun disconnectAndStop() {
-        EngineRuntime.stop { closeTunnel() }
+    private suspend fun disconnectAndStop(attemptId: Long) {
+        val result = EngineRuntime.stop { closeTunnel() }
+
+        // 内核停不掉时 [EngineRuntime.stop] 会**刻意保留隧道** (关 TUN 会让在途
+        // 流量走直连, 那是这个 App 最不能接受的一类泄漏)。那时候通知必须留在
+        // 通知栏上, 而且文案要改成"断开失败, 点这里重试" —— 否则用户失去的是
+        // 唯一的断开入口, 只剩"杀 App"这一条路。
+        if (result.isFailure && foregroundStarted) {
+            startForegroundWith(getString(R.string.notification_disconnect_failed))
+        }
+
         teardown()
+        // 结论只回给"这一次"尝试 (K2)。
+        EngineRuntime.finishAttempt(attemptId, result.exceptionOrNull()?.message)
     }
 
     /**
@@ -164,23 +229,48 @@ class HongxingVpnService : VpnService() {
         return builder.establish()
     }
 
-    private fun connect() {
+    private fun connect(attemptId: Long) {
         scope.launch {
-            val result = EngineRuntime.start(
-                establish = { establishTunnel() },
-                onTunnelUp = { startForegroundWith(getString(R.string.notification_protecting)) },
-            )
-
-            val message = result.getOrNull().orEmpty()
-            when {
-                result.isFailure || message.isNotEmpty() -> {
-                    // 隧道没起来。**这里必须把 fd 关掉**: EngineRuntime 只如实
-                    // 报了状态, fd 还在我们手上。留着它就是留着一个"流量全部
-                    // 被吸进黑洞"的 TUN, 而界面显示的是没连上 —— 再糟不过。
+            var error: String? = null
+            try {
+                val result = EngineRuntime.start(
+                    establish = { establishTunnel() },
+                    onTunnelUp = { startForegroundWith(getString(R.string.notification_protecting)) },
+                )
+                val message = result.getOrNull().orEmpty()
+                error = when {
+                    result.isFailure ->
+                        result.exceptionOrNull()?.message?.takeIf { it.isNotBlank() } ?: "连接失败"
+                    // 见 EngineRuntime.start 的返回值说明: "成功但值是错误文案" =
+                    // 隧道其实没起来。
+                    message.isNotEmpty() -> message
+                    else -> null
+                }
+            } catch (t: CancellationException) {
+                // 服务正在销毁 / 协程被取消。清理仍然要跑 (finally), 但取消必须
+                // 继续往上抛 —— 吞掉它会让调用方以为这次启动"正常结束了"。
+                error = "连接已取消"
+                throw t
+            } catch (t: Throwable) {
+                error = t.message?.takeIf { it.isNotBlank() }
+                    ?: "连接失败 (${t.javaClass.simpleName})"
+            } finally {
+                // ---- 收尾必须在 finally 里, 而且必须全是不挂起的操作 ----
+                //
+                // 取消路径上协程已经是 cancelled, 任何 suspend 调用都会立刻抛。
+                // 而这里要做的两件事都关系到"会不会留下一台断网的手机":
+                //   1. 把交给内核的那份 dup 关掉 (fork 早就完成了);
+                //   2. 隧道没起来的话, 把 TUN 也关掉 —— EngineRuntime 只如实
+                //      报了状态, fd 还在我们手上, 留着它就是留着一个"流量全部
+                //      被吸进黑洞"的 TUN, 而界面显示的是没连上。
+                closeCoreFd()
+                if (error != null) {
                     closeTunnel()
                     teardown()
                 }
-                else -> Unit // 连上了, 通知已经在 onTunnelUp 里换好
+                // 结论落在 finally 里: 成功、失败、取消三条路都要有人回答,
+                // 否则界面会一直等到超时才说话。
+                EngineRuntime.finishAttempt(attemptId, error)
             }
         }
     }
@@ -188,13 +278,16 @@ class HongxingVpnService : VpnService() {
     // ------------------------------------------------------------ VpnService
 
     /**
-     * 建 TUN 并把它的 fd 交出去。返回 fd, 失败返回 -1。
+     * 建 TUN, 并把**一份 dup** 交给内核。返回要传下去的 fd, 失败返回 -1。
      *
      * 这里**不** catch `Exception` 后静默: 每一个失败原因都对应一句用户能
      * 看懂的话, 而 `establish()` 返回 null 是其中最常见也最容易被忽略的一个
      * (没授权、或者别的 VPN 正在跑)。返回 -1 让上层统一报错。
      */
     private fun establishTunnel(): Int {
+        // 保险: 上一次的 fd 必须先关掉, 否则第二次 establish() 会把前一个 TUN
+        // 直接漏掉 (它没有别的所有者了)。正常路径上上游已经关过了, 这里是
+        // 幂等的兜底。
         closeTunnel()
 
         return try {
@@ -211,16 +304,21 @@ class HongxingVpnService : VpnService() {
             }
             EngineRuntime.setVpnPermission(true)
 
+            // 原件由服务掌管 —— 它才是"隧道还在不在"的判据, 也是断开时真正
+            // 让 tun0 消失的那一下 (见 [closeTunnel])。
             tunnel = pfd
-            // detachFd() 之后**这个 PFD 对象就作废了**, 不能再 close 它 ——
-            // 真正的 fd 已经归内核, 关它等于把内核的 TUN 抽掉。所以这里
-            // 把引用清空, 免得 onDestroy 里的清理逻辑误关。
-            val fd = pfd.detachFd()
-            tunnel = null
-            fd
+
+            // 给内核的那一份。用 dup() 而不是 detachFd(): detach 之后这个 fd
+            // 就没有所有者了, 谁都不会关它 (审计 K1 的根因)。dup 出来的是
+            // **同一个打开文件描述的另一个引用**, 对 fork/execve 来说完全等价,
+            // 但它有一个明确的对象负责关闭。
+            val dup = ParcelFileDescriptor.dup(pfd.fileDescriptor)
+            coreTunnel = dup
+            EngineRuntime.setTunnelHeld(true)
+            dup.fd
         } catch (t: Throwable) {
             // SecurityException (没授权) / IllegalArgumentException (参数被拒)
-            // 都归到这里。返回 -1 让上层统一处理。
+            // / IOException (dup 失败) 都归到这里。返回 -1 让上层统一处理。
             closeTunnel()
             -1
         }
@@ -259,15 +357,42 @@ class HongxingVpnService : VpnService() {
     }
 
     /**
+     * 关掉交给内核的那一份 dup。**只能在 fork 完成之后调**。
+     *
+     * 见 [coreTunnel]: 子进程继承的是同一份打开文件描述, 父进程这一份在
+     * `forkExec` 返回之后就没有用途了。提前调 (fork 之前) 等于把要交给内核的
+     * fd 关掉, 内核会报 "file descriptor is not valid" 然后退出。
+     */
+    private fun closeCoreFd() {
+        runCatching { coreTunnel?.close() }
+        coreTunnel = null
+    }
+
+    /**
      * 关掉 TUN。
      *
-     * 只有在**内核已经停掉之后**才会被调用 —— 见 [EngineRuntime.stop] 里
-     * 那段关于"先关 fd 会让在途流量走直连"的说明。这个顺序是安全属性,
-     * 不是优化。
+     * ## 只有在**内核已经停掉之后**才能调
+     *
+     * 见 [EngineRuntime.stop] 里那段关于"先关 fd 会让在途流量走直连"的说明。
+     * 这个顺序是安全属性, 不是优化。反过来说, 内核已经死了的时候**必须**关
+     * (看门狗那条路): 一个没有读者的 TUN 会把整台设备的流量吸进黑洞。
+     *
+     * ## 这里关的是原件, 而它真的会拆掉接口
+     *
+     * 这一点靠的是"谁还持有这个 TUN": 内核进程死了 + 交给它的那份 dup 也关了
+     * 之后, [tunnel] 就是最后一个引用, 关掉它内核就会把 tun0 和 `0.0.0.0/0`
+     * 路由一起撤掉。所以这里绝不能用 `detachFd()` 那种"把 fd 送出去"的写法 ——
+     * 送出去就没有对象能关了 (审计 K1)。
      */
     private fun closeTunnel() {
+        // dup 先关: 它只是"给内核用的那一份", 真正让 tun0 消失的是下面这个原件。
+        // 反过来的顺序不会出错 (dup 是独立引用), 但先关它语义更清楚。
+        closeCoreFd()
         runCatching { tunnel?.close() }
         tunnel = null
+        // 这个标志是给"服务外面"判断隧道还在不在用的 (见 EngineRuntime.tunnelHeld):
+        // 判断一次断开有没有真的成功, 只能看这个事实, 不能看"服务还在不在"。
+        EngineRuntime.setTunnelHeld(false)
     }
 
     /**
@@ -287,9 +412,22 @@ class HongxingVpnService : VpnService() {
     }
 
     override fun onDestroy() {
-        // 服务被系统杀掉时可能还连着, 尽力停一次。这里不用 suspend 的 stop:
-        // onDestroy 里没有等待的余地, 用非阻塞的清理。
-        EngineRuntime.shutdown()
+        // 服务被系统销毁时可能还连着 —— 这里要做的是**真的收拾干净**, 而不是
+        // 只停两个协程:
+        //  * 内核是 setsid() 出去的长驻进程, 不杀它就会带着 TUN fd 活到下一次
+        //    启动, 变成审计 K3 里那个"孤儿回答 /version → 界面显示已连接而
+        //    隧道其实是死的";
+        //  * TUN fd 不关, tun0 和 0.0.0.0/0 路由就会留在一个没有读者的接口上
+        //    —— 表现是整台设备上不了网, 直到进程被杀 (审计 K1)。
+        //
+        // 顺序仍然不能反: 先停内核, 再关 TUN (见 EngineRuntime.stop 的说明)。
+        // 这里用的全是**非挂起**调用: onDestroy 里没有等待的余地, 而且这个
+        // 调用点可能已经处在取消路径上 (任何 suspend 都会立刻抛)。
+        EngineRuntime.onEngineDied = null
+        EngineRuntime.tunnelCloser = null
+        EngineRuntime.shutdown(killCore = true)
+        closeCoreFd()
+        closeTunnel()
         scope.cancel()
         super.onDestroy()
     }
@@ -319,11 +457,20 @@ class HongxingVpnService : VpnService() {
     /**
      * 退到后台并结束自己。
      *
-     * 只有真的没在连接时才停服务: 内核停不掉的情况下 [EngineRuntime.stop]
-     * 会保留隧道, 这时候把服务停掉等于连"重试断开"的机会都没有了。
+     * ## 判据是"隧道还开着吗", 不是"阶段标签写着什么" (审计 N2)
+     *
+     * 改之前这里判的是 `phase == Connected`, 而"内核停不掉"那条路会把阶段
+     * 设成 `Error` **同时刻意保留隧道** (见 [EngineRuntime.stop]: 关 TUN 会让
+     * 在途流量走直连, 那是这个 App 最不能接受的一类泄漏)。于是那段代码做了
+     * 正好相反的事: 通知消失、`stopSelf()`、`onDestroy` 再取消看门狗 ——
+     * 用户被告知"已保留隧道, 请重试断开", 却同时失去了通知栏那个"断开"按钮
+     * 和唯一的界面入口, 而 mihomo 还在跑、TUN 还开着。
+     *
+     * 所以判据换成事实本身: [tunnel] 不是 null = 隧道还在 = 服务必须活着。
+     * 阶段标签只是给人看的文字, 它可以有四种写法, 而"隧道还在不在"只有两种。
      */
     private fun teardown() {
-        if (EngineRuntime.status.value.phase == EnginePhase.Connected) return
+        if (tunnel != null) return
         if (foregroundStarted) {
             runCatching { stopForeground(STOP_FOREGROUND_REMOVE) }
             foregroundStarted = false
@@ -407,6 +554,18 @@ class HongxingVpnService : VpnService() {
 
         /** 断开。通知栏按钮和界面开关共用。 */
         const val ACTION_STOP = "com.accesspilot.hongxing.action.STOP"
+
+        /**
+         * 这一次请求的尝试 id (见 `EngineRuntime.AttemptState`)。
+         *
+         * 为什么把它塞进 Intent 而不是让服务自己去问: 服务可能还在处理上一次
+         * 请求, 而"这一次"的结论必须回到"这一次"的发起者手上 (审计 K2)。
+         * 通知栏那条路不带这个 extra, 服务会当成"没人等结论"处理。
+         */
+        const val EXTRA_ATTEMPT = "com.accesspilot.hongxing.extra.ATTEMPT"
+
+        /** 没有尝试 id 时的哨兵值。见 [EXTRA_ATTEMPT]。 */
+        const val NO_ATTEMPT = -1L
 
         /**
          * 跑一次 fd 传递实验 (诊断用, 见 [FdProbe])。

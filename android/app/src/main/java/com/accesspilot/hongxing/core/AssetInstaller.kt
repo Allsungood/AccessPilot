@@ -72,7 +72,7 @@ internal class AssetInstaller(
      * @throws IOException 复制失败。调用方负责转成 [EngineStatus.error]。
      */
     fun ensureInstalled(progress: ((Float, String) -> Unit)? = null): Int {
-        val entries = buildManifest()
+        val entries = manifest()
         val fingerprint = AssetVersion.fingerprintOf(
             entries.size,
             entries.sumOf { it.sizeBytes },
@@ -83,14 +83,29 @@ internal class AssetInstaller(
             val nameChanged = store.installedAssetsVersion == packageVersionCode &&
                 store.installedAssetsFingerprint.isNotEmpty() &&
                 !AssetVersion.sameVersionName(packageVersionName, store.installedAssetsName)
+            // 退化指纹 (一个字节都量不到, 见 [AssetVersion.isDegenerate]) **不能**
+            // 当作"内容没变"的证据: 那正是"量不到"的表现。宁可每次都重装一遍
+            // (慢, 但正确), 也不要出现"改了规则集却永远不生效、而且没有任何报错"。
             val contentChanged = store.installedAssetsFingerprint.isNotEmpty() &&
-                store.installedAssetsFingerprint != fingerprint
+                (store.installedAssetsFingerprint != fingerprint ||
+                    AssetVersion.isDegenerate(fingerprint))
 
             if (!nameChanged && !contentChanged) return 0
         }
 
         return install(entries, packageVersionCode, packageVersionName, fingerprint, progress)
     }
+
+    /**
+     * 资源清单 (带大小)。
+     *
+     * 记忆化是有意的: 量一遍大小要把 24 个 asset 全部读到底 (约 32 MB, 见
+     * [sizeOf]), 而 [ensureInstalled] 每次连接都会被调一次。**APK 在进程活着的
+     * 期间不可能变** (覆盖安装会先把进程杀掉), 所以这份清单在进程内是常量。
+     */
+    private fun manifest(): List<AssetEntry> = cachedManifest ?: buildManifest().also { cachedManifest = it }
+
+    private var cachedManifest: List<AssetEntry>? = null
 
     // ------------------------------------------------------------ 实际安装
 
@@ -182,15 +197,57 @@ internal class AssetInstaller(
             emptyList()
         }
 
-    /** assets 里的条目长度。拿不到就返回 0 —— 它只影响指纹, 不该让安装失败。 */
-    private fun sizeOf(assetPath: String): Long =
+    /**
+     * assets 里某个条目的**真实字节数**。
+     *
+     * ## 为什么不能只信 `openFd()` (审计 K5)
+     *
+     * `openFd()` 对**压缩存储**的 zip 条目会抛 `FileNotFoundException`
+     * ("This file can not be opened as a file descriptor; it is probably
+     * compressed")。而实测这个 APK 里 24 个 asset **全都是 DEFLATED** ——
+     * 也就是说每个条目都走进了异常分支、每个大小都返回 0, 指纹于是永远是
+     * `"24:0"` 这个常量: 第三级判据 ("内容变了") 永远不会触发, 改了规则集
+     * 或节点却不升 versionCode 的话, 新资源**静默不生效**。
+     *
+     * 顺带坏掉的还有安装进度: `install()` 用 totalBytes 算百分比, 全是 0 时
+     * 进度条从一开始就停在 0%。
+     *
+     * 所以这里退一步: 真的把流读到底, 数它有多少字节。代价是每个条目读一遍,
+     * 但只在**每个进程第一次**调 [ensureInstalled] 时发生一次 (清单有记忆化),
+     * 而且它本来就要在下一次安装里被完整读一遍。
+     *
+     * ## 为什么不在 build.gradle.kts 里加 `noCompress`
+     *
+     * 那是审计给出的另一条路, 也能让 `openFd()` 恢复可用。但代价是这 24 个
+     * 资源会以**未压缩**形态进 APK: 它们加起来 32.5 MB, 而当前压缩后只占
+     * 十几 MB —— 正式包的体积会平白多出约 20 MB, 换来的只是省掉一次本地读取。
+     * 这条路 (读流) 不花用户的流量和存储, 所以选它。
+     *
+     * 拿不到就返回 0: 它只影响指纹, 不该让安装失败。而"全都是 0"这种情况由
+     * [AssetVersion.isDegenerate] 兜着 —— 那种指纹会被当成"内容变了"。
+     */
+    private fun sizeOf(assetPath: String): Long {
         try {
-            context.assets.openFd(assetPath).use { it.length }
+            context.assets.openFd(assetPath).use { return it.length }
         } catch (_: Throwable) {
-            // 压缩过的 asset 打开 openFd 会抛 FileNotFoundException,
-            // 这是正常的, 不是错误。
+            // 压缩过的 asset 走这里。见上面那段。
+        }
+        return try {
+            context.assets.open(assetPath).use { input ->
+                val buf = ByteArray(64 * 1024)
+                var total = 0L
+                while (true) {
+                    val n = input.read(buf)
+                    if (n < 0) break
+                    total += n
+                }
+                total
+            }
+        } catch (_: Throwable) {
+            // 连流都打不开 (条目不存在)。返回 0, 由 isDegenerate 兜底。
             0L
         }
+    }
 
     private data class AssetEntry(
         val assetPath: String,
@@ -269,6 +326,25 @@ internal object AssetVersion {
      * 好几秒的白工, 而这两级判据要解决的问题只是"build_assets.py 重新生成过
      * 资源但版本号没动"。条目数或总字节数一变就足以发现这种情况; 真要精确到
      * 内容级, 那是发布流程该做的校验, 不该压在用户的开机路径上。
+     *
+     * **前提是那个字节数得是真的** —— 见 [isDegenerate] 和 `AssetInstaller.sizeOf`。
      */
     fun fingerprintOf(entryCount: Int, totalBytes: Long): String = "$entryCount:$totalBytes"
+
+    /**
+     * 这个指纹是不是"退化"的 —— 也就是**一个字节都没量到** (`"24:0"`)。
+     *
+     * 为什么会退化: `AssetManager.openFd()` 对压缩存储的 asset 一律抛异常
+     * (实测这个 APK 里 24 个条目全是 DEFLATED), 于是每个 size 都是 0, 指纹
+     * 变成一个**常量** —— 于是"内容变了"这一级判据永远不会触发, 改了规则集
+     * 却怎么都不生效, 而且没有任何报错。
+     *
+     * 所以退化指纹的处理方式是**当成"内容变了"**: 每次都重装资源。慢一点,
+     * 但那是个有界的代价 (约 32 MB 的复制); 而"新规则静默不生效"是没有界的
+     * —— 用户只会觉得"这软件有时候能上有时候不能", 我们连线索都没有。
+     *
+     * 空串也算退化: 那代表"从来没装过", 调用方本来就该走安装流程。
+     */
+    fun isDegenerate(fingerprint: String): Boolean =
+        fingerprint.isEmpty() || fingerprint.endsWith(":0")
 }

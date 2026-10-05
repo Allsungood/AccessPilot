@@ -108,6 +108,35 @@ class AssetInstallerTest {
         assertEquals("24:40000000", fp)
     }
 
+    // ------------------------------------------------- 退化指纹 (审计 K5 的护栏)
+
+    @Test
+    fun `一个字节都没量到的指纹算退化`() {
+        // 这正是真机上报出来的那个值: `AssetManager.openFd()` 对压缩存储的
+        // asset 一律抛异常 (实测 APK 里 24 个条目全是 DEFLATED), 于是每个
+        // size 都是 0, 指纹退化成常量 "24:0" —— 而"内容变了"那一级判据
+        // 就再也不会触发: 改了规则集却怎么都不生效, 还没有任何报错。
+        assertTrue(
+            "总字节数是 0 就说明一个文件的大小都没量到, 这种指纹不能当判据",
+            AssetVersion.isDegenerate(AssetVersion.fingerprintOf(24, 0)),
+        )
+    }
+
+    @Test
+    fun `量到真实字节数的指纹不算退化`() {
+        // 32 547 750 = 这个 APK 里 24 个 asset 的真实总和。注意它**以 0 结尾**
+        // —— 所以判据必须是 ":0" 而不是 endsWith("0"), 否则一个完全正常的
+        // 指纹 (凑巧是 10 的整数倍) 会被误判成退化, 于是每次连接都重装一遍
+        // 32 MB 资源。这一条就是钉住这个边界的。
+        assertFalse(AssetVersion.isDegenerate(AssetVersion.fingerprintOf(24, 32_547_750)))
+    }
+
+    @Test
+    fun `空指纹算退化`() {
+        // "" = 从来没装过 (SharedPreferences 的默认值), 调用方本来就该走安装流程。
+        assertTrue(AssetVersion.isDegenerate(""))
+    }
+
     // ------------------------------------------------------------------ 常量
 
     @Test

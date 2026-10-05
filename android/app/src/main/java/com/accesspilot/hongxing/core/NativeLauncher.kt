@@ -74,8 +74,15 @@ internal object NativeLauncher {
      * @param logPath 子进程 stdout+stderr 落地的文件
      * @param pidPath 子进程 pid 落地的文件。**必须有**: pid 一旦丢了, 停止时就
      *                只能盲目 kill 或者干等, 而 mihomo 卡在死连接上时不会自己退
+     * @param trustedDir 只允许 exec 这个目录 (realpath 之后) 下的可执行文件;
+     *                `null` = 不检查。**生产路径必须传** nativeLibraryDir ——
+     *                这个入口的语义是"跑任意路径 + 把 App 的 fd 表交给它", 不
+     *                加限制就是一个通用机关 (审计 N14)。唯一传 null 的是
+     *                [FdProbe]: 它故意要跑 `/system/bin/sh -c`, 而那条路只在
+     *                debug 包里存在 (`BuildConfig.DEBUG_ENTRYPOINTS`)。
      * @return 子进程 pid
-     * @throws java.io.IOException fork 或 execve 失败 (消息里带 errno)
+     * @throws java.io.IOException fork 或 execve 失败 (消息里带 errno);
+     *         等待 execve 结果超过 5 秒也会抛 (子进程会被杀掉, 不会留下悬空进程)
      */
     @Throws(java.io.IOException::class)
     external fun forkExec(
@@ -85,6 +92,7 @@ internal object NativeLauncher {
         tunFd: Int,
         logPath: String?,
         pidPath: String?,
+        trustedDir: String?,
     ): Int
 
     /**

@@ -81,15 +81,13 @@ internal class SettingsStore(context: Context) {
         }
 
     // ------------------------------------------------------------ 连接状态
-
-    /**
-     * 上次是不是连着。**只用于界面冷启动时先把圆钮画成"上次的样子"**,
-     * 绝不作为"现在真的连着"的依据:
-     * 进程可能被杀、隧道可能被系统回收, 真实状态永远只认 [EngineRuntime.status]。
-     */
-    var lastConnected: Boolean
-        get() = prefs.getBoolean(KEY_LAST_CONNECTED, false)
-        set(value) = prefs.edit().putBoolean(KEY_LAST_CONNECTED, value).apply()
+    //
+    // 这里曾经有一个 `lastConnected` 字段, 文档说它"用于界面冷启动时先把圆钮
+    // 画成上次的样子"。实际上它被写了两处、**从来没有被读过**, 而"上次连着"
+    // 恰恰是一个不能用来画界面的状态: App 可能被杀过、内核可能早就没了、系统
+    // 可能收回了 VPN 授权。界面的唯一状态来源是 EngineRuntime.status (见
+    // EngineState.kt 的三条硬约定), 所以这个字段连同它的两次写入一起删掉了
+    // (审计 N17) —— 留着它只会诱使后来人真的拿它去画界面。
 
     // -------------------------------------------------------------- 资源版本
 
@@ -113,7 +111,6 @@ internal class SettingsStore(context: Context) {
         const val KEY_SECRET = "secret"
         const val KEY_NODE = "selected_node"
         const val KEY_MODE = "mode"
-        const val KEY_LAST_CONNECTED = "last_connected"
         const val KEY_ASSETS_VERSION = "assets_version"
         const val KEY_ASSETS_FINGERPRINT = "assets_fingerprint"
         const val KEY_ASSETS_NAME = "assets_name"

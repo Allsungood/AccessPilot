@@ -161,6 +161,11 @@ internal class FdProbe(private val workDir: File) {
                 tunFd = fd,
                 logPath = log.absolutePath,
                 pidPath = pidFile.absolutePath,
+                // trustedDir = null: 这个实验**故意**要跑 /system/bin/sh,
+                // 所以不能套"只许跑 nativeLibraryDir 下的文件"那道限制。
+                // 整条 fd 实验路只在 debug 包里活着 (见 BuildConfig.DEBUG_ENTRYPOINTS),
+                // 正式包既进不来也不认那些 extra —— 这正是它敢传 null 的前提。
+                trustedDir = null,
             )
             readChildOutput(NativeChild(pidFile.readText().trim().toIntOrNull() ?: -1, log))
         } catch (t: Throwable) {
@@ -173,10 +178,10 @@ internal class FdProbe(private val workDir: File) {
     /**
      * Java 原生路径。**预期失败** —— 但这个"失败"正是要拿到的证据。
      *
-     * 关键细节: 先 `detachFd()` 再手动清掉 `FD_CLOEXEC`。这是最有利于
-     * `ProcessBuilder` 的配置 —— 如果连这样都活不下来, 就说明问题不在
-     * CLOEXEC, 而在 `closeDescriptors()` 那个无条件 close。这正是我们要区分的
-     * 两件事。
+     * 关键细节: 交给 `ProcessBuilder` 之前**手动清掉读端的 `FD_CLOEXEC`**
+     * (见 [clearCloexec])。这是最有利于 `ProcessBuilder` 的配置 —— 如果连
+     * 这样都活不下来, 就说明问题不在 CLOEXEC, 而在 `closeDescriptors()`
+     * 那个无条件 close。这正是我们要区分的两件事。
      */
     private fun probeProcessBuilder(report: StringBuilder): Boolean {
         report.appendLine("--- 路径 A: ProcessBuilder (Java 原生) ---")
@@ -214,6 +219,8 @@ internal class FdProbe(private val workDir: File) {
                 tunFd = readEndFd,
                 logPath = log.absolutePath,
                 pidPath = pidFile.absolutePath,
+                // 见 probeRealTun 那条路上的说明: 实验要跑 sh, 所以不设白名单目录。
+                trustedDir = null,
             )
             // 用一个只为了统一接口的壳把 pid 带出去。native 那条路没有
             // java.lang.Process, 所以下面的取输出逻辑按"读日志文件"处理。

@@ -1,10 +1,15 @@
 package com.accesspilot.hongxing.core
 
 import android.content.Context
+import android.system.Os
+import android.system.OsConstants
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -13,7 +18,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import java.io.File
+import java.util.concurrent.atomic.AtomicLong
 
 /**
  * 红杏 Android · 引擎运行时
@@ -63,6 +70,49 @@ internal object EngineRuntime {
 
     /** 正在跑的那个"盯着内核死没死"的协程。 */
     private var watchdog: Job? = null
+
+    /**
+     * 服务手上还开着 TUN 吗。
+     *
+     * 这是"隧道到底还在不在"的**事实**, 由持有 fd 的 [HongxingVpnService] 维护。
+     * 为什么需要它: 判断一次"断开"有没有真的成功, 只能看这个事实 —— 看
+     * "服务还在不在"是错的 (见 [EngineControllerImpl.stop] 里那段)。
+     */
+    @Volatile
+    var tunnelHeld: Boolean = false
+        private set
+
+    fun setTunnelHeld(held: Boolean) {
+        tunnelHeld = held
+    }
+
+    /**
+     * 内核**意外**死亡时的回调, 由服务在 `onCreate` 里挂上、`onDestroy` 里摘掉。
+     *
+     * 为什么需要它: fd 的所有者是服务, 只有它能关掉 TUN。而内核一死, 那个 TUN
+     * 就变成一个"没有读者的接口"—— 所有流量被吸进去然后消失, 用户看到的是
+     * 整台设备断网, 而界面只是从"已连接"变成"出错了"。关掉它, 流量至少能
+     * 回到直连。
+     */
+    @Volatile
+    var onEngineDied: (() -> Unit)? = null
+
+    /**
+     * "把 TUN 关掉"的请求方, 由持有 fd 的 [HongxingVpnService] 在 `onCreate` 里挂上。
+     *
+     * 为什么需要它: 关 TUN 是服务的能力 (只有它有那个 `ParcelFileDescriptor`),
+     * 而 **`startService` 有可能失败** —— Android 12+ 的后台启动限制是最常见的
+     * 原因。那种情况下界面仍然必须能把隧道断掉 (否则用户手上只剩"杀 App"),
+     * 所以退路是: 由 [EngineControllerImpl] 在进程内直接调 [stop], 而"关 TUN"
+     * 这一步通过这个回调完成 (审计 N7)。
+     */
+    @Volatile
+    var tunnelCloser: (() -> Unit)? = null
+
+    /** 请求服务关掉 TUN。没有服务时是空操作 (那时也没有 TUN 可关)。 */
+    fun requestTunnelDown() {
+        runCatching { tunnelCloser?.invoke() }
+    }
 
     /** 当前连接开始的时间点, 用来算 uptime。 */
     @Volatile
@@ -126,7 +176,7 @@ internal object EngineRuntime {
     val secret: String get() = requireStore().secret
 
     private fun requireStore(): SettingsStore =
-        store ?: error("EngineRuntime 还没 init —— 先让 HongxingVpnService 起来")
+        store ?: error(ENGINE_NOT_READY_MESSAGE)
 
     /**
      * 内核的工作目录 (mihomo 的 `-d`)。
@@ -145,7 +195,20 @@ internal object EngineRuntime {
      * 谁都不许再各写一份。`profileInstalled` / `assets-staging` 这些也在同一个
      * 目录里, 但它们对 mihomo 是无害的 (它只按名字找自己要的文件)。
      */
-    private fun workDir(): File = requireNotNull(appContext).filesDir
+    private fun workDir(): File = requireAppContext().filesDir
+
+    /**
+     * 拿 Application context, 没 [init] 过就给一句人话。
+     *
+     * 改之前这里是 `requireNotNull(appContext)`, 于是新装的应用 (服务从没起来过)
+     * 点一下节点列表里的"刷新", 界面上显示的是 Kotlin 自己的
+     * `Required value was null.` —— 一句对用户毫无意义、对我们也定位不到东西的
+     * 英文内部错误。根因 (没 init) 已经在 `MainActivity.onCreate` 里补掉了
+     * (审计 N6), 但这里也不该再把内部实现漏到界面上: `refreshNodes` 会把这条
+     * 消息原样显示在红色横幅里, 所以它必须是一句用户能看懂、也知道该干什么的话。
+     */
+    private fun requireAppContext(): Context =
+        appContext ?: error(ENGINE_NOT_READY_MESSAGE)
 
     /** 公开的 workDir, 给 fd 实验 ([FdProbe]) 用 —— 它要和服务用同一个目录。 */
     fun workDir(context: Context): File = context.applicationContext.filesDir
@@ -159,6 +222,65 @@ internal object EngineRuntime {
      */
     @Volatile
     var fdProbeReport: String? = null
+
+    // ------------------------------------------------------ 一次尝试的结论 (K2)
+
+    /**
+     * 一次"连接"或"断开"尝试的结论。
+     *
+     * ## 为什么不能靠 [status] 推断
+     *
+     * 界面点一下大开关, 走的是 `startForegroundService` —— 它**只是一个 binder
+     * 调用**, 返回时 `onStartCommand` 还没跑, 状态流里很可能还是上一次留下的
+     * `Idle` 或 `Error`。所以任何形如
+     * `status.first { it.phase != Connecting }` 的等待, 求值的对象是**当前值**,
+     * 于是:
+     *  - 第一次点: 当前是 `Idle`, 谓词立刻为真 → 界面弹"连接失败", 而隧道其实
+     *    正在起来 (审计 K2 的用户可见症状);
+     *  - 失败过一次之后: 当前是上一次的 `Error`, 于是**上一次的错误文案**被当成了
+     *    这一次的结论。
+     *
+     * 所以每次尝试都带一个自增 id: 请求方发出 Intent 之前先 [beginAttempt] 拿到
+     * 自己的 id, 服务做完之后用同一个 id [finishAttempt]。等待方只认
+     * "id 相同 **且** 已落地"的那个信号 —— 上一次的结论 id 不同, 天然不可能满足
+     * 这一次的等待。
+     */
+    data class AttemptState(
+        /** 自增 id; 0 = 还没有过任何尝试。 */
+        val id: Long = 0L,
+        /** false = 还在进行中。 */
+        val settled: Boolean = false,
+        /** `settled && error != null` = 这一次失败了, 里面是给用户看的原因。 */
+        val error: String? = null,
+    )
+
+    private val attemptSeq = AtomicLong(0L)
+
+    private val _attempt = MutableStateFlow(AttemptState())
+    val attempt: StateFlow<AttemptState> = _attempt.asStateFlow()
+
+    /** 开一次新尝试并返回它的 id。调用方负责把它随 Intent 带给服务。 */
+    fun beginAttempt(): Long {
+        val id = attemptSeq.incrementAndGet()
+        _attempt.value = AttemptState(id = id, settled = false)
+        return id
+    }
+
+    /**
+     * 给某一次尝试落结论。
+     *
+     * @param id [beginAttempt] 返回的那个; `<= 0` = 这次不是界面发起的
+     *           (比如通知栏那个"断开"按钮), 没有人等结论, 直接忽略。
+     */
+    fun finishAttempt(id: Long, error: String?) {
+        if (id <= 0L) return
+        _attempt.update { cur ->
+            // 只有"当前这一次"能被写结论。加入这个判断是为了挡住迟到的旧结论:
+            // 上一次尝试的收尾如果落在新一次开始之后, 不加判断就会把用户正在等的
+            // 这一次直接判死 (或者判活)。
+            if (cur.id == id && !cur.settled) AttemptState(id, settled = true, error = error) else cur
+        }
+    }
 
     // ------------------------------------------------------------ VPN 授权
 
@@ -206,10 +328,29 @@ internal object EngineRuntime {
         var failure: String? = null
         /** fd 是不是已经真的建立起来了 —— 决定失败时隧道该不该关。 */
         var fdEstablished = false
+        /** 这一次起的那个内核。**spawn 之前就挂上**, 见下面的注释。 */
+        var mgr: MihomoEngine? = null
 
         try {
             val st = requireStore()
             val installer = requireNotNull(assets)
+
+            // ---- 先把上一轮留下的内核清掉 (审计 K3) ----
+            //
+            // mihomo 是 setsid() 出去的长驻进程, **它活得比 App 进程长**。App 被
+            // 系统杀掉之后, 内核会继续跑着、继续占着 9090 和它那份 TUN。这时候
+            // 再起一个新的: 新的绑不上 9090 直接退出, 而 awaitReady 的 /version
+            // 探测被**那个孤儿**回答了 —— 界面显示"已连接"(绿的), 但真正在服务
+            // 9090 的是拿着旧 TUN 的孤儿, 新隧道没有读者。用户看到的是"连上了
+            // 但什么都打不开", 而且看门狗一秒后又把它翻成"内核意外退出"。
+            //
+            // 所以顺序是: 先杀旧的, 再建新的。清不干净就**不要开始** —— 带着一个
+            // 会回答 /version 的孤儿开局, 得到的必然是一个假的"已连接"。
+            val leftover = clearLeftoverCore()
+            if (leftover != null) {
+                failure = leftover
+                return@withLock Result.success(leftover)
+            }
 
             // 资源安装放在最前面: 内核起不来最常见的原因就是缺 geodata / ruleset,
             // 而它的报错长得像配置语法错误, 会把人带偏。
@@ -218,7 +359,7 @@ internal object EngineRuntime {
             val work = workDir()
             work.mkdirs()
 
-            val template = requireNotNull(appContext).assets
+            val template = requireAppContext().assets
                 .open(ConfigBuilder.TEMPLATE_ASSET).bufferedReader().use { it.readText() }
             val nodesFile = File(work, AssetInstaller.NODES_FILE)
             if (!nodesFile.isFile) {
@@ -241,10 +382,21 @@ internal object EngineRuntime {
             _status.update { it.copy(message = "正在启动内核…") }
 
             val apiClient = MihomoApi(st.secret)
-            val mgr = MihomoEngine(apiClient)
-            mgr.spawn(
+            val core = MihomoEngine(apiClient)
+            mgr = core
+
+            // **先把 handle 挂到自己身上, 再去等在就绪上** (审计 N4)。
+            //
+            // awaitReady 最长会挂 60 秒。这段时间里服务可能被销毁 (scope.cancel),
+            // 协程可能被取消, 也可能 OOM —— 只要 handle 还是 null, 下面 finally
+            // 里的清理就没有对象可清。而刚 fork 出来的 mihomo 是 setsid 出去的,
+            // 它不会跟着 App 一起死: 它会带着 TUN fd 一直活着, 顺手把 9090 占住,
+            // 下一次连接就变成 K3 那个"孤儿回答 /version"的现场。
+            engine = core
+            api = apiClient
+            core.spawn(
                 exePath = MihomoEngine.resolveExecutable(
-                    requireNotNull(appContext).applicationInfo.nativeLibraryDir,
+                    requireAppContext().applicationInfo.nativeLibraryDir,
                 ),
                 workDir = work,
                 configPath = configFile,
@@ -255,7 +407,7 @@ internal object EngineRuntime {
             // 「内核好着、是我们的请求被明文策略拦了」这两件事的**修法完全不同**,
             // 而旧的 Boolean 把它们压成同一个 false, 于是只能靠猜。
             var apiNote = ""
-            when (val outcome = mgr.awaitReady(onProgress = { waited ->
+            when (val outcome = core.awaitReady(onProgress = { waited ->
                     // 让界面上的"正在启动内核…"带上秒数: 首次启动要加载
                     // geodata + 规则集, 几十秒是正常的, 但一个不动的转圈
                     // 会被当成卡死 —— 而用户唯一的出路是杀 App, 那更糟。
@@ -279,7 +431,7 @@ internal object EngineRuntime {
                 else -> {
                     // 内核起了又死 / 或者压根没起来。日志是唯一能说明原因的东西,
                     // 所以把它接在错误信息后面 —— 让用户能直接截图给我们。
-                    val log = mgr.tailLog(LOG_IN_ERROR_BYTES)
+                    val log = core.tailLog(LOG_IN_ERROR_BYTES)
                     // 顺带把"就绪探测"那一步的**原始错误**也记下来: "内核启动失败"
                     // 和"内核起来了但我们连不上它的 REST API"是两件完全不同的事,
                     // 而它们的表象一模一样。没有这一行就只能靠猜。
@@ -293,9 +445,9 @@ internal object EngineRuntime {
                             "内核存活, 但控制端口始终没开 (已等 ${outcome.waitedMs}ms)"
                         else -> "未知原因"
                     }
-                    lastReadyProbe = "pid=${mgr.pid} 存活=${mgr.isAlive()} /version $probe"
+                    lastReadyProbe = "pid=${core.pid} 存活=${core.isAlive()} /version $probe"
                     android.util.Log.w("HongxingMain", "内核就绪探测: $lastReadyProbe")
-                    mgr.stop()
+                    core.stop()
                     failure = buildString {
                         append("内核启动失败或提前退出")
                         append("\n").append(why)
@@ -306,10 +458,7 @@ internal object EngineRuntime {
                 }
             }
 
-            engine = mgr
-            api = apiClient
             connectedAt = System.currentTimeMillis()
-            st.lastConnected = true
 
             _status.update {
                 it.copy(
@@ -329,7 +478,7 @@ internal object EngineRuntime {
             // 起来的隧道拆掉 —— 那是两个独立的问题, 混在一起只会更难查。
             runCatching { onTunnelUp?.invoke() }
 
-            startWatchdog(mgr)
+            startWatchdog(core)
             startTrafficPolling()
 
             // 连上之后顺手把节点列表拉一次。放在启动路径的**末尾**:
@@ -337,6 +486,15 @@ internal object EngineRuntime {
             scope.launch { runCatching { refreshNodes() } }
 
             Result.success("")
+        } catch (e: CancellationException) {
+            // **取消不是失败, 但它必须继续往上走。**
+            //
+            // 改之前这里是 `catch (t: Throwable)`, 把 CancellationException 一起
+            // 吞掉了: 协程被取消之后调用方收不到取消信号, 会以为这次启动"正常
+            // 结束了"; 更糟的是 finally 里那些本该在"取消"路径上跑的清理会被
+            // 当成普通失败路径来跑 (审计 N4)。所以这里先记下现场, 再原样抛出。
+            failure = ENGINE_CANCELED_MESSAGE
+            throw e
         } catch (t: Throwable) {
             // 意外错误 (编程错误、OOM 之类)。走到这里说明 fd 可能已经建好,
             // 必须让调用方知道要去关隧道。
@@ -344,11 +502,23 @@ internal object EngineRuntime {
             Result.failure(t)
         } finally {
             if (failure != null) {
-                // 失败路径的收尾: 把可能已经 fork 出来的内核收掉, 别留下
+                // 失败/取消路径的收尾: 把可能已经 fork 出来的内核收掉, 别留下
                 // 一个"没有隧道却在跑"的孤儿进程占着 9090 端口。
-                runCatching { engine?.stop() }
-                engine = null
-                api = null
+                //
+                // 注意用的是**非挂起**的 [MihomoEngine.killBlocking] 而不是
+                // stop(): 取消路径上协程已经是 cancelled 状态, 任何 suspend 调用
+                // 都会立刻抛 CancellationException, 于是"清理"变成空操作 —— 而
+                // mihomo 是 setsid 出去的, 它会一直活着 (审计 N4 的核心)。
+                if (mgr != null && !killAndCheck(mgr)) {
+                    // 杀不掉: 留下 mihomo.pid 当线索, 下一次启动的
+                    // clearLeftoverCore 会再试一遍, 并且会因此拒绝开始连接
+                    // (带着一个会回答 /version 的孤儿开局 = 假的"已连接")。
+                    android.util.Log.w("HongxingMain", "启动失败收尾时没能杀掉内核 pid=${mgr.pid}")
+                }
+                if (engine === mgr) {
+                    engine = null
+                    api = null
+                }
                 shutdown()
                 // fd 还在调用方手上 (它才持有 ParcelFileDescriptor), 这里
                 // 只如实报出"隧道没起来", 由它决定关不关 —— 但状态必须
@@ -367,6 +537,91 @@ internal object EngineRuntime {
             }
         }
     }
+
+    /**
+     * 把上一轮留下的内核清掉。返回非 null = 没清干净, 里面是给用户看的原因。
+     *
+     * 判据有两层, 缺一不可:
+     *  1. **内存里还追踪着的那个** ([engine]) —— 只有"内核停不掉时保留了隧道"
+     *     那条路会留下它;
+     *  2. **pid 文件里的那个** —— 这是 App 进程被杀过之后唯一的线索。
+     *     但 pid 会循环复用, 所以杀之前必须确认 `/proc/<pid>/cmdline` 里
+     *     真的是 libmihomo: 杀错一个无关进程的后果比留着一个孤儿严重得多
+     *     (Android 上 pid 复用得很快, 而 1 号进程以下的进程我们都没有权限,
+     *      但"没有权限"不等于"不该检查")。
+     */
+    private suspend fun clearLeftoverCore(): String? {
+        engine?.let { prev ->
+            // 用 NonCancellable 包住: 这一步是"必须做完的清理", 不能因为调用方
+            // 的取消而在半路上停下 —— 停下来就留下一个占着 9090 的孤儿。
+            val stopped = withContext(NonCancellable) { prev.stop() }
+            if (!stopped) {
+                return "上一个内核还没退干净 (pid=${prev.pid}), " +
+                    "请先在通知栏点「断开」再重连"
+            }
+            engine = null
+            api = null
+        }
+        shutdown()
+
+        val pidFile = File(workDir(), MihomoEngine.PID_FILE_NAME)
+        val stale = runCatching { pidFile.readText().trim().toIntOrNull() }.getOrNull()
+        if (stale != null && stale > 1) {
+            if (MihomoEngine.isCoreProcess(stale)) {
+                android.util.Log.w("HongxingMain", "清掉上次留下的内核 pid=$stale")
+                // 放到 IO 线程上: 这里面有 Thread.sleep (`killPidBlocking` 在等
+                // /proc 里的进程消失), 而 start() 的协程跑在主线程上 —— 不能在
+                // 这条路上再添一处卡界面 (本来这里唯一能接受的花费是"连接慢一点")。
+                withContext(Dispatchers.IO) { killPidBlocking(stale, STALE_KILL_GRACE_MS) }
+            } else {
+                // cmdline 对不上 = pid 已经被别的进程复用了。只删文件, 不杀。
+                android.util.Log.w("HongxingMain", "mihomo.pid 里的 $stale 不是我们的内核, 跳过")
+            }
+        }
+        runCatching { pidFile.delete() }
+
+        // 端口上还有人在应答吗。判据是**裸 TCP 连接** (不经过任何策略), 所以
+        // 它问的是"9090 上到底有没有监听者"。有的话, 这一轮连接注定会被它骗过去
+        // (awaitReady 只看 /version 有没有 200), 于是我们会给用户一个绿色的
+        // "已连接", 而真正在服务 9090 的是别人。宁可现在就报清楚。
+        val apiProbe = MihomoApi(requireStore().secret)
+        if (withContext(NonCancellable) { apiProbe.isPortOpen() }) {
+            return "控制端口 ${MihomoApi.DEFAULT_PORT} 上还有别的进程在应答, " +
+                "现在连接会被它骗成「已连接」, 请重启手机后再试"
+        }
+        return null
+    }
+
+    /**
+     * 杀掉一个**不是自己子进程**的残留内核 (上一轮 App 进程已经死了, 它被 init
+     * 收养), 并且等它真的从 /proc 里消失。
+     *
+     * 收尸不归我们: 我们不是它的父进程, `waitpid` 只会返回 ECHILD。init 会负责。
+     */
+    private fun killPidBlocking(pid: Int, graceMs: Long) {
+        runCatching { Os.kill(pid, OsConstants.SIGTERM) }
+        var waited = 0L
+        while (waited < graceMs && File("/proc/$pid").exists()) {
+            Thread.sleep(KILL_POLL_MS)
+            waited += KILL_POLL_MS
+        }
+        if (File("/proc/$pid").exists()) {
+            runCatching { Os.kill(pid, OsConstants.SIGKILL) }
+            waited = 0L
+            while (waited < graceMs && File("/proc/$pid").exists()) {
+                Thread.sleep(KILL_POLL_MS)
+                waited += KILL_POLL_MS
+            }
+        }
+    }
+
+    /**
+     * 非挂起地杀掉内核并回报有没有杀掉。
+     *
+     * 返回 false = 它还在跑 (调用方要把 pid 记进 [pendingReapPids])。
+     */
+    private fun killAndCheck(mgr: MihomoEngine): Boolean =
+        runCatching { mgr.killBlocking() }.getOrDefault(false)
 
     // ---------------------------------------------------------------- 断开
 
@@ -423,12 +678,23 @@ internal object EngineRuntime {
             } else {
                 failure = "内核进程没有在预期时间内退出 (pid=${mgr?.pid}), " +
                     "已保留隧道以免流量走直连, 请重试断开"
+
+                // **内核还活着, 所以继续追踪它** (审计 N3 的连带项)。
+                //
+                // 改之前这里把 engine 扔成 null 就完事了, 于是:
+                //  - 用户按提示"重试断开"时 mgr == null → 我们只关了 TUN,
+                //    却把 mihomo 留成了一个占着 9090 的孤儿 —— 下一次连接
+                //    正好会被它骗成"已连接" (K3);
+                //  - 看门狗被 [shutdown] 取消之后没人再管它, 它什么时候自己
+                //    退的、退了几次, 我们一无所知。
+                // 把它留着 + 重启看门狗, 两件事一起解决。
+                engine = mgr
+                startWatchdog(mgr)
             }
         } catch (t: Throwable) {
             failure = t.message ?: t.javaClass.simpleName
         } finally {
             connectedAt = 0L
-            runCatching { store?.let { it.lastConnected = false } }
             if (failure != null) {
                 _status.update {
                     it.copy(phase = EnginePhase.Error, error = failure, message = "")
@@ -467,7 +733,21 @@ internal object EngineRuntime {
         watchdog = scope.launch {
             while (true) {
                 kotlinx.coroutines.delay(WATCHDOG_INTERVAL_MS)
+
+                // 顺手看一眼日志大小 (一次 stat, 代价可以忽略)。见 [MihomoEngine.capLogFile]:
+                // 内核按 info 级别跑, 每条 dial 失败都写一行, 挂几天能到几百 MB,
+                // 而这里只读最后 8 KB —— 没有上限的日志是纯粹的磁盘泄漏。
+                mgr.capLogFile()
+
                 if (!mgr.isAlive()) {
+                    // **先收尸, 再丢引用** (审计 N3)。
+                    //
+                    // 顺序不能反: 一旦下面把 engine 置成 null, 内存里就再也没有
+                    // 这个 pid 了, 而僵尸进程会一直占着 pid 表项活到 App 进程结束
+                    // —— "反复连断几百次之后 fork 不出来, 重启 App 才好" 正是这么
+                    // 攒出来的。原来的代码在这条路上什么都没做。
+                    val exit = mgr.reap()
+
                     // 只有"当前跑的仍然是这一份内核"时才改状态 ——
                     // 否则一次正常的 stop + start 会被旧实例的看门狗误报成崩溃。
                     if (engine === mgr) {
@@ -480,11 +760,16 @@ internal object EngineRuntime {
                                 phase = EnginePhase.Error,
                                 error = buildString {
                                     append("内核进程意外退出")
+                                    if (exit >= 0) append(" (退出码 $exit)")
                                     if (log.isNotBlank()) append("\n").append(log)
                                 },
                                 message = "",
                             )
                         }
+                        // 内核没了, 但 TUN fd 还在服务手上 —— 那个接口现在没有
+                        // 读者, 所有流量被吸进去就消失 (用户看到的是整台设备
+                        // 断网)。fd 只有服务能关, 所以由它回调过来收尾。
+                        runCatching { onEngineDied?.invoke() }
                     }
                     return@launch
                 }
@@ -716,10 +1001,14 @@ internal object EngineRuntime {
     fun selfCheck(): String = buildString {
         appendLine("启动桥: " + if (NativeLauncher.available) "已加载" else "未加载 (${NativeLauncher.loadError})")
         appendLine("引擎: " + (engine?.let { "pid=${it.pid} 存活=${it.isAlive()}" } ?: "未运行"))
+        // 隧道到底还在不在 —— 排查"断开之后上不了网"时, 这一行是第一现场:
+        // fd 没关 = tun0 和 0.0.0.0/0 路由还挂在一个没有读者的接口上。
+        appendLine("TUN: " + if (tunnelHeld) "仍开着 (服务持有 fd)" else "已关闭")
         appendLine("阶段: ${_status.value.phase}")
         appendLine("VPN 授权: ${_status.value.vpnPermission}")
         appendLine("错误: ${_status.value.error.ifBlank { "(无)" }}")
         appendLine("节点: count=${_status.value.nodeCount} list=${_status.value.nodes.size}")
+        appendLine("本次尝试: id=${_attempt.value.id} 已落地=${_attempt.value.settled}")
         if (lastReadyProbe.isNotBlank()) appendLine("就绪探测: $lastReadyProbe")
         val ctx = appContext
         if (ctx != null) {
@@ -758,16 +1047,37 @@ internal object EngineRuntime {
     // ---------------------------------------------------------------- 收尾
 
     /**
-     * 进程级收尾。只在服务 `onDestroy` 时调用。
+     * 进程级收尾。
      *
      * watchdog / 流量协程一起停掉: 它们是 `Dispatchers.Default` 上永不退出
      * 的循环, 留着会让这个单例在服务重启后出现两份轮询。
+     *
+     * @param killCore 是否**连内核一起杀掉**。服务 `onDestroy` 必须传 true:
+     *   它是非挂起的 (onDestroy 里没有等待的余地, 而且调用点可能已经在取消
+     *   路径上, 任何 suspend 都会立刻抛), 而且是唯一能保证"服务没了就不会
+     *   留下一个带着 TUN fd 的 mihomo"的地方 —— 改之前 `onDestroy` 只停两个
+     *   协程, 内核是 setsid 出去的, 它会带着 TUN 和 9090 一直活到下一次启动
+     *   (审计 N4 + K3)。
+     *
+     *   而 [stop] 自己调这里时**不能**传 true: 那条路要走"先 SIGTERM 让它落
+     *   缓存, 再 SIGKILL"的优雅流程, 而不是在这里被人从背后一枪打死。
      */
-    fun shutdown() {
+    fun shutdown(killCore: Boolean = false) {
         watchdog?.cancel()
         watchdog = null
         trafficJob?.cancel()
         trafficJob = null
+
+        if (killCore) {
+            val mgr = engine
+            engine = null
+            api = null
+            if (mgr != null && !killAndCheck(mgr)) {
+                // 杀不掉时**不要**删 mihomo.pid: 那里面是唯一的线索, 下一次
+                // 启动的 clearLeftoverCore 还要靠它把残留内核认出来。
+                android.util.Log.w("HongxingMain", "onDestroy 没能杀掉内核 pid=${mgr.pid}")
+            }
+        }
     }
 
     /**
@@ -782,6 +1092,29 @@ internal object EngineRuntime {
     private const val WATCHDOG_INTERVAL_MS = 1_000L
     private const val TRAFFIC_INTERVAL_MS = 1_000L
     private const val LOG_IN_ERROR_BYTES = 1_200
+
+    /**
+     * 清残留内核时的等待上限 (SIGTERM 之后给它多久; SIGKILL 之后同样再等一次)。
+     *
+     * 调用点在 `Dispatchers.IO` 上 (见 [clearLeftoverCore]), 所以这里的等待不会
+     * 卡界面; 但它仍然要小 —— 真的遇到杀不掉的残留内核时, 宁可早一点报
+     * "清不干净, 请重启手机", 也不要让用户对着一个转圈的按钮等下去。
+     */
+    private const val STALE_KILL_GRACE_MS = 1_200L
+    private const val KILL_POLL_MS = 100L
+
+    /**
+     * 没 [init] 就来读引擎数据时的提示。
+     *
+     * 必须是**用户能看懂的一句话**: 它会经 `refreshNodes` → `Result` →
+     * `HomeScreen.noteResult` 原样显示在红色横幅里。改之前这里是
+     * `requireNotNull(appContext)`, 界面上显示的是 Kotlin 自己的
+     * `Required value was null.` (审计 N6)。
+     */
+    const val ENGINE_NOT_READY_MESSAGE = "引擎还在启动中, 请退出重进一次 App 再试"
+
+    /** 启动过程中被取消时写进状态的原因 (取消本身仍然会继续往上抛)。 */
+    const val ENGINE_CANCELED_MESSAGE = "连接已取消"
 
     /** [writeSelfCheck] 落地的文件名。 */
     const val SELF_CHECK_FILE = "selfcheck.txt"

@@ -74,6 +74,17 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // **界面也要初始化引擎运行时** (审计 N6)。
+        //
+        // 改之前 `EngineRuntime.init` 只在 `HongxingVpnService.onCreate` 里调,
+        // 而那个服务要等用户点第一次"连接"才会起来。于是新装的应用在第一次连接
+        // 之前: 节点列表是空的 (显示"共 0 个"), 点"刷新"还会撞上
+        // `requireNotNull(appContext)` 抛出来的那句 Kotlin 内部错误
+        // `Required value was null.` —— 全英文、和用户要做的事毫无关系。
+        //
+        // init 是幂等的 (见它的实现), 服务起来时再调一次不会有任何副作用。
+        EngineRuntime.init(applicationContext)
+
         controller = EngineControllerImpl(applicationContext)
 
         // 调试入口:
@@ -136,19 +147,37 @@ class MainActivity : ComponentActivity() {
     }
 
     /**
-     * adb 可触发的调试入口。
+     * adb 可触发的调试入口 —— **只在 debug 包里活** (审计 K4)。
      *
-     * 为什么要单独留一个 `--ez connect true`: 真机排查时要能**把"界面点击"和
-     * "引擎启动"两件事分开**。实测遇到过"点大圆钮没反应"—— 没有 mihomo 进程、
-     * 服务没起来、logcat 一条日志都没有, 但 `dumpsys input` 显示事件投递成功、
-     * `uiautomator` 也确认可点区域就在那儿。这种时候如果只能靠手点, 就分不清
-     * 是"点击没送到 Compose"还是"送到了但引擎起不来"。
+     * ## 为什么必须有编译期的闸门
      *
-     * 用法:
+     * 这个 Activity 在清单里是 `exported="true"` (启动器必须有它), 所以任何
+     * 装在这台手机上的 App —— 不只是 adb —— 都能给它发一个带 extra 的 Intent。
+     * 而这两个 extra 干的事一点都不"调试": `connect` 会替用户把 VPN 拉起来
+     * (用户从没同意过的流量接管), `fdprobe` 会建一个 TUN 并经启动桥跑
+     * `/system/bin/sh`。在正式包里留着它们, 等于给每个 App 一个"悄悄打开你
+     * 的 VPN"的按钮, 也等于一个 connect/disconnect 的 DoS 入口。
+     *
+     * 闸门用的是 `BuildConfig.DEBUG_ENTRYPOINTS`: 它是 build.gradle.kts 里按
+     * 构建类型写死的**编译期常量** (release = false), 不是系统属性、不是
+     * SharedPreferences、不是 `ApplicationInfo.FLAG_DEBUGGABLE` —— 那些都能在
+     * 运行期被改变, 而安全边界不能建立在"运行期不会被改"的假设上。
+     *
+     * ## 为什么要单独留一个 `--ez connect true`
+     *
+     * 真机排查时要能把"界面点击"和"引擎启动"两件事分开。实测遇到过"点大圆钮
+     * 没反应"—— 没有 mihomo 进程、服务没起来、logcat 一条日志都没有, 但
+     * `dumpsys input` 显示事件投递成功、`uiautomator` 也确认可点区域就在那儿。
+     * 这种时候如果只能靠手点, 就分不清是"点击没送到 Compose"还是"送到了但
+     * 引擎起不来"。
+     *
+     * 用法 (仅限 debug 包, 包名带 `.debug` 后缀):
      *   adb shell am start -n <pkg>/MainActivity --ez connect true
      *   adb shell am start -n <pkg>/MainActivity --ez fdprobe true
      */
     private fun handleDebugExtras(intent: Intent) {
+        if (!BuildConfig.DEBUG_ENTRYPOINTS) return
+
         if (intent.getBooleanExtra(EXTRA_FD_PROBE, false)) {
             runFdProbe()
         }

@@ -77,40 +77,57 @@ class EngineControllerImpl(private val appContext: Context) : EngineController {
             )
         }
 
+        // 先领一个这次的 id, 再发 Intent —— 顺序不能反: 服务可能非常快地
+        // 完成并从 `finishAttempt(id)` 回来, 而那时我们还没开始等。
+        val attempt = EngineRuntime.beginAttempt()
+
         return try {
             ContextCompat.startForegroundService(
                 appContext,
                 Intent(appContext, HongxingVpnService::class.java)
-                    .setAction(HongxingVpnService.ACTION_START),
+                    .setAction(HongxingVpnService.ACTION_START)
+                    .putExtra(HongxingVpnService.EXTRA_ATTEMPT, attempt),
             )
         } catch (t: Throwable) {
             // Android 12+ 在后台启动前台服务会抛 ForegroundServiceStartNotAllowedException。
             // 这不是"连接失败", 而是"现在不能连" —— 文案要能让用户知道
             // 得先把 App 切到前台。
-            return Result.failure(
-                IllegalStateException("无法启动 VPN 服务 (${t.javaClass.simpleName}): ${t.message}"),
-            )
-        }.let { awaitOutcome() }
+            val error = "无法启动 VPN 服务 (${t.javaClass.simpleName}): ${t.message}"
+            // 这次尝试不会有人来回答了, 自己把它落地, 免得等的人白等到超时。
+            EngineRuntime.finishAttempt(attempt, error)
+            return Result.failure(IllegalStateException(error))
+        }.let { awaitOutcome(attempt) }
     }
 
     /**
-     * 等这一次连接出结果。
+     * 等**这一次**连接出结果 (审计 K2)。
      *
-     * 只认"从 Connecting 走到终态"这一个转变。超时不当作失败到底 ——
-     * 内核冷启动在低端机上可能超过 [CONNECT_TIMEOUT_MS], 那时候隧道其实
-     * 正在起来, 报"失败"会让用户去点第二次, 反而把流程搞乱。
+     * ## 为什么不能再看状态流
+     *
+     * 改之前这里等的是 `status.first { it.phase != EnginePhase.Connecting }`,
+     * 而那个谓词是对**当前值**求值的: `startForegroundService` 只是一个 binder
+     * 调用, 返回时 `onStartCommand` 还没跑, 状态流里还是上一次留下的 `Idle`
+     * 或 `Error`。于是
+     *  - 第一次点开关: 当前是 `Idle`, 谓词立刻为真 → 界面马上弹"连接失败",
+     *    而隧道其实正在起来 (用户看到红字和"正在连接…"同时出现);
+     *  - 失败过一次之后: 当前是上一次的 `Error`, 于是把**上一次的错误文案**
+     *    当成了这一次的结论。
+     *
+     * 现在只认 [EngineRuntime.AttemptState] 里 **id 相同** 且已落地的那个信号:
+     * 上一次的结论 id 不同, 天然不可能满足这一次的等待。
      */
-    private suspend fun awaitOutcome(): Result<Unit> =
+    private suspend fun awaitOutcome(attemptId: Long): Result<Unit> =
         withTimeoutOrNull(CONNECT_TIMEOUT_MS) {
-            EngineRuntime.status.first { it.phase != EnginePhase.Connecting }
+            EngineRuntime.attempt.first { it.id == attemptId && it.settled }
         }.let { settled ->
             when {
                 settled == null ->
                     Result.failure(IllegalStateException("连接超时, 请稍后重试"))
-                settled.phase == EnginePhase.Connected ->
-                    Result.success(Unit)
-                else ->
-                    Result.failure(IllegalStateException(settled.error.ifBlank { "连接失败" }))
+                settled.error != null ->
+                    Result.failure(
+                        IllegalStateException(settled.error.ifBlank { "连接失败" }),
+                    )
+                else -> Result.success(Unit)
             }
         }
 
@@ -126,29 +143,60 @@ class EngineControllerImpl(private val appContext: Context) : EngineController {
             return Result.success(Unit)
         }
 
+        val attempt = EngineRuntime.beginAttempt()
+
         return try {
             appContext.startService(
                 Intent(appContext, HongxingVpnService::class.java)
-                    .setAction(HongxingVpnService.ACTION_STOP),
+                    .setAction(HongxingVpnService.ACTION_STOP)
+                    .putExtra(HongxingVpnService.EXTRA_ATTEMPT, attempt),
             )
         } catch (t: Throwable) {
-            // 服务都没了 = 隧道肯定也没了。这种情况下"断开"已经达成了,
-            // 报错只会让用户困惑。
-            return Result.success(Unit)
-        }.let { awaitDisconnect() }
+            // ## 为什么这里不能报"成功" (审计 N7)
+            //
+            // 改之前的注释是"服务都没了 = 隧道肯定也没了", 但这个前提在**这个**
+            // 代码库里是错的: 隧道由两样东西撑着 —— 服务持有的 TUN fd, 和
+            // `setsid()` 出去、活得比 App 进程还长的 mihomo。`startService` 抛异常
+            // 只说明"没叫动服务" (Android 12+ 的后台启动限制是最常见的原因),
+            // 完全可能服务还活着、隧道还开着。
+            //
+            // 所以这里退一步**在进程内**直接停: EngineRuntime 知道内核在哪, 能
+            // 自己把它停掉; "关 TUN"这一步交给服务挂上来的回调 (只有它有那个
+            // ParcelFileDescriptor)。然后按**事实**回答 —— 隧道真的没了才算成功。
+            val inProcess = EngineRuntime.stop { EngineRuntime.requestTunnelDown() }
+            val error = when {
+                inProcess.isSuccess && !EngineRuntime.tunnelHeld -> null
+                else -> buildString {
+                    append("无法停止 VPN 服务 (${t.javaClass.simpleName})")
+                    if (EngineRuntime.tunnelHeld) {
+                        append("; 隧道可能还开着, 请在通知栏点「断开」")
+                    } else {
+                        append("; ").append(inProcess.exceptionOrNull()?.message ?: "请稍后重试")
+                    }
+                }
+            }
+            EngineRuntime.finishAttempt(attempt, error)
+            if (error == null) Result.success(Unit) else Result.failure(IllegalStateException(error))
+        }.let { awaitDisconnect(attempt) }
     }
 
-    private suspend fun awaitDisconnect(): Result<Unit> =
+    /**
+     * 等**这一次**断开出结果。与 [awaitOutcome] 同源, 见那里的说明。
+     *
+     * 改之前这里等的是"阶段不是 Disconnecting", 而 `startService` 返回时阶段
+     * 仍然是 `Connected` → 谓词立刻为真 → 在隧道**还没断开之前**就返回成功;
+     * 如果当时是 `Error`, 则把上一次的错误当成这次的结果。
+     */
+    private suspend fun awaitDisconnect(attemptId: Long): Result<Unit> =
         withTimeoutOrNull(DISCONNECT_TIMEOUT_MS) {
-            EngineRuntime.status.first { it.phase != EnginePhase.Disconnecting }
+            EngineRuntime.attempt.first { it.id == attemptId && it.settled }
         }.let { settled ->
             when {
                 settled == null ->
                     Result.failure(IllegalStateException("断开超时, 内核可能没有退干净"))
-                settled.phase == EnginePhase.Error ->
+                settled.error != null ->
                     Result.failure(IllegalStateException(settled.error.ifBlank { "断开失败" }))
-                else ->
-                    Result.success(Unit)
+                else -> Result.success(Unit)
             }
         }
 

@@ -37,4 +37,10 @@ target_link_options(hongxing_launcher PRIVATE "-Wl,-z,max-page-size=16384")
 # 只依赖 libc。**刻意不链 android/log**: 子进程的日志走文件重定向,
 # 父进程这一侧没有任何需要打日志的地方 (出错是抛 Java 异常)。
 # 依赖越少, 这个库在 ABI 层面出问题的机会就越少。
-target_link_libraries(hongxing_launcher PRIVATE log)
+#
+# 这里原来是 `target_link_libraries(hongxing_launcher PRIVATE log)`, 而整个
+# 文件里**一个 __android_log_* 都没有用过** —— 也就是说那是一条纯粹的、没有
+# 任何调用者的依赖, 唯一的实际后果是打出来的 .so 上多一条 DT_NEEDED
+# (审计核对过 APK 里的 libhongxing_launcher.so, 确实带着它)。
+# 上面第 8 行的注释从第一天起说的就是"连 liblog 都不链", 所以删掉这一行不是
+# 新增决定, 而是把那句话变成事实。真要打日志时再加回来。

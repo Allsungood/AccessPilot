@@ -18,7 +18,12 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!--
+      RECEIVE_BOOT_COMPLETED 在这里被删掉了 (审计 N16): 清单里**没有任何**
+      BOOT_COMPLETED 的 receiver, 这个权限从来没被用到过。它只会出现在应用商店
+      的权限列表里 (用户看到"开机自启"会犹豫), 而"我们有开机自启"这件事本身
+      也不成立。将来真要做开机自动连接, 再把权限和 receiver 一起加回来。
+    -->
 
     <application
         android:allowBackup="false"
