@@ -158,6 +158,11 @@ def sanitize_state(raw: dict) -> dict:
             clean[key] = ""
     for key in STATE_MACHINE_KEYS:
         clean.pop(key, None)
+    # 打包机当时"系统代理是开着的", 那是**这台机器**的状态, 不是新用户的。
+    # 不清掉的话, 新用户第一次运行任意一条命令都会走到 heal_if_broken():
+    # 它看到 system_proxy_on=true 而内核没跑, 就会去关掉系统代理 ——
+    # 如果这位新用户本来用着别的代理, 就被我们顺手关掉了。
+    clean["system_proxy_on"] = False
     return clean
 
 
