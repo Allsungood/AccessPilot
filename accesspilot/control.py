@@ -296,6 +296,16 @@ def snapshot() -> Status:
     except Exception:  # noqa: PERF203
         pass
 
+    # "被接管"不能只看 ProxyEnable==1, 还要看它**指向哪里**。
+    # FastGithub / 蓝灯这类程序会把系统代理改成自己的端口; 那时 ProxyEnable 是 1,
+    # 但流量走的是别人的代理, 我们的内核根本没参与。旧写法会把这种状态显示成
+    # "已连接", 用户于是以为在用红杏, 实际上一点关系都没有。
+    if out.system_proxy and not out.tun:
+        try:
+            out.system_proxy, _ = sysproxy.effective(st)
+        except Exception:  # noqa: PERF203
+            pass
+
     # 一键开关的语义: 内核在跑 **且** 流量确实被接管了
     out.connected = bool(out.running and (out.system_proxy or out.tun))
 
@@ -621,9 +631,15 @@ def verify_ai(*, timeout: float = 12.0) -> AiStatus:
         ai.node = node
         from .util import http_request
 
+        # 必须**显式**指定我们的代理口。不传 proxy 时 util.http_request 会装一个
+        # ProxyHandler({}), 那是"不走任何代理" —— 也就是在测**直连**能不能打开
+        # chatgpt.com。而直连本来就是不通的, 于是每个本来好用的节点都会被判成
+        # 不可用(实地看到过: 一个印尼节点因为直连超时被记成 ok=false)。
+        # 这里要回答的是"这个节点的出口能不能上 ChatGPT"。
         status, _, body = http_request(
             "https://chatgpt.com/cdn-cgi/trace", timeout=timeout,
             headers=diag.BROWSER_HEADERS,
+            proxy=f"http://127.0.0.1:{st.mixed_port}",
         )
         ai.ok = status == 200
         if status == 200:

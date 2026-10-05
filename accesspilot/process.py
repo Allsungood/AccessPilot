@@ -227,8 +227,28 @@ def status() -> dict[str, object]:
     }
 
 
+#: 内核日志单文件体积上限。实测它涨到过 **75 MB** —— 而 tail_log() 会把整个
+#: 文件 readlines() 进内存, 于是界面每看一次日志就卡一次, 磁盘也被慢慢吃满。
+LOG_MAX_BYTES = 8 * 1024 * 1024
+
+
+def rotate_log(max_bytes: int = LOG_MAX_BYTES) -> bool:
+    """日志超过上限就轮转一次(保留一份 .1)。返回是否轮转过。"""
+    path = paths.log_file()
+    try:
+        if not path.exists() or path.stat().st_size <= max_bytes:
+            return False
+        backup = path.with_suffix(path.suffix + ".1")
+        backup.unlink(missing_ok=True)
+        path.replace(backup)
+        return True
+    except OSError:
+        return False
+
+
 def _spawn(binary: Path, args: list[str]) -> int:
     paths.logs_dir().mkdir(parents=True, exist_ok=True)
+    rotate_log()
     log = open(paths.log_file(), "ab", buffering=0)
     kwargs: dict[str, object] = {
         "stdout": log,
@@ -361,17 +381,41 @@ def start(
     return status()
 
 
+def _kill_if_mihomo(pid: int) -> bool:
+    """只杀**确实是内核**的进程, 返回是否真的杀了。
+
+    Windows 会复用 PID。pid 文件是上一次运行留下的, 等到真正 stop 的时候那个
+    PID 可能已经属于**别人的**进程了 —— 而 taskkill /PID /T /F 会连它和它的
+    整棵子进程树一起杀掉。所以动手前先核对进程名。
+    """
+    name = _process_name(pid)
+    if not name.lower().startswith(("mihomo", "clash")):
+        warn(f"PID {pid} 现在是 {name or '未知'}, 不是内核 —— 不杀它(避免误杀无关进程)")
+        return False
+    _kill_pid(pid)
+    return True
+
+
 def stop(*, keep_system_proxy: bool = False, clean_orphans: bool = True) -> bool:
     st = load_state()
     pid = running_pid()
     stop_watchdog()
-    if st.system_proxy_on and not keep_system_proxy:
+    # 判据必须是"注册表里此刻真的是不是我们写的", 不能只看 state.json 的标记。
+    # enable() 是先写注册表、后落盘标记的, 中间被杀就会留下"注册表指向我们、
+    # 标记却是 false"的状态; 只看标记的话这条路径永远不会把它收回来,
+    # 整台机器会一直指着一个已经不存在的端口。
+    live_ours = False
+    try:
+        live_ours, _ = sysproxy.effective(st)
+    except Exception:  # noqa: BLE001
+        live_ours = False
+    if (st.system_proxy_on or live_ours) and not keep_system_proxy:
         sysproxy.disable(st)
         save_state(st)
     stop_accel()
     killed = False
     if pid:
-        _kill_pid(pid)
+        _kill_if_mihomo(pid)
         deadline = time.time() + 8
         while time.time() < deadline and _pid_alive(pid):
             time.sleep(0.3)
@@ -400,11 +444,31 @@ def restart(
     tun: bool | None = None,
     system_proxy: bool | None = None,
 ) -> dict[str, object]:
+    """重启内核。
+
+    ⚠️ 这里有一处曾经长期存在、且正是"红杏又断了"主因的缺陷:
+    原来是 `stop(keep_system_proxy=True)` —— 让系统代理在整个重启期间一直开着。
+    可是此刻内核已经没了, 而新内核起来之前还要跑 `mihomo -t` 配置校验
+    (六千个节点的配置要几十秒)。这几百毫秒到几十秒里, 系统代理指向的是一个
+    **没有任何人监听的端口**, 浏览器全部超时。
+
+    修法: 先把系统代理摘掉(pause, 保留原始快照), 校验并启动完成后再由
+    start() 自己重新打开。宁可短暂直连, 也绝不指向死端口。
+    """
+    st = st or load_state()
     was_running = is_running()
+    paused = False
     if was_running:
+        if not st.tun_enable and st.system_proxy_on:
+            paused = sysproxy.pause(st)
         stop(keep_system_proxy=True)
         time.sleep(0.5)
-    return start(sub, st, tun=tun, system_proxy=system_proxy)
+    try:
+        return start(sub, st, tun=tun, system_proxy=system_proxy)
+    except Exception:
+        if paused:
+            warn("内核重启失败, 系统代理保持关闭状态 —— 不会留下指向死端口的设置")
+        raise
 
 
 def reload_config(sub: Subscription | None = None, st: AppState | None = None) -> None:
@@ -432,12 +496,23 @@ def reload_config(sub: Subscription | None = None, st: AppState | None = None) -
 
 
 def tail_log(lines: int = 60) -> str:
+    """读日志尾部。**不能**把整个文件读进来 —— core.log 实测到过 75 MB。"""
     path = paths.log_file()
     if not path.exists():
         return "(暂无日志)"
-    with open(path, "r", encoding="utf-8", errors="replace") as fh:
-        content = fh.readlines()
-    return "".join(content[-lines:])
+    try:
+        size = path.stat().st_size
+        # 按每行最多 ~512 字节估个够用的窗口, 再从头丢掉可能被截断的半行
+        want = min(size, max(4096, lines * 512))
+        with open(path, "rb") as fh:
+            if size > want:
+                fh.seek(size - want)
+                fh.readline()
+            data = fh.read()
+        text = data.decode("utf-8", errors="replace")
+        return "".join(text.splitlines(keepends=True)[-lines:])
+    except OSError:
+        return "(日志读取失败)"
 
 
 # --------------------------------------------------------------------------- #
@@ -571,16 +646,29 @@ def stop_watchdog() -> None:
 
 
 def heal_if_broken(*, quiet: bool = False) -> bool:
-    """自愈: 状态显示系统代理开着但内核已不在 -> 立刻还原系统代理.
+    """自愈。两个方向都要管, 而且两个方向都真的发生过。
 
+    方向一(原有): 状态显示系统代理开着, 但内核已经不在 -> 立刻还原系统代理。
     这是最后一道防线 —— 即使用户什么都没做, 只要他再调用一次本工具
     (或下次开机后第一次调用), 网络就会被修好, 而不是一直断着。
+
+    方向二(新增, 也是更常见的那个): 内核**活得好好的**, 但 ProxyEnable 被
+    外部程序改回了 0。旧代码在这里有一句 `if is_running(): return False`,
+    于是这个方向永远走不到 —— 三处保护(这里的、看门狗的、保活任务的)
+    判据都是"内核还在吗", 所以全都看不见这种掉线, 用户看到的就是"红杏又断了"。
     """
     st = load_state()
     if not st.system_proxy_on:
         return False
     if is_running():
-        return False
+        # 内核活着 —— 这时唯一有意义的检查是"代理设置还是不是我们的"
+        from . import guard
+
+        try:
+            res = guard.repair(deep=False, quiet=quiet, allow_restart=False)
+        except Exception:  # noqa: BLE001
+            return False
+        return bool(res.get("repairs"))
     enabled, server = sysproxy.status()
     st.system_proxy_on = False
     save_state(st)

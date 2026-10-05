@@ -303,21 +303,65 @@ def open_in_browser(url: str) -> None:
 
 
 def json_dump(path: Path, obj: Any) -> None:
+    """原子写 JSON。
+
+    临时名里必须带 pid。原来是固定的 `<名字>.tmp`: 界面和计划任务(每 5 分钟的
+    `ensure`)会同时写同一个 state.json, 两个进程共用同一个临时文件时,
+    一个刚写完、另一个把它 rename 走, 第一个再 rename 就找不到文件 ——
+    于是状态写入静默丢失。
+    """
     path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_suffix(path.suffix + ".tmp")
-    with open(tmp, "w", encoding="utf-8") as fh:
-        json.dump(obj, fh, ensure_ascii=False, indent=2)
-    tmp.replace(path)
+    tmp = path.with_suffix(path.suffix + f".{os.getpid()}.tmp")
+    try:
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump(obj, fh, ensure_ascii=False, indent=2)
+            fh.flush()
+            os.fsync(fh.fileno())
+        tmp.replace(path)
+    finally:
+        try:
+            tmp.unlink(missing_ok=True)
+        except OSError:
+            pass
 
 
 def json_load(path: Path, default: Any = None) -> Any:
+    """读 JSON。**读坏了不能装作什么都没发生。**
+
+    原来是 `except Exception: return default` —— 于是一次瞬时读失败(文件被杀毒
+    软件锁住、被并发写坏、磁盘抖动)会让调用方以为"文件不存在", 然后拿默认值
+    继续跑。对 state.json 来说这个后果很重: 端口回到 7890、当前配置档变空、
+    **api_secret 重新生成**, 而内核还在用旧密钥 —— 界面显示"运行中", 但所有
+    控制接口全部 401。用户看到的就是软件莫名其妙不工作了。
+
+    现在改成: 先把读不动的文件**隔离留证**(改名保存, 不删), 再返回默认值,
+    并且把这件事说出来。
+    """
     if not path.exists():
         return default
     try:
         with open(path, "r", encoding="utf-8") as fh:
             return json.load(fh)
-    except Exception:
+    except Exception as e:  # noqa: BLE001
+        _quarantine(path, e)
         return default
+
+
+def _quarantine(path: Path, err: Exception) -> Path | None:
+    """把读不动的文件挪到一边并留证据, 然后才让调用方退回默认值。"""
+    dest = path.with_suffix(path.suffix + f".corrupt-{time.strftime('%Y%m%d-%H%M%S')}")
+    try:
+        path.replace(dest)
+    except OSError:
+        dest = None
+    try:
+        warn(
+            f"{path.name} 读不出来({type(err).__name__}: {err}); "
+            f"已隔离为 {dest.name if dest else '(隔离失败)'} 并重建默认值"
+        )
+    except Exception:  # noqa: BLE001
+        pass
+    return dest
 
 
 def retry(fn: Callable[[], Any], times: int = 3, delay: float = 1.0) -> Any:

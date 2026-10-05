@@ -10,7 +10,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-from . import __version__, api, config, coreinstall, diag, intent, paths, process, rules, sysproxy
+from . import __version__, api, config, coreinstall, diag, guard, intent, paths, process, rules, sysproxy
 from .state import load_state, save_state
 from .subscription import (
     delete_profile,
@@ -376,6 +376,19 @@ def _print_status(st: Any, data: dict[str, Any]) -> None:
     sp = green("已开启") if data["system_proxy"] else dim("已关闭")
     tun = green("已开启") if st.tun_enable else dim("已关闭")
     print(f"  系统代理 : {sp}    TUN: {tun}")
+    # 把"有别的程序在跟我们抢这个开关"直接摆到状态里。
+    # 实测本机有个程序会在 19~40 秒内把 ProxyEnable 改回 0(360 主动防御一类),
+    # 自愈层现在能在一两秒内贴回去, 但用户有权知道自己的网络为什么老抖 ——
+    # 否则他只会觉得"这软件不稳定"。
+    try:
+        flaps = guard.flap_count(window=3600)
+        if flaps:
+            print(f"  自愈记录 : 近 1 小时修复系统代理 {flaps} 次"
+                  + ("  " + yellow("← 有外部程序在反复关闭它") if guard.fighting() else ""))
+            if guard.fighting():
+                print(dim("             建议在 360 等安全软件里放行本程序, 让这个开关别再被改掉"))
+    except Exception:  # noqa: PERF203
+        pass
     print(f"  日志文件 : {data['log']}")
 
 
@@ -985,20 +998,35 @@ def cmd_free(args: argparse.Namespace) -> int:
                    f"用时 {time.time()-t0:.0f}s)")
                 sub.proxies = kept
             save_profile(sub)
-            st.active_profile = "free"
+            # **不能无条件抢走 active_profile**。原来是 `st.active_profile = "free"`,
+            # 于是每小时一次的刷新计划任务会把用户自己订阅的配置档换成免费池 ——
+            # 用户下次打开界面会发现"我的订阅不见了"。只有还没选过、或者本来就
+            # 在用免费池时才切换。
+            owns_profile = bool(st.active_profile) and st.active_profile != "free"
+            if not st.active_profile:
+                st.active_profile = "free"
             save_state(st)
             if process.is_running():
-                # 内核已在运行: 必须热重载, 否则测速用的是旧节点列表,
-                # 新抓的节点一个都测不到
-                info("内核已在运行, 热重载新节点 ...")
-                process.reload_config(sub, st)
-            else:
-                info("正在启动内核 ...")
-                # 刻意不动系统代理: 免费节点极不稳定, 擅自改系统代理会导致
-                # 用户整台机器断网。要用的时候由用户自己执行 accesspilot proxy on。
-                process.start(st=st, tun=False, system_proxy=False)
-                print(dim("  提示: 内核只是跑起来了, 你的系统代理没有被改动。"))
-                print(dim("        确定要用时执行:  accesspilot proxy on"))
+                if owns_profile:
+                    info(f"内核正在跑你自己的配置档「{st.active_profile}」, "
+                         "本次只刷新免费池, 不碰运行中的内核")
+                else:
+                    # 内核已在运行: 必须热重载, 否则测速用的是旧节点列表,
+                    # 新抓的节点一个都测不到
+                    info("内核已在运行, 热重载新节点 ...")
+                    process.reload_config(sub, st)
+            elif not owns_profile:
+                if intent.user_wants_off():
+                    info("用户本次开机内主动关过代理, 不擅自把内核拉起来")
+                else:
+                    info("正在启动内核 ...")
+                    # 刻意不动系统代理: 免费节点极不稳定, 擅自改系统代理会导致
+                    # 用户整台机器断网。要用的时候由用户自己执行 accesspilot proxy on。
+                    # tun 必须跟随用户设置 —— 原来写死 tun=False, 等于顺手把
+                    # 用户的 TUN 开关永久关掉了。
+                    process.start(st=st, tun=bool(st.tun_enable), system_proxy=False)
+                    print(dim("  提示: 内核只是跑起来了, 你的系统代理没有被改动。"))
+                    print(dim("        确定要用时执行:  accesspilot proxy on"))
 
         if not process.is_running():
             raise Fail("内核未运行, 请先执行 accesspilot start")
@@ -1207,14 +1235,15 @@ def cmd_free(args: argparse.Namespace) -> int:
         # 安全保护: 一个通过平台验证的节点都没有时, 系统代理开着只会拖慢
         # 本来能直连的站点(实测 GitHub 从 1.1 秒变 8.5 秒)。关掉是安全方向
         # —— 只会恢复连通性, 不会弄断任何东西。
-        if args.action == "auto" and not verified_ok:
-            if st.system_proxy_on:
-                sysproxy.disable(st)
-                st.system_proxy_on = False
-                save_state(st)
-                warn("没有通过平台验证的节点, 已自动关闭系统代理")
-                print(dim("  (否则 GitHub 等本来能直连的站点会被拖慢；"
-                          "等有可用节点时再 accesspilot proxy on)"))
+        # 绝不会替用户关掉系统代理。原来这里会 sysproxy.disable() ——
+        # 于是每小时一次的刷新计划任务在平台验证失败时, 会把用户**正在用**的
+        # 系统代理关掉, 并把 state.json 改成 false; 之后没有任何东西会再打开它。
+        # 用户看到的现象就是"红杏又断了", 而且完全不知道为什么。
+        # 验证失败只说明"这批免费节点质量差", 不构成"应该关掉用户代理"的理由。
+        if args.action == "auto" and not verified_ok and st.system_proxy_on:
+            warn("这批免费节点没有通过平台验证 —— 系统代理保持开启(不替你关), "
+                 "但不保证境外站点能连上")
+            print(dim("  (想过一会儿再试: accesspilot free auto)"))
 
         if args.action == "auto" and process.is_running() and keep:
             best = next(iter(keep))
@@ -1313,8 +1342,21 @@ def cmd_ensure(args: argparse.Namespace) -> int:
     所以先问一句 intent: 这次开机里用户最后一次主动操作是不是「关」?
     是就什么都不做。判据只在**同一次开机内**有效, 重启后自然失效,
     这样「开机自启」不会被误伤。
+
+    ⚠️ 另一条同样重要的教训: 这里原来是 `if process.is_running(): return 0`。
+    那正是"红杏又断了"的直接原因 —— 计划任务每 5 分钟跑一次, 却只问一句
+    "内核还在吗", 而真实的掉线形态是**内核活得好好的, 是 ProxyEnable 被
+    外部程序改回了 0**(实测 19 秒)。于是保活任务每 5 分钟白跑一趟, 眼看着
+    代理失效却什么都不做。现在改成走 guard 体检: 设置不对就贴回去。
     """
     if process.is_running():
+        from . import guard
+
+        res = guard.repair(deep=bool(getattr(args, "deep", False)), quiet=False)
+        if res.get("repairs"):
+            ok("保活体检: " + ", ".join(res["repairs"]))
+        elif not res.get("healthy"):
+            warn(f"保活体检发现异常但未能自动修复: {res.get('reason')}")
         return 0
     if not getattr(args, "force", False) and intent.user_wants_off():
         # 说人话, 而且给出出路: 用户可能正想知道"为什么它不自己起来了"。
@@ -1893,16 +1935,33 @@ def cmd_install_cmd(args: argparse.Namespace) -> int:
 
 
 def cmd_watchdog(args: argparse.Namespace) -> int:
-    """内部命令: 看门狗。监控内核进程, 它一消失就还原系统代理。
+    """内部命令: 看门狗。双向盯着链路。
 
-    存在的意义: 内核崩溃后如果不管, 系统代理会一直指向死端口, 结果是
-    **整台机器都上不了网**(连本来直连的国内站点也打不开)。
+    方向一(原来只有这一半): 内核崩溃后如果不管, 系统代理会一直指向死端口,
+    结果是**整台机器都上不了网**(连本来直连的国内站点也打不开)。
+
+    方向二(原来缺的这一半, 也是"红杏又断了"的真身): 内核活得好好的, 但
+    ProxyEnable 被外部程序改回了 0 —— 实测 19 秒就会被改掉一次。此时界面
+    显示"已连接", 实际全部直连。旧看门狗只问"内核还在吗", 所以永远看不见
+    这种掉线。现在每 10 秒走一次 guard 体检, 设置被改掉就当场贴回去。
+
+    方向三(新增, 为了"必须稳定"): 内核真的崩了, 除了还原系统代理(避免全机
+    断网), 还会把内核重新拉起来 —— 而不是干等 5 分钟后才由计划任务救回来。
+    有次数上限(近 1 小时 3 次), 免得内核一启动就崩时变成无限重启风暴。
     """
     core_pid = int(args.pid)
+    from . import guard
+
     deadline = time.time() + 7 * 24 * 3600
+    shallow_every = 2.0
+    deep_every = 60.0
+    next_shallow = 0.0
+    next_deep = time.time() + deep_every
+
     while time.time() < deadline:
-        time.sleep(2)
+        time.sleep(shallow_every)
         if not process._pid_alive(core_pid):  # noqa: SLF001
+            # 内核没了: 先把系统代理收回来, 绝不让它指向死端口
             st = load_state()
             if st.system_proxy_on:
                 sysproxy.disable(st)
@@ -1911,8 +1970,58 @@ def cmd_watchdog(args: argparse.Namespace) -> int:
             process.stop_accel()
             paths.pid_file().unlink(missing_ok=True)
             paths.watchdog_pid_file().unlink(missing_ok=True)
+            _relaunch_kernel_after_crash(st)
             return 0
+
+        now = time.time()
+        if now >= next_shallow:
+            # 曝光窗口 = 检查间隔。有人在抢开关时压到 2 秒(见 guard 的说明)。
+            next_shallow = now + guard.recommended_interval(default=10.0, under_fire=2.0)
+            deep = now >= next_deep
+            if deep:
+                next_deep = now + deep_every
+            try:
+                # allow_restart=False: 看门狗是 process.start() 拉起来的, 而
+                # start() 内部会 start_watchdog() -> stop_watchdog(), 那会杀掉
+                # 正在执行修复的看门狗自己。重启内核交给上面的崩溃分支和
+                # 5 分钟一次的计划任务。
+                guard.repair(deep=deep, quiet=True, allow_restart=False)
+            except Exception:  # noqa: BLE001
+                pass
     return 0
+
+
+def _relaunch_kernel_after_crash(st: AppState) -> None:
+    """内核崩溃后自动把它拉回来(有次数上限)。"""
+    import subprocess
+
+    from . import guard, intent
+
+    try:
+        if intent.user_wants_off() or not st.system_proxy_on:
+            return
+    except Exception:  # noqa: BLE001
+        return
+    if guard.flap_count(window=3600.0, kind="kernel_relaunch") >= 3:
+        warn("内核近 1 小时已崩溃重启 3 次, 不再自动重启 —— 请执行 accesspilot doctor 看看原因")
+        return
+    guard.record("kernel_relaunch", "看门狗发现内核崩溃, 自动重新拉起")
+    try:
+        kwargs: dict[str, object] = {
+            "stdout": subprocess.DEVNULL,
+            "stderr": subprocess.DEVNULL,
+            "stdin": subprocess.DEVNULL,
+            "close_fds": True,
+        }
+        if sys.platform == "win32":
+            kwargs["creationflags"] = 0x00000008 | 0x00000200 | 0x08000000
+        else:
+            kwargs["start_new_session"] = True
+        subprocess.Popen(  # type: ignore[arg-type]
+            [sys.executable, "-m", "accesspilot", "ensure", "--force"], **kwargs
+        )
+    except Exception:  # noqa: BLE001
+        pass
 
 
 def main(argv: list[str] | None = None) -> int:

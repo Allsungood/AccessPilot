@@ -45,14 +45,38 @@ class TestHealIfBroken(unittest.TestCase):
         self.assertEqual(disabled, [True], "必须真的关闭系统代理")
         self.assertFalse(load_state().system_proxy_on, "状态标记要同步复位")
 
-    def test_no_action_when_core_running(self) -> None:
-        """内核还活着就绝不能动用户的系统代理."""
+    def test_no_action_when_core_running_and_proxy_effective(self) -> None:
+        """内核活着、代理设置也确实是我们写的 -> 什么都不用做."""
         self._state_with_proxy_on()
         with mock.patch.object(process, "is_running", return_value=True), mock.patch.object(
-            process.sysproxy, "disable"
-        ) as disable:
+            process.sysproxy, "effective", return_value=(True, "127.0.0.1:7890")
+        ), mock.patch.object(process.sysproxy, "disable") as disable, mock.patch.object(
+            process.sysproxy, "enable"
+        ) as enable:
             healed = process.heal_if_broken(quiet=True)
         self.assertFalse(healed)
+        disable.assert_not_called()
+        enable.assert_not_called()
+        self.assertTrue(load_state().system_proxy_on)
+
+    def test_repairs_when_core_alive_but_proxy_flipped_off(self) -> None:
+        """内核活着、但 ProxyEnable 被外部程序改成了 0 -> 必须贴回去.
+
+        这是"红杏又断了"的真身, 也是旧代码漏掉的方向: 旧实现在
+        `if is_running(): return False` 处直接返回, 于是永远看不见这种掉线。
+        实测: 手动置 1 之后 19 秒就被改回 0。
+        """
+        self._state_with_proxy_on()
+        with mock.patch.object(process, "is_running", return_value=True), mock.patch.object(
+            process.sysproxy, "effective",
+            side_effect=[(False, "ProxyEnable 被改成了 0(外部程序干的)"),
+                         (True, "127.0.0.1:7890")],
+        ), mock.patch.object(
+            process.sysproxy, "enable", return_value="Windows 系统代理 -> 127.0.0.1:7890"
+        ) as enable, mock.patch.object(process.sysproxy, "disable") as disable:
+            healed = process.heal_if_broken(quiet=True)
+        self.assertTrue(healed, "应当执行修复")
+        enable.assert_called_once()
         disable.assert_not_called()
         self.assertTrue(load_state().system_proxy_on)
 

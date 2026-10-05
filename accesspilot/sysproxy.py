@@ -4,10 +4,11 @@ from __future__ import annotations
 import ctypes
 import os
 import sys
+import time
 
 from . import paths
 from .state import AppState
-from .util import json_dump, json_load, run_hidden
+from .util import json_dump, json_load, run_hidden, warn
 
 # --------------------------------------------------------------------------- #
 # Windows
@@ -63,12 +64,41 @@ _BACKUP = "system_proxy_backup.json"
 
 
 def backup_system_proxy() -> None:
+    """记录**我们动手之前**的系统代理状态。
+
+    只拍一次快照(否则第二次 enable 会把"我们自己开的"当成用户的原始状态存进去,
+    关闭时就还不回去了)。但如果当前注册表里已经是我们自己的配置 —— 例如上一轮
+    异常退出没来得及恢复 —— 那就不能拿它当快照, 否则等于把"关闭"变成"保持开启"。
+    """
     if sys.platform != "win32":
         return
     path = paths.cache_dir() / _BACKUP
     if path.exists():
         return
-    json_dump(path, _win_read())
+    data = _win_read()
+    server = str(data.get("ProxyServer") or "")
+    if data.get("ProxyEnable") and server.startswith("127.0.0.1:") and _looks_like_ours(server):
+        return
+    json_dump(path, data)
+
+
+def _looks_like_ours(server: str) -> bool:
+    """这个 server 是不是我们自己的本地端口(而不是别人的代理)."""
+    try:
+        port = int(server.rsplit(":", 1)[1])
+    except (IndexError, ValueError):
+        return False
+    from .state import DEFAULT_MIXED_PORT
+
+    st = None
+    try:
+        from .state import load_state
+
+        st = load_state()
+    except Exception:
+        pass
+    ours = {getattr(st, "mixed_port", None), getattr(st, "accel_port", None), DEFAULT_MIXED_PORT}
+    return port in {p for p in ours if isinstance(p, int)}
 
 
 def restore_system_proxy() -> None:
@@ -85,6 +115,10 @@ def restore_system_proxy() -> None:
         AutoConfigURL=data.get("AutoConfigURL"),
     )
     _refresh_wininet()
+    # 恢复完就把快照删掉。留着它是有害的: 下次 enable 因为"文件已存在"
+    # 不会再拍新快照, 于是这份陈旧状态会一直传下去 —— 用户在我们关闭代理之后
+    # 自己开的代理, 会被下一次 disable 用这份旧快照覆盖掉。
+    path.unlink(missing_ok=True)
 
 
 def _set_user_env(name: str, value: str | None) -> None:
@@ -103,16 +137,31 @@ def _set_user_env(name: str, value: str | None) -> None:
             else:
                 winreg.SetValueEx(key, name, 0, winreg.REG_SZ, value)
         try:
-            HWND_BROADCAST = 0xFFFF
-            WM_SETTINGCHANGE = 0x1A
-            SMTO_ABORTIFHUNG = 0x0002
-            result = ctypes.c_long()
-            ctypes.windll.user32.SendMessageTimeoutW(  # type: ignore[attr-defined]
-                HWND_BROADCAST,
-                WM_SETTINGCHANGE,
-                0,
+            # PDWORD_PTR 是**指针宽度**(x64 上 8 字节)。原来传的是 c_long()
+            # —— 只有 4 字节, 而系统会往这个地址写满 8 字节, 实测每次调用都会
+            # 越界写掉紧随其后的 4 个字节。日常可能看不出问题, 但它是内存破坏,
+            # 必须改成 c_size_t 才是对的宽度。
+            hwnd_broadcast = 0xFFFF
+            wm_settingchange = 0x1A
+            smto_abortifhung = 0x0002
+            result = ctypes.c_size_t()
+            user32 = ctypes.windll.user32  # type: ignore[attr-defined]
+            user32.SendMessageTimeoutW.restype = ctypes.c_size_t
+            user32.SendMessageTimeoutW.argtypes = [
+                ctypes.c_void_p,
+                ctypes.c_uint,
+                ctypes.c_void_p,
+                ctypes.c_wchar_p,
+                ctypes.c_uint,
+                ctypes.c_uint,
+                ctypes.POINTER(ctypes.c_size_t),
+            ]
+            user32.SendMessageTimeoutW(
+                ctypes.c_void_p(hwnd_broadcast),
+                wm_settingchange,
+                None,
                 ctypes.c_wchar_p("Environment"),
-                SMTO_ABORTIFHUNG,
+                smto_abortifhung,
                 5000,
                 ctypes.byref(result),
             )
@@ -140,23 +189,128 @@ def clear_env_proxy() -> None:
         _set_user_env(key, None)
 
 
+def _read_user_env(name: str) -> str | None:
+    """读用户级环境变量(不展开, 原样)."""
+    if sys.platform != "win32":
+        return os.environ.get(name)
+    import winreg
+
+    try:
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, "Environment") as key:
+            return str(winreg.QueryValueEx(key, name)[0])
+    except (FileNotFoundError, OSError):
+        return None
+
+
+def _our_proxy_urls(st: AppState | None = None) -> set[str]:
+    """所有"指向本机内核端口"的代理 URL 写法."""
+    ports: set[int] = set()
+    if st is not None:
+        ports.add(int(st.mixed_port))
+        ports.add(int(st.accel_port))
+    from .state import DEFAULT_MIXED_PORT
+
+    ports.add(DEFAULT_MIXED_PORT)
+    urls: set[str] = set()
+    for p in ports:
+        for host in ("127.0.0.1", "localhost"):
+            urls.add(f"http://{host}:{p}")
+            urls.add(f"socks5://{host}:{p}")
+            urls.add(f"socks5h://{host}:{p}")
+    return urls
+
+
+def purge_stale_env(st: AppState | None = None) -> list[str]:
+    """清掉**指向我们自己端口**的残留终端代理变量, 返回被清掉的变量名。
+
+    为什么必须做这件事: `set_env_proxy` 写的是 HKCU\\Environment —— 那是
+    **用户级、持久、对之后启动的每一个进程都生效**的。一旦写进去而没清干净,
+    它会劫持所有后续程序的网络请求(包括我们自己的更新检查, 以及用户终端里的
+    任何工具), 而用户完全看不出是谁干的。这是本项目里杀伤面最大的一个副作用。
+
+    安全边界: **只删值等于我们自己端口的那几个变量**。用户自己设的公司代理、
+    其它工具设的值, 一律不碰 —— 值不匹配就原样留着。
+    """
+    if sys.platform != "win32":
+        return []
+    ours = _our_proxy_urls(st)
+    removed: list[str] = []
+    for key in ENV_KEYS + ENV_KEYS_LOWER:
+        if key.upper() == "NO_PROXY":
+            continue
+        cur = _read_user_env(key)
+        if cur is not None and cur.strip().rstrip("/") in {u.rstrip("/") for u in ours}:
+            _set_user_env(key, None)
+            removed.append(key)
+    return removed
+
+
+# --------------------------------------------------------------------------- #
+# 生效校验: "写进去了" != "真的生效"
+# --------------------------------------------------------------------------- #
+
+
+def effective(st: AppState) -> tuple[bool, str]:
+    """系统代理此刻**真实**是不是我们要的那一个。
+
+    这是本项目最重要的一次判断。原来只写不读: 写注册表 -> 直接认定成功 ->
+    把 st.system_proxy_on 置 True。而实测有程序会在 1~29 秒内把 ProxyEnable
+    改回 0(360 主动防御、蓝灯、FastGithub、浏览器「重置代理设置」都干过这事)。
+    于是界面显示"已连接", 实际全部直连 —— 用户看到的就是"红杏又断了"。
+    """
+    if sys.platform != "win32":
+        return True, "非 Windows, 跳过"
+    try:
+        data = _win_read()
+    except Exception as e:  # noqa: BLE001
+        return False, f"读注册表失败: {e}"
+    pac = data.get("AutoConfigURL")
+    if pac:
+        return False, f"有 PAC 脚本在接管代理设置: {pac}"
+    if not data.get("ProxyEnable"):
+        return False, "ProxyEnable 被改成了 0(外部程序干的)"
+    server = str(data.get("ProxyServer") or "")
+    want = f"127.0.0.1:{st.mixed_port}"
+    if server != want:
+        return False, f"代理指向了别处: {server or '(空)'}, 期望 {want}"
+    return True, want
+
+
 # --------------------------------------------------------------------------- #
 # 对外接口
 # --------------------------------------------------------------------------- #
 
 
-def enable(st: AppState, *, with_env: bool = True) -> str:
+def enable(st: AppState, *, with_env: bool = False, attempts: int = 3) -> str:
+    """开启系统代理, 并且**校验它真的生效了**。
+
+    with_env 默认是 False —— 这一点是刻意改的。写 HKCU\\Environment 是用户级、
+    持久、影响之后所有进程的副作用, 不该是"开个代理"的默认后果。需要给终端里的
+    命令行工具用的用户, 显式执行 `accesspilot proxy env` 即可。
+    """
     host_port = f"127.0.0.1:{st.mixed_port}"
     if sys.platform == "win32":
         backup_system_proxy()
-        _win_write(
-            ProxyEnable=1,
-            ProxyServer=host_port,
-            ProxyOverride=st.bypass,
-            AutoConfigURL=None,
-        )
-        _refresh_wininet()
+        # 写 -> 读回校验 -> 不对就重试。外部程序可能在毫秒级把值改掉,
+        # 一次写不成不代表失败, 但在报告成功之前必须确认它真的生效了。
+        ok_now, why = False, ""
+        for i in range(max(1, attempts)):
+            _win_write(
+                ProxyEnable=1,
+                ProxyServer=host_port,
+                ProxyOverride=st.bypass,
+                AutoConfigURL=None,
+            )
+            _refresh_wininet()
+            time.sleep(0.12 * (i + 1))
+            ok_now, why = effective(st)
+            if ok_now:
+                break
         detail = f"Windows 系统代理 -> {host_port}"
+        if not ok_now:
+            # 不谎报成功。上层(guard/界面)要靠这句话决定是否继续重试。
+            detail += f" ⚠ 写入未能生效: {why}"
+            warn(f"系统代理写入未能生效: {why}")
     elif sys.platform == "darwin":
         for svc in _mac_services():
             run_hidden(["networksetup", "-setwebproxy", svc, "127.0.0.1", str(st.mixed_port)])
@@ -196,8 +350,37 @@ def enable(st: AppState, *, with_env: bool = True) -> str:
     if with_env:
         set_env_proxy(host_port)
         detail += " | 已写入终端环境变量"
+    else:
+        # 不写环境变量时, 顺手清掉历史版本留下的、指向我们自己端口的残留值。
+        purged = purge_stale_env(st)
+        if purged:
+            detail += f" | 已清理残留环境变量 {', '.join(purged)}"
     st.system_proxy_on = True
     return detail
+
+
+def pause(st: AppState) -> bool:
+    """临时摘掉系统代理, 但**保留**原始快照。
+
+    用于内核重启的空窗期。restart() 原来用 keep_system_proxy=True 让系统代理
+    一直开着, 而此时内核已经没了, 新内核还要跑 `mihomo -t` 配置校验(六千节点的
+    配置要几十秒)—— 这段时间系统代理指向的是一个**没人监听的端口**, 浏览器
+    全部超时。这正是用户说的"红杏又断了"。
+
+    摘掉它, 重启完成后 start() 会自己重新打开。
+
+    刻意不调 disable(): disable() 会 restore_system_proxy() 把用户的原始设置
+    还回去**并删掉快照**, 那样 start() 就得重新拍一次快照, 快照语义会被搅乱
+    (可能把"我们自己开的"当成用户的原始状态存下来)。
+    """
+    if sys.platform != "win32":
+        return False
+    try:
+        _win_write(ProxyEnable=0)
+        _refresh_wininet()
+        return True
+    except Exception:  # noqa: BLE001
+        return False
 
 
 def disable(st: AppState, *, with_env: bool = True) -> str:
@@ -206,6 +389,10 @@ def disable(st: AppState, *, with_env: bool = True) -> str:
         _refresh_wininet()
         restore_system_proxy()
         detail = "已关闭 Windows 系统代理"
+        if not with_env:
+            purged = purge_stale_env(st)
+            if purged:
+                detail += f" | 已清理残留环境变量 {', '.join(purged)}"
     elif sys.platform == "darwin":
         for svc in _mac_services():
             run_hidden(["networksetup", "-setwebproxystate", svc, "off"])
