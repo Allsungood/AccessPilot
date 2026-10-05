@@ -4,6 +4,7 @@ from __future__ import annotations
 import ctypes
 import os
 import sys
+import threading
 import time
 
 from . import paths
@@ -121,54 +122,83 @@ def restore_system_proxy() -> None:
     path.unlink(missing_ok=True)
 
 
-def _set_user_env(name: str, value: str | None) -> None:
-    """设置用户级环境变量(供终端/CLI 工具使用), 并广播变更."""
-    if sys.platform == "win32":
-        import winreg
+def _do_broadcast() -> None:
+    try:
+        # PDWORD_PTR 是**指针宽度**(x64 上 8 字节)。原来传的是 c_long()
+        # —— 只有 4 字节, 而系统会往这个地址写满 8 字节, 实测每次调用都会
+        # 越界写掉紧随其后的 4 个字节。日常可能看不出问题, 但它是内存破坏,
+        # 必须改成 c_size_t 才是对的宽度。
+        hwnd_broadcast = 0xFFFF
+        wm_settingchange = 0x1A
+        smto_abortifhung = 0x0002
+        result = ctypes.c_size_t()
+        user32 = ctypes.windll.user32  # type: ignore[attr-defined]
+        user32.SendMessageTimeoutW.restype = ctypes.c_size_t
+        user32.SendMessageTimeoutW.argtypes = [
+            ctypes.c_void_p,
+            ctypes.c_uint,
+            ctypes.c_void_p,
+            ctypes.c_wchar_p,
+            ctypes.c_uint,
+            ctypes.c_uint,
+            ctypes.POINTER(ctypes.c_size_t),
+        ]
+        user32.SendMessageTimeoutW(
+            ctypes.c_void_p(hwnd_broadcast),
+            wm_settingchange,
+            None,
+            ctypes.c_wchar_p("Environment"),
+            smto_abortifhung,
+            1000,
+            ctypes.byref(result),
+        )
+    except Exception:  # noqa: BLE001
+        pass
 
-        with winreg.OpenKey(
-            winreg.HKEY_CURRENT_USER, "Environment", 0, winreg.KEY_SET_VALUE
-        ) as key:
-            if value is None:
-                try:
-                    winreg.DeleteValue(key, name)
-                except FileNotFoundError:
-                    pass
-            else:
-                winreg.SetValueEx(key, name, 0, winreg.REG_SZ, value)
-        try:
-            # PDWORD_PTR 是**指针宽度**(x64 上 8 字节)。原来传的是 c_long()
-            # —— 只有 4 字节, 而系统会往这个地址写满 8 字节, 实测每次调用都会
-            # 越界写掉紧随其后的 4 个字节。日常可能看不出问题, 但它是内存破坏,
-            # 必须改成 c_size_t 才是对的宽度。
-            hwnd_broadcast = 0xFFFF
-            wm_settingchange = 0x1A
-            smto_abortifhung = 0x0002
-            result = ctypes.c_size_t()
-            user32 = ctypes.windll.user32  # type: ignore[attr-defined]
-            user32.SendMessageTimeoutW.restype = ctypes.c_size_t
-            user32.SendMessageTimeoutW.argtypes = [
-                ctypes.c_void_p,
-                ctypes.c_uint,
-                ctypes.c_void_p,
-                ctypes.c_wchar_p,
-                ctypes.c_uint,
-                ctypes.c_uint,
-                ctypes.POINTER(ctypes.c_size_t),
-            ]
-            user32.SendMessageTimeoutW(
-                ctypes.c_void_p(hwnd_broadcast),
-                wm_settingchange,
-                None,
-                ctypes.c_wchar_p("Environment"),
-                smto_abortifhung,
-                5000,
-                ctypes.byref(result),
-            )
-        except Exception:
-            pass
-    else:
+
+def _broadcast_env_change(*, wait: float = 0.0) -> None:
+    """广播 WM_SETTINGCHANGE, 让已经开着的程序重新读环境变量。
+
+    三个必须遵守的约束, 全部来自实测:
+
+    1. **一批只广播一次, 绝不能每个变量广播一次。** 原来是 8 个变量各广播一次。
+    2. **默认放到后台线程里, 绝不能让调用方等它。** 实测这台机器上有 334 个
+       顶层窗口, 一次广播要 **25.3 秒** —— 超时是按**每个窗口**算的, 不是总共,
+       所以传 5000 也拦不住。放在调用路径上就意味着: 用户点一下「关闭」,
+       界面卡 25 秒。这正是"红杏卡死了"的来源之一。
+    3. 只有**真的改动过**变量时才调用它(见 clear_env_proxy / purge_stale_env)。
+
+    wait>0 时最多等这么久 —— 只有 `accesspilot proxy env` 这种"用户马上要开
+    终端用"的场景才需要, 其余一律 fire-and-forget。
+    """
+    if sys.platform != "win32":
+        return
+    if wait > 0:
+        # 常见情况是"窗口不多, 秒回"; 真慢也不超过 wait
+        t = threading.Thread(target=_do_broadcast, name="ap-env-broadcast", daemon=True)
+        t.start()
+        t.join(timeout=wait)
+        return
+    threading.Thread(target=_do_broadcast, name="ap-env-broadcast", daemon=True).start()
+
+
+def _set_user_env(name: str, value: str | None) -> None:
+    """设置/删除一个用户级环境变量。**不广播** —— 成批改完由调用方广播一次。"""
+    if sys.platform != "win32":
         os.environ[name] = value or ""
+        return
+    import winreg
+
+    with winreg.OpenKey(
+        winreg.HKEY_CURRENT_USER, "Environment", 0, winreg.KEY_SET_VALUE
+    ) as key:
+        if value is None:
+            try:
+                winreg.DeleteValue(key, name)
+            except FileNotFoundError:
+                pass
+        else:
+            winreg.SetValueEx(key, name, 0, winreg.REG_SZ, value)
 
 
 ENV_KEYS = ["HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "NO_PROXY"]
@@ -178,15 +208,25 @@ ENV_KEYS_LOWER = [k.lower() for k in ENV_KEYS]
 def set_env_proxy(host_port: str, no_proxy: str = "localhost,127.0.0.1,::1") -> None:
     url = f"http://{host_port}"
     for key in ENV_KEYS + ENV_KEYS_LOWER:
-        if key.upper() == "NO_PROXY":
-            _set_user_env(key, no_proxy)
-        else:
-            _set_user_env(key, url)
+        _set_user_env(key, no_proxy if key.upper() == "NO_PROXY" else url)
+    # 这是用户**显式**要求"给我的终端配上"的场景, 等一下广播是值得的 ——
+    # 否则他新开的终端读到的还是旧环境, 会以为命令没生效。
+    _broadcast_env_change(wait=3.0)
 
 
 def clear_env_proxy() -> None:
+    """清除我们写过的终端代理变量。
+
+    只有**真的删掉了东西**才广播。广播本身很贵(这台机器上一次 25 秒),
+    而"本来就没有这些变量"是最常见的情况。
+    """
+    removed: list[str] = []
     for key in ENV_KEYS + ENV_KEYS_LOWER:
-        _set_user_env(key, None)
+        if _read_user_env(key) is not None:
+            _set_user_env(key, None)
+            removed.append(key)
+    if removed:
+        _broadcast_env_change()
 
 
 def _read_user_env(name: str) -> str | None:
@@ -242,6 +282,8 @@ def purge_stale_env(st: AppState | None = None) -> list[str]:
         if cur is not None and cur.strip().rstrip("/") in {u.rstrip("/") for u in ours}:
             _set_user_env(key, None)
             removed.append(key)
+    if removed:
+        _broadcast_env_change()
     return removed
 
 
