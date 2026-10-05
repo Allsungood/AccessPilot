@@ -5,6 +5,7 @@
 """
 from __future__ import annotations
 
+import socket
 from pathlib import Path
 from typing import Any
 
@@ -52,6 +53,55 @@ FOREIGN_DNS = [
     "https://8.8.8.8/dns-query",
     "tls://8.8.4.4:853",
 ]
+
+#: 内核内置 DNS 的监听端口。TUN 的 dns-hijack 与 diag.dns_via_local() 都认这个端口。
+DNS_PORT = 1053
+
+LOOPBACK = "127.0.0.1"
+
+
+def lan_address() -> str | None:
+    """本机在局域网里的地址; 判断不出来就返回 None.
+
+    做法: 建一个 UDP socket 并 connect() 到一个外网地址。UDP 的 connect 不会
+    发出任何数据包, 它只是让内核按路由表选一张网卡, 于是 getsockname() 给出的
+    就是这张网卡上的地址 —— 零依赖拿到"本机 LAN IP"的标准做法, 比去解析
+    ipconfig / netstat 的本地化输出可靠得多(那些输出还会随系统语言变)。
+    """
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        sock.connect(("223.5.5.5", 80))
+        address = str(sock.getsockname()[0])
+    except OSError:
+        return None
+    finally:
+        sock.close()
+    if address.startswith("127."):
+        return None  # 只有回环可用 = 现在根本没连局域网
+    return address
+
+
+def dns_listen(st: AppState) -> str:
+    """DNS 监听地址(以及为什么不能写死 0.0.0.0).
+
+    真实事故: 这里曾经无条件写死 `0.0.0.0:1053`, 即使 allow_lan=false,
+    `netstat` 也能看到 `0.0.0.0:1053 LISTENING`。于是同一张网(咖啡厅 / 宿舍 /
+    办公室 / 手机热点)里的任何人都能把它当免费 DNS 用: 既可以被拿去做 DNS
+    放大攻击的跳板(受害者看到的是你的 IP), 也能反过来观察、甚至投毒这台机器
+    的解析结果 —— 而用户以为自己只是开了个代理, 什么都没对外提供。
+
+    所以: 默认只监听回环; 只有用户显式开了局域网共享才对外, 并且优先绑定具体
+    的网卡地址而不是通配地址 —— `0.0.0.0` 会把 DNS 同时暴露到**所有**网卡上
+    (虚拟网卡、VPN、热点都算), 那比用户想要的"给手机用一下"大得多。
+    """
+    if not st.allow_lan:
+        return f"{LOOPBACK}:{DNS_PORT}"
+    address = lan_address()
+    if address:
+        return f"{address}:{DNS_PORT}"
+    # 兜底: 判断不出局域网地址(没默认路由 / 断网)。这里仍然对外监听, 因为
+    # allow_lan 是用户显式打开的; 但代价必须写清楚, 免得下次又被当成"默认行为"。
+    return f"0.0.0.0:{DNS_PORT}"
 
 
 def _geox(mirror: str = "jsdelivr") -> dict[str, str]:
@@ -238,7 +288,7 @@ def build_dns(st: AppState) -> dict[str, Any]:
     dns: dict[str, Any] = {
         "enable": True,
         "ipv6": st.ipv6,
-        "listen": f"0.0.0.0:{1053}",
+        "listen": dns_listen(st),
         "prefer-h3": False,
         "use-hosts": True,
         "use-system-hosts": True,
@@ -430,8 +480,17 @@ def build_config(sub: Subscription, st: AppState, *, tun: bool | None = None) ->
         "mixed-port": st.mixed_port,
         "socks-port": st.mixed_port + 1,
         "port": 0,
+        # 入站端口(混合 / socks)的暴露范围由这两项决定, 缺一不可:
+        #   * allow-lan=false 时内核只监听回环;
+        #   * bind-address 再钉一次 127.0.0.1 作为双保险(它的默认值是 `*`,
+        #     而且**只在 allow-lan=true 时才生效**, 依赖默认值太危险)。
+        # 开了局域网共享就交给 `*` —— 这正是 allow-lan 的语义: 用户要的是
+        # "其它设备也能连", 此时换成某一台网卡的地址反而会让多网卡机器
+        # (有线 + 无线 + 热点)上的设备连不上。
+        # 注意 DNS 的 listen 是**独立**配置项, 不受 bind-address 约束,
+        # 它以前无条件 0.0.0.0 —— 见 dns_listen()。
         "allow-lan": st.allow_lan,
-        "bind-address": "*" if st.allow_lan else "127.0.0.1",
+        "bind-address": "*" if st.allow_lan else LOOPBACK,
         "mode": "rule",
         "log-level": "info",
         "ipv6": st.ipv6,
