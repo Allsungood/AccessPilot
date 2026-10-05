@@ -41,7 +41,7 @@ import time
 from dataclasses import asdict, dataclass, field
 from typing import Any, Callable
 
-from . import api, diag, intent, paths, process, rules, sysproxy
+from . import __version__, api, diag, intent, paths, process, rules, sysproxy
 from .state import load_state, save_state
 from .util import json_dump, json_load
 
@@ -51,7 +51,9 @@ from .util import json_dump, json_load
 
 BRAND_NAME = "红杏"
 BRAND_TAGLINE = "一键通行"
-BRAND_VERSION = "1.0.0"
+# 从 __version__ 派生, 不写字面量。写两遍就会漂移 —— 上次就是这样: 发出去的
+# 安装包叫 v0.9.0, 而代码里已经是 1.0.0, 两边没有任何东西对账。
+BRAND_VERSION = __version__
 
 #: 开机自启/保活用的计划任务名(与 cli.cmd_autostart 保持一致)
 TASK_ENSURE = "AccessPilotEnsure"

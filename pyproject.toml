@@ -29,7 +29,9 @@ dependencies = []
 accesspilot = "accesspilot.cli:main"
 
 [tool.setuptools]
-packages = ["accesspilot"]
+# 必须用 find, 不能手写 ["accesspilot"] —— 那样 accesspilot.gui 这个子包会被
+# 漏掉, 装出来的东西一 import 界面就 ImportError。
+packages = ["accesspilot", "accesspilot.gui"]
 
 # 版本号的唯一来源(见上面 dynamic = ["version"] 的说明)。
 [tool.setuptools.dynamic]
