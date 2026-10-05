@@ -48,10 +48,18 @@ artifacts/**/*.png
 # cache/ 里是**真实的节点凭据**(服务器地址/UUID/密码)。虽然是公开的免费节点,
 # 但它是派生文件、随时可按 URL 重建, 没有任何理由进仓库。
 artifacts/**/cache/
-# 排查用的原始采样转储(每帧一条, 几百 KB 起)。同目录的 .py 脚本要留 ——
-# 脚本才是能复用的东西, 转储只是那一次的现场。
-artifacts/lead/*.json
-artifacts/nodes/*.json
+# 排查用的原始采样转储。同目录的 .py 脚本要留 —— 脚本才是能复用的东西,
+# 转储只是那一次的现场。
+#
+# 为什么整类 *.json 都忽略, 而不是逐个目录列: 这些转储里全是**打包机/开发机的
+# 绝对路径**(实测: `C:\\Users\\Administrator\\AccessPilot\\dist\\红杏.exe`)和当时
+# 那次运行的现场数据。原来只忽略了 lead/ 和 nodes/ 两个目录, 于是
+# artifacts/tray/*.json 和 artifacts/verify/*.json 一共 19 个文件被提交进了仓库,
+# 把维护者的本机目录结构公开了出去。逐个目录打补丁的写法还会再漏 —— 下次谁新建
+# 一个 artifacts/xxx/ 就又是一轮。
+#
+# 例外: 确实有 JSON 需要进仓库时用 `git add -f` 显式加, 并在提交信息里说明理由。
+artifacts/**/*.json
 
 # ---- 编辑器 / 系统 ----
 .vscode/

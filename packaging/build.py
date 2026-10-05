@@ -13,7 +13,8 @@
 1. 先检查 PyInstaller 在不在 —— 不在就给出**可照抄的安装命令**, 而不是让
    `python -m PyInstaller` 抛一句 ModuleNotFoundError 让人猜。
 2. 尽量把 `accesspilot/gui/assets/hongxing.ico` 生成出来(调 gui/icon.py 的
-   ensure_ico, 幂等)。拿不到就跳过, 不影响构建 —— gui/ 是别的 teammate 在写的。
+   ensure_ico, 幂等)。拿不到就跳过, 不让构建失败 —— 但会在报告里点明这是
+   构建缺陷(装了没有图标的 exe 不值得发), 而不是"别人还没写完"。
 3. 调 PyInstaller 跑 `packaging/hongxing.spec`(onefile), 实时转发构建日志。
 4. 把产物拷成中文名 `dist/红杏.exe`, 打印**绝对路径 / 字节数 / SHA256**。
 
@@ -24,6 +25,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -50,6 +52,20 @@ ARTIFACTS = {
 EXIT_PREFLIGHT = 2
 EXIT_BUILD = 3
 EXIT_PUBLISH = 4
+
+
+def app_version() -> str:
+    """版本号唯一来源: `accesspilot/__init__.py` 的 `__version__`(正则, 不 import)。
+
+    不 import 是有意的: 这个脚本要在"源码可能还没完全就绪"的时候也能跑起来,
+    读一行文本比执行整个包安全。
+    """
+    try:
+        text = (PKG / "__init__.py").read_text(encoding="utf-8")
+    except OSError:
+        return "0.0.0"
+    match = re.search(r'__version__\s*=\s*"([^"]+)"', text)
+    return match.group(1) if match else "0.0.0"
 
 
 def say(message: str = "") -> None:
@@ -122,7 +138,8 @@ def ensure_icons(*, enabled: bool) -> None:
         say("[2/4] 按 --no-icon, 跳过图标生成")
         return
     if not (PKG / "gui" / "icon.py").is_file():
-        say("[2/4] accesspilot/gui/icon.py 还不存在, 跳过图标生成(构建继续, 用 PyInstaller 默认图标)")
+        say("[2/4] [!] accesspilot/gui/icon.py 不存在 —— 这是构建缺陷(它应该已经落地),")
+        say("      本次用 PyInstaller 默认图标继续。请确认检出的源码是完整的。")
         return
 
     if str(ROOT) not in sys.path:
@@ -254,6 +271,17 @@ def publish(*, debug: bool) -> Path | None:
         except OSError as exc:
             say(f"[x] 拷贝产物失败: {exc}")
             return None
+    if not debug:
+        # 再拷一份**发布资产名**。更新器(packaging/installer.py 的 pick_asset)只认
+        # 白名单里的文件名, 而 GitHub Release 的附件的名字就是本地文件名 —— 所以
+        # 这一步不是"多拷一份好看", 而是让"上传哪个文件"和"更新器找哪个文件"变成
+        # 同一个字符串。少了它, 更新器就只能在发布页上猜, 而发布页上同时躺着
+        # 安装器 红杏-Setup-*.exe(见 PKG-02)。
+        release_asset = DIST / f"红杏-v{app_version()}-win64.exe"
+        try:
+            shutil.copy2(source, release_asset)
+        except OSError as exc:
+            say(f"[!] 发布资产名({release_asset.name})没拷成: {exc}")
     return target
 
 

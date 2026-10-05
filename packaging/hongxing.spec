@@ -9,9 +9,10 @@
   `accesspilot/**/assets/` 里加东西, 不需要记得回来改 spec。
   同时把**必须存在的**几个资源单独列出来做硬校验(见 REQUIRED_DATA),
   缺了会在构建日志里大喊, 而不是等用户双击之后白屏。
-* **优雅降级**: 图标 / 可选资源缺失时只警告, 不让构建失败。当前仓库里
-  `accesspilot/gui/` 与 `accesspilot/health.py` 是几个 teammate 正在并发写的,
-  构建不能因为"他们还没写完"而挂掉。
+* **优雅降级**: 图标 / 可选资源缺失时只警告, 不让构建失败 —— 一个资源缺失不该
+  让你连构建日志都拿不到。但**缺失必须当成构建缺陷处理**: `accesspilot/gui/` 与
+  `accesspilot/health.py` 都已经完整落地, 这三个 `REQUIRED_DATA` 没有任何"暂时
+  还没有"的正当理由, 看到警告就重新跑一次 `python packaging/build.py`。
 * **console=False**, 但 `HONGXING_CONSOLE=1` 可以产出带控制台的排错版
   (见 packaging/build.py --debug)。
 
@@ -96,9 +97,9 @@ def collect_submodules():
     """按文件系统列出 accesspilot 的所有子模块, 作为 hiddenimports。
 
     为什么不直接用 `collect_submodules("accesspilot")`: 那个函数会真的去
-    import 一遍。当前 accesspilot/gui/ 可能只写了一半(例如 app.py 还没落地),
-    import 失败就会漏模块甚至报错。扫文件名不会被执行环境带偏, 也不会因为
-    teammate 还在写代码而把构建搞挂。
+    import 一遍。延迟导入的模块(例如只在需要托盘时才 import 的
+    `accesspilot/gui/tray.py`)在"当前环境跑不起来"时会被漏掉, 而漏掉的后果是
+    用户机器上 `ModuleNotFoundError`。扫文件名不会被执行环境带偏。
     """
     modules = set()
     for path in sorted(PKG.rglob("*.py")):
@@ -225,8 +226,8 @@ if missing:
     log("!! 警告: 以下运行时资源没有被打进 exe, 打包版会在用户机器上功能残缺:")
     for key, why in missing:
         log(f"!!   - {key}  ({why})")
-    log("!! 构建会继续进行(这几个文件由其它 teammate 并发产出, 可能还没落地)。")
-    log("!! 等它们就绪后重新执行 python packaging/build.py 即可。")
+    log("!! 构建仍然继续(缺资源不该让你连日志都拿不到), 但**这个包不要发布**。")
+    log("!! 缺资源是构建缺陷, 不是「别人还没写完」: 重新执行 python packaging/build.py。")
     log("=" * 72)
 else:
     log(f"运行时资源校验通过: {len(REQUIRED_DATA)}/{len(REQUIRED_DATA)} 个必需资源已收集")

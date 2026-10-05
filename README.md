@@ -80,7 +80,30 @@ accesspilot proxy on
 
 有订阅的话把第 2 步换成 `accesspilot sub add "https://你的订阅地址"` 即可。
 
-Windows 用户也可以直接运行 `scripts\install.ps1` 完成安装 + 注册全局命令。
+Windows 用户也可以直接运行 `scripts\install.ps1` 完成安装 + 注册全局命令 + 创建桌面快捷方式。
+
+### 不想装 Python？直接下安装包
+
+上面那套需要机器上有 Python。给"只想双击一下"的人，发布页提供了打包好的安装程序
+（**用户级安装，不需要管理员权限，不会弹 UAC**）：
+
+```powershell
+红杏-Setup-v1.0.0.exe                 # 双击: 图形向导(选目录 -> 安装 / 卸载 / 检查更新)
+红杏-Setup-v1.0.0-full.exe            # 同上, 但包里带着内核, 装完即用、不用再跑 init
+红杏-Setup-v1.0.0.exe --silent        # 静默安装(装完不启动)
+红杏-Setup-v1.0.0.exe --dir D:\Apps   # 指定安装目录
+红杏-Setup-v1.0.0.exe --uninstall     # 卸载(保留节点/配置)
+红杏-Setup-v1.0.0.exe --uninstall --purge   # 卸载并删除全部用户数据
+红杏-Setup-v1.0.0.exe --update        # 检查 GitHub 最新版并就地更新
+```
+
+* **装到哪**：程序在 `%LOCALAPPDATA%\Programs\Hongxing\`，
+  数据（节点/订阅/配置/内核）在 `%LOCALAPPDATA%\AccessPilot\`。
+* **程序和数据是刻意分开的**：更新只换程序、绝不动数据；卸载默认也只删程序，
+  重装一次不会把你攒下来的节点和配置清掉。想连数据一起删才加 `--purge`。
+* 装完会创建开始菜单和桌面快捷方式，并注册到**设置 → 应用**，在那里可以直接卸载。
+* 更新会在替换主程序前校验 SHA256（发布方没提供校验值时**默认拒绝更新**），
+  详见 [packaging/README.md](packaging/README.md) §11.3。
 
 `test` 的输出长这样：
 
@@ -480,12 +503,18 @@ python -m accesspilot ui install           # 可选: metacubexd 专业面板, ht
 
 本机（Windows 10 19045 / Python 3.11.9 / mihomo v1.19.31）实测结果：
 
-**单元测试 308 项全部通过**（19 个测试文件，全程离线，不打真实网络）
+**单元测试 421 项**（25 个测试文件，全程离线，不打真实网络）
 
 ```powershell
-python runtests.py                       # 或者:
-python -m unittest discover -s tests     # Ran 308 tests ... OK
+python runtests.py                       # 计数随 tests/ 增长, 以本次输出为准
+python -m unittest discover -s tests     # 等价写法
 ```
+
+> **判定标准是退出码和 `OK` / `FAILED`，不是上面这个数字**：`tests/` 一直在长，
+> README 里先后出现过 308 / 219 / 380 / 421 四个数，互相矛盾。
+> 顺带一条真实观察：本机内存被挤到只剩 1 GB 左右时，`tests/test_installcmd.py`
+> 里那个"从别的目录调用包装器"的用例会因为子进程 90 秒超时而偶发失败；
+> 单独跑它 0.5 秒就过 —— 那是机器负载，不是回归。
 
 测试隔离靠 `tests/__init__.py` 把数据目录重定向到临时目录（`ACCESSPILOT_HOME`），
 所以跑测试**不会**动到你正在用的 `runtime/` 和系统代理。
@@ -582,7 +611,21 @@ Google 长期不接受中国大陆 +86 号码用于**新账号**验证，这是�
 `accesspilot proxy off` 会还原注册表原值；若曾异常退出，执行 `accesspilot stop` 清理残留内核。
 
 **Q: 不想装 Python**
-`accesspilot` 也可以被 PyInstaller 打包成单文件 exe：`pyinstaller -F -n accesspilot accesspilot\cli.py`
+用发布页上的安装包：`红杏-Setup-v1.0.0.exe`（轻量）或 `红杏-Setup-v1.0.0-full.exe`
+（自带内核，装完即用），双击安装、创建快捷方式、可在"设置 → 应用"里卸载。
+
+要自己从源码打包也可以 —— 但**必须走项目自己的打包链路**：
+
+```powershell
+python packaging/build.py     # 产物: dist/红杏.exe（版本资源、图标、资源收集都在 spec 里）
+```
+
+> 不要写 `pyinstaller -F -n accesspilot accesspilot\cli.py` 这种一行命令。它绕开了
+> `packaging/entry.py`：没有那句修复 `sys.stdout` 的代码，`accesspilot/util.py:23` 在
+> **import 阶段**就会 `AttributeError: 'NoneType' object has no attribute 'isatty'`
+> （双击后"闪一下，什么都没发生"）；也没有 `-m accesspilot` 参数归一化（看门狗/计划
+> 任务靠它）、没有版本资源、没有资源收集，产物里 `dashboard.html` 和托盘图标都是缺的。
+> 详见 [packaging/README.md](packaging/README.md)。
 
 ---
 
@@ -620,12 +663,14 @@ AccessPilot/
 │   │   └── ui/           #   Compose 界面(含 FakeEngine 以便预览)
 │   ├── app/src/main/cpp/hongxing_launcher.c   # fork+execve 启动桥(为了拿到 TUN fd)
 │   └── tools/            #   fetch_core.py / build_assets.py(补齐未入库的产物)
-├── packaging/            # PyInstaller 单文件 exe 链路
-│   ├── hongxing.spec / entry.py / build.py
+├── packaging/            # 打包链路（主程序 exe + Setup 安装程序）
+│   ├── hongxing.spec / entry.py / build.py        # 主程序 -> dist\红杏.exe
+│   ├── installer.spec / installer.py / build_installer.py   # 安装程序 -> dist\红杏-Setup-v<版本>[-full].exe
+│   └── smoke_test.py / README.md
 ├── scripts/
-│   ├── install.ps1         # Windows 一键安装
+│   ├── install.ps1         # Windows 一键安装(内核 + 全局命令 + 桌面快捷方式)
 │   └── server-install.sh   # VPS 服务端一键部署(Xray VLESS-Reality)
-├── tests/                  # 19 个测试文件, 308 项(离线可跑, 不碰真实网络)
+├── tests/                  # 测试文件(离线可跑, 不碰真实网络; 数量随开发增长)
 │   ├── test_control.py / test_intent.py / test_config_dedupe.py / ...
 │   └── e2e_check.py        # 端到端实测(真实内核 + 真实链路)
 └── accesspilot.cmd       # 免安装启动器(CRLF, 见 .gitattributes)

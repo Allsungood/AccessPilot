@@ -5,12 +5,12 @@
 ========
 一个**用户级**(不需要管理员)的小安装器, 做成单文件 exe 后双击即用:
 
-    红杏-Setup-v0.9.0.exe                 # 安装(交互式)
-    红杏-Setup-v0.9.0.exe --silent        # 静默安装(更新流程内部也用这个)
-    红杏-Setup-v0.9.0.exe --dir D:\\Apps  # 指定安装目录
-    红杏-Setup-v0.9.0.exe --uninstall     # 卸载(保留节点/配置)
-    红杏-Setup-v0.9.0.exe --uninstall --purge   # 卸载并删除全部用户数据
-    红杏-Setup-v0.9.0.exe --update        # 检查 GitHub 最新版并就地更新
+    红杏-Setup-v<版本>.exe                 # 安装(交互式)
+    红杏-Setup-v<版本>.exe --silent        # 静默安装(更新流程内部也用这个)
+    红杏-Setup-v<版本>.exe --dir D:\\Apps  # 指定安装目录
+    红杏-Setup-v<版本>.exe --uninstall     # 卸载(保留节点/配置)
+    红杏-Setup-v<版本>.exe --uninstall --purge   # 卸载并删除全部用户数据
+    红杏-Setup-v<版本>.exe --update        # 检查 GitHub 最新版并就地更新
 
 设计上的三条硬约定
 ==================
@@ -29,9 +29,23 @@
 payload(打包进安装器 exe 的东西)
 ================================
     payload/version.txt          版本号
-    payload/红杏.exe              主程序
+    payload/红杏.exe              主程序(必需)
     payload/core/mihomo.exe      内核(可选; 不带就是"轻量包", 首次使用需 accesspilot init)
     payload/core/wintun.dll      TUN 驱动(可选)
+    payload/geodata/*            地理数据(完整包; 内核启动必需, 缺了直接 exit)
+    payload/profiles/*.json      节点档(完整包; 没有节点就无从连接)
+    payload/ruleset/*.yaml       规则集缓存(可选, --with-cache 才有)
+    payload/state.json           端口/镜像/选中节点等偏好(见下面第 4 条)
+
+第 4 条硬约定: **不信任 payload 里的任何凭据**
+=============================================
+payload 里那个 state.json 是打包机上的文件, 它的 `api_secret` 曾经就是维护者本机的
+真实 external-controller 密钥, 随公开发布的 Setup.exe 一起泄露过。所以:
+
+  * 打包侧(packaging/build_installer.py)会把 api_secret 清空并断言真的清空了;
+  * 安装侧(本文件的 seed_runtime)在目标机器上**无条件**重新随机生成一个。
+
+两道都留着是有意的: 少任何一道, 下一次有人改了拷贝逻辑就又漏了。
 
 从源码直接跑(不开 PyInstaller 也能测):
     python packaging/installer.py --app-exe dist/红杏.exe --core-from "%LOCALAPPDATA%\\AccessPilot\\core"
@@ -40,8 +54,10 @@ from __future__ import annotations
 
 import argparse
 import base64
+import hashlib
 import json
 import os
+import re
 import secrets
 import shutil
 import subprocess
@@ -317,17 +333,34 @@ def seed_runtime(args: argparse.Namespace) -> None:
         if copied:
             say(f"[+] 已铺 {label}: {copied} 个文件 -> {dst}")
 
+    # state.json 里的 `api_secret` 是每台机器**自己的** external-controller 凭据。
+    # 这里无条件重新随机生成, 不管包里带的是什么值 —— 原因是一次真实事故:
+    # 打包脚本原先把 `%LOCALAPPDATA%\AccessPilot\state.json` 原样拷进 payload,
+    # 于是维护者本机的真实密钥被冻进了公开发布的 Setup.exe, 谁下载都能从二进制里
+    # 解出来。把真实凭据发布出去这件事本身不可接受, 与"它只监听 127.0.0.1、实际
+    # 可利用性低"无关 —— 凭据一旦公开就必须当作已泄露处理。
+    #
+    # 多生成一次的代价是零; 漏一次的代价是发布一个泄露的凭据。所以这里是
+    # **重新生成**, 而不是"包里没有才生成"。
     src_state = root / "state.json"
-    if src_state.is_file() and not (data / "state.json").exists():
-        try:
-            payload = json.loads(src_state.read_text(encoding="utf-8"))
-            payload["api_secret"] = secrets.token_hex(16)  # 不沿用别人的本地凭据
-            (data / "state.json").write_text(
-                json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
-            )
-            say("[+] 已写入 state.json(api_secret 已重新随机生成)")
-        except Exception as exc:  # noqa: BLE001
-            say(f"    (state.json 写入失败: {exc})")
+    target = data / "state.json"
+    if not src_state.is_file():
+        return
+    if target.exists():
+        # 目标机器上已经有自己的 state.json(升级/重装), 绝不能覆盖 ——
+        # 那会把用户自己的节点选择、端口和密钥一起冲掉。
+        say("[=] state.json 已存在, 保留本机配置(不覆盖)")
+        return
+    try:
+        payload = json.loads(src_state.read_text(encoding="utf-8"))
+        payload["api_secret"] = secrets.token_hex(16)  # 不沿用任何来源的凭据
+        payload.pop("last_start", None)  # 打包机上的时间戳, 与用户无关
+        target.write_text(
+            json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+        say("[+] 已写入 state.json(api_secret 已重新随机生成)")
+    except Exception as exc:  # noqa: BLE001
+        say(f"    (state.json 写入失败: {exc})")
 
 
 def known_folder(name: str, fallback: Path) -> Path:
@@ -445,6 +478,31 @@ def purge_data() -> None:
     say(f"[+] 已删除用户数据: {target}")
 
 
+def schedule_self_delete() -> None:
+    """删掉"卸载时复制到 %TEMP% 的那个自己"。
+
+    正在运行的 exe 在 Windows 上删不掉, 所以交给一个独立的 cmd: 它先等本进程
+    退出(用 ping 计时, 不依赖需要控制台的 timeout.exe), 再删文件。不这么做的话,
+    每次卸载都会在 %TEMP% 里留下一个 24~56 MB 的 exe —— 文件名带 pid, 下一次
+    卸载也不会覆盖它, 只会再留一个。
+    """
+    target = os.environ.get("HONGXING_UNINSTALL_SELF")
+    if not target:
+        return
+    path = Path(target)
+    if not path.is_file():
+        return
+    try:
+        subprocess.Popen(
+            ["cmd", "/c", f'ping -n 8 127.0.0.1 >nul & del /f /q "{path}"'],
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0)
+            | getattr(subprocess, "DETACHED_PROCESS", 0),
+            close_fds=True,
+        )
+    except Exception:  # noqa: BLE001
+        pass
+
+
 # --------------------------------------------------------------------------- #
 # 安装
 # --------------------------------------------------------------------------- #
@@ -458,10 +516,16 @@ def payload_app_exe(args: argparse.Namespace) -> Path:
         return path
     root = payload_root()
     if root:
-        for name in (EXE_NAME, "hongxing.exe", "hongxing-v0.9.0-win64.exe"):
+        # 版本号**不能写死**。原来这里写的是 "hongxing-v0.9.0-win64.exe",
+        # 发 1.0.0 的时候它当然找不到, 于是退化成下面那个"随便挑一个 *.exe"
+        # 的兜底分支 —— 在同时放了安装器和主程序的包里会挑错东西。
+        names = [EXE_NAME, "hongxing.exe", f"hongxing-v{find_version(None)}-win64.exe"]
+        for name in names:
             candidate = root / name
             if candidate.is_file():
                 return candidate
+        for candidate in sorted(root.glob("hongxing-v*-win64.exe")):
+            return candidate
         for candidate in sorted(root.glob("*.exe")):
             return candidate
     raise SystemExit(
@@ -611,6 +675,10 @@ def do_uninstall(args: argparse.Namespace) -> int:
             shutil.copy2(me, temp_copy)
             env = os.environ.copy()
             env["HONGXING_UNINSTALL_RELAUNCHED"] = "1"
+            # 让副本结束时把自己删掉(见 schedule_self_delete 的说明)。
+            # 原来的实现在这里留了一份 24~56 MB 的 exe 在 %TEMP% 里, 而且再也
+            # 没有人会去删它 —— 每次卸载都多留一份。
+            env["HONGXING_UNINSTALL_SELF"] = str(temp_copy)
             subprocess.Popen([str(temp_copy), *sys.argv[1:]], env=env, close_fds=True)
             say("[i] 已把卸载任务交给临时副本, 本进程退出 …")
             return 0
@@ -657,6 +725,7 @@ def do_uninstall(args: argparse.Namespace) -> int:
 
     say("")
     say(f"[√] 卸载完成")
+    schedule_self_delete()
     return 0
 
 
@@ -671,6 +740,176 @@ def _ver_tuple(text: str) -> tuple:
         digits = "".join(ch for ch in part if ch.isdigit())
         numbers.append(int(digits) if digits else 0)
     return tuple(numbers + [0, 0, 0])[:4]
+
+
+#: 主程序资产的**白名单**, 必须与 packaging/build.py 实际产出的文件名一致。
+#: `{ver}` 是 release tag 去掉前导 v 的版本号。
+#:
+#: 这张表就是 PKG-02 的修复本身。原来的实现是"先找名字里带 win64 的 exe, 找不到
+#: 就挑第一个 exe", 而这个仓库**从来没有任何产物带 win64** —— 于是第一个循环永远
+#: 匹配不上, 每次都落到兜底分支。发布页上同时躺着 红杏.exe 和 红杏-Setup-*.exe,
+#: 谁排在前面全看 GitHub 的返回顺序: 用户点一次「检查更新」, 主程序就可能被换成
+#: 安装器。之后「红杏」快捷方式打开的是安装向导, 保活任务调用的
+#: `红杏.exe ensure` 也没人认识 —— 而且是静默发生的。
+APP_ASSET_PATTERNS = (
+    "红杏-v{ver}-win64.exe",
+    "hongxing-v{ver}-win64.exe",
+    "红杏-v{ver}.exe",
+    "hongxing-v{ver}.exe",
+    "红杏.exe",
+    "hongxing.exe",
+)
+
+#: 名字里出现这些词的资产**一定不是**主程序。显式排除比"看起来像主程序"更可靠:
+#: 白名单负责"只认对的", 这张表负责"绝不认错的", 两道都要有。
+INSTALLER_ASSET_MARKERS = ("setup", "installer", "uninstall", "安装", "卸载")
+
+#: 版本资源(属性 -> 详细信息)里出现这些词就说明它是个安装器
+INSTALLER_INFO_MARKERS = ("安装", "卸载", "setup", "installer", "uninstall")
+
+
+def is_installer_asset(name: str) -> bool:
+    """这个资产名看起来是安装器吗?"""
+    lowered = str(name).lower()
+    return any(marker in lowered for marker in INSTALLER_ASSET_MARKERS)
+
+
+def pick_asset(release: dict) -> tuple[str, str, int] | None:
+    """挑出 Windows **主程序**资产; 挑不出来就返回 None。
+
+    为什么宁可不更新也不能猜: 主程序资产和安装器资产都是 `.exe`, 名字里都带
+    "红杏"。猜错的后果(把 56 MB 的安装器写成用户的主程序)远大于"这次没更新"。
+    猜不出来时 do_update() 会明确报错并退出, 用户手上的红杏保持原样。
+    """
+    tag = str(release.get("tag_name", "")).lstrip("vV")
+    assets = [a for a in release.get("assets", []) if isinstance(a, dict)]
+    for pattern in APP_ASSET_PATTERNS:
+        wanted = pattern.format(ver=tag)
+        for asset in assets:
+            name = str(asset.get("name", ""))
+            if name != wanted or is_installer_asset(name):
+                continue
+            return name, str(asset.get("browser_download_url", "")), int(asset.get("size", 0))
+    return None
+
+
+def app_asset_names(version: str) -> str:
+    """给"没找到主程序"那条报错用的可读清单。"""
+    return " / ".join(pattern.format(ver=version) for pattern in APP_ASSET_PATTERNS[:4])
+
+
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _discard(path: Path) -> None:
+    """删掉下载下来的中间文件。校验失败时**必须**删 —— 一个没通过校验的 exe
+    留在 %TEMP% 里, 早晚会有人双击它。"""
+    try:
+        path.unlink()
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def expected_digest(release: dict, name: str) -> str | None:
+    """取该资产**期望的** SHA256, 拿不到就返回 None。
+
+    三个来源, 依次尝试(GitHub 只会提供其中一部分, 多一条路就多一分能校验的机会):
+
+    1. `asset["digest"]` —— GitHub Releases API 自带的 `sha256:<hex>`。这是最权威
+       的: 它由 GitHub 自己算, 不像发布说明那样靠人维护, 也不会随正文编辑而漂移。
+    2. release 正文里同时出现**该文件名**和 64 位十六进制的行 —— 项目习惯把哈希
+       贴在说明里(`SHA256(红杏-v1.0.0-win64.exe) = ...`)。
+    3. 发布页上的校验和附件(`SHA256SUMS.txt` / `checksums.txt` / `<name>.sha256`)。
+
+    为什么必须校验: 更新是**就地覆盖用户正在用的主程序**。没有校验时, 一个被劫持
+    的下载地址、一次中途断流截断、甚至发布方自己传错文件, 都会原样落进
+    `%LOCALAPPDATA%\\Programs\\Hongxing\\红杏.exe`。原来只检查"字节数 ≥ 声明值的
+    95%", 那挡不住任何有意义的篡改。
+    """
+    lowered = name.lower()
+    for asset in release.get("assets", []):
+        if not isinstance(asset, dict) or str(asset.get("name", "")) != name:
+            continue
+        digest = str(asset.get("digest") or "")
+        if digest.lower().startswith("sha256:"):
+            value = digest.split(":", 1)[1].strip()
+            if re.fullmatch(r"[0-9a-fA-F]{64}", value):
+                return value.lower()
+
+    body = str(release.get("body") or "")
+    for line in body.splitlines():
+        if name not in line and lowered not in line.lower():
+            continue
+        match = re.search(r"\b([0-9a-fA-F]{64})\b", line)
+        if match:
+            return match.group(1).lower()
+
+    for asset in release.get("assets", []):
+        if not isinstance(asset, dict):
+            continue
+        check_name = str(asset.get("name", ""))
+        low = check_name.lower()
+        if not (low.endswith(".sha256") or low.endswith(".txt") or low.endswith("sums")):
+            continue
+        if lowered not in low and "sum" not in low and "sha" not in low:
+            continue
+        text = fetch_text(str(asset.get("browser_download_url", "")))
+        if not text:
+            continue
+        for line in text.splitlines():
+            match = re.search(r"\b([0-9a-fA-F]{64})\b", line)
+            if not match:
+                continue
+            # 校验和文件里每行都带文件名; 只认提到本资产(或不提任何名字)的行
+            if lowered in line.lower() or name in line or not line.strip():
+                return match.group(1).lower()
+    return None
+
+
+def fetch_text(url: str, *, timeout: int = 25) -> str:
+    if not url:
+        return ""
+    try:
+        request = urllib.request.Request(url, headers={"User-Agent": "hongxing-installer"})
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            return response.read().decode("utf-8", "replace")
+    except Exception:  # noqa: BLE001
+        return ""
+
+
+def win_version_info(path: Path) -> dict:
+    """读下载下来的 exe 的版本资源(属性 -> 详细信息)。读不到就返回空 dict。
+
+    这是 PKG-02 的第二道闸: 白名单 + SHA256 已经能钉死"下载到的就是这个资产",
+    这一层再独立地看一眼"它到底是不是主程序"。**读不到不算失败** —— 有些加固过的
+    机器上 PowerShell 起不来(见 ps() 的说明), 那不该让更新用不了; 但只要能读到,
+    产品名里带"安装/卸载"就一定是认错了, 必须停下来。
+    """
+    script = (
+        "$ErrorActionPreference='Stop';"
+        f"$i=(Get-Item -LiteralPath '{path}').VersionInfo;"
+        "Write-Output ($i.ProductName + [char]9 + $i.FileDescription + [char]9 + $i.OriginalFilename)"
+    )
+    rc, out, _ = ps(script)
+    if rc != 0 or not out:
+        return {}
+    parts = (out.splitlines()[-1] if out.splitlines() else "").split("\t")
+    keys = ("ProductName", "FileDescription", "OriginalFilename")
+    return {key: (parts[i].strip() if i < len(parts) else "") for i, key in enumerate(keys)}
+
+
+def looks_like_installer_binary(path: Path) -> bool:
+    """版本资源表明它是个安装器吗?(读不到版本资源 -> False)"""
+    info = win_version_info(path)
+    if not info:
+        return False
+    blob = " ".join(info.values()).lower()
+    return any(marker in blob for marker in INSTALLER_INFO_MARKERS)
 
 
 def fetch_latest_release(*, timeout: int = 25) -> dict | None:
@@ -695,19 +934,6 @@ def fetch_latest_release(*, timeout: int = 25) -> dict | None:
     return max(candidates, key=lambda r: _ver_tuple(r.get("tag_name", "")))
 
 
-def pick_asset(release: dict) -> tuple[str, str, int] | None:
-    """挑出 Windows 主程序资产(名字里带 win64 的 exe)。"""
-    for asset in release.get("assets", []):
-        name = str(asset.get("name", ""))
-        if name.lower().endswith(".exe") and "win64" in name.lower():
-            return name, str(asset.get("browser_download_url", "")), int(asset.get("size", 0))
-    for asset in release.get("assets", []):
-        name = str(asset.get("name", ""))
-        if name.lower().endswith(".exe"):
-            return name, str(asset.get("browser_download_url", "")), int(asset.get("size", 0))
-    return None
-
-
 def do_update(args: argparse.Namespace) -> int:
     prog_dir = Path(args.dir).expanduser().resolve() if args.dir else installed_prog_dir()
     if prog_dir is None:
@@ -730,12 +956,16 @@ def do_update(args: argparse.Namespace) -> int:
 
     asset = pick_asset(release)
     if asset is None:
-        say("[x] 这个发布里没有 Windows 主程序附件")
+        # 失败方向必须选"什么都没发生"。猜错的后果是把安装器写成用户的主程序,
+        # 而且完全静默; 不更新的后果只是用户再等一个版本。
+        say("[x] 这个发布里没有找到**主程序**资产, 本次不更新。")
+        say(f"    认得的文件名: {app_asset_names(latest)}")
+        say("    (安装器 红杏-Setup-*.exe 绝不会被当成主程序下载)")
         return 1
     name, url, size = asset
     say(f"[i] 下载 {name} ({size / 1048576:.1f} MB) …")
 
-    tmp = Path(tempfile.gettempdir()) / f"hongxing-update-{tag}.exe"
+    tmp = Path(tempfile.gettempdir()) / f"hongxing-update-{re.sub(r'[^0-9A-Za-z._-]', '_', tag)}.exe"
     try:
         request = urllib.request.Request(url, headers={"User-Agent": "hongxing-installer"})
         with urllib.request.urlopen(request, timeout=180) as response, tmp.open("wb") as handle:
@@ -745,6 +975,35 @@ def do_update(args: argparse.Namespace) -> int:
         return 1
     if size and tmp.stat().st_size < size * 0.95:
         say(f"[x] 下载不完整: {tmp.stat().st_size}/{size} 字节")
+        return 1
+
+    # ---- 完整性校验: 校验不过就什么都不做, 绝不进入替换流程 ----
+    actual = sha256_file(tmp)
+    expected = expected_digest(release, name)
+    if expected is None:
+        if not getattr(args, "insecure_skip_verify", False):
+            say("[x] 这个发布没有提供 SHA256 校验值, 无法确认下载到的确实是主程序。")
+            say("    没有校验就等于「下载什么装什么」, 而这一步会覆盖用户正在用的程序。")
+            say("    发布方: 在 release 说明里写 SHA256(文件名) = <64位十六进制>, 或")
+            say("    传一个 SHA256SUMS.txt; GitHub 附件自带的 digest 也会被自动采用。")
+            say("    确实要跳过校验(自担风险): --insecure-skip-verify")
+            _discard(tmp)
+            return 1
+        say("[!] 发布未提供校验值, 按 --insecure-skip-verify 继续(不建议)")
+    elif actual.lower() != expected.lower():
+        say("[x] SHA256 校验失败, 已放弃更新(用户的主程序未被改动):")
+        say(f"    期望 {expected}")
+        say(f"    实际 {actual}")
+        _discard(tmp)
+        return 1
+    else:
+        say(f"[+] SHA256 校验通过: {actual}")
+
+    # ---- 第二道闸: 就算名字对上了, 也要独立确认它不是安装器 ----
+    if looks_like_installer_binary(tmp):
+        say("[x] 下载到的文件版本资源显示它是**安装器**, 已放弃更新。")
+        say("    (这属于发布资产命名/校验值配错, 请反馈给发布方)")
+        _discard(tmp)
         return 1
 
     stop_app(prog_dir)
@@ -930,6 +1189,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--dir", default="", help="安装目录(默认 %%LOCALAPPDATA%%\\Programs\\Hongxing)")
     parser.add_argument("--uninstall", action="store_true", help="卸载")
     parser.add_argument("--update", action="store_true", help="检查并安装最新版")
+    parser.add_argument(
+        "--insecure-skip-verify",
+        action="store_true",
+        help="更新时跳过 SHA256 校验(发布没提供哈希时才会用到; 自担风险)",
+    )
     parser.add_argument("--purge", action="store_true", help="卸载时连用户数据一起删")
     parser.add_argument("--silent", action="store_true", help="静默:不弹窗、装完不启动")
     parser.add_argument("--gui", action="store_true", help="强制图形向导(双击时的默认行为)")

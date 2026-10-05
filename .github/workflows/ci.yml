@@ -1,0 +1,57 @@
+# AccessPilot CI —— 只做三件"人不记得做、但一做就能发现"的事。
+#
+# 为什么必须有: 本项目已经真实发生过两类事故, 而它们都是靠"有人记得"来防的 ——
+#   1. 发出去的安装包叫 v0.9.0, 而程序本体早就是 1.0.0(版本号写在 9 个地方,
+#      没有任何东西对账);
+#   2. 发布出去的完整版 Setup.exe 里冻着维护者本机的真实 api_secret。
+# 第 2 类现在有构建期断言(packaging/build_installer.py)兜着, 第 1 类在这里兜。
+#
+# 为什么是 windows-latest: 这不是"顺手选的"。测试套件跑的是 Windows 专属路径
+# (注册表 / 计划任务 / taskkill / 命名互斥体 / 系统代理还原), 在 Linux runner 上
+# 会直接失败 —— 一个必然失败的 CI 比没有 CI 更糟, 因为它会被无视。
+#
+# 为什么 Python 3.11: 打包链路实测并发布的解释器就是 3.11.9。pyproject.toml 声明的
+# requires-python 更宽, 但没有任何证据表明更低的版本被跑过, 所以 CI 只跑有证据的那个。
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: 测试与版本一致性 (Windows / Python 3.11)
+    runs-on: windows-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: 解释器版本
+        run: python -VV
+
+      # runtests.py 是唯一被文档承认的入口: 它通过 tests/__init__.py 把数据目录
+      # 重定向到临时目录(ACCESSPILOT_HOME), 所以跑测试不会碰真实用户数据。
+      # 测试全程离线 —— 只用回环地址上的测试替身, 不访问真实网络。
+      - name: 单元测试
+        run: python runtests.py
+
+      # 版本号漂移是本项目真实踩过的坑, 这里机器检查一次。
+      - name: 版本号一致性
+        run: python packaging/build_installer.py --check-version-only
+
+      # 这两个是维护者会直接执行的 CLI 入口, 改坏了必须在这里就红。
+      - name: 打包入口可用(--help)
+        run: |
+          python packaging/build.py --help
+          python packaging/build_installer.py --help
