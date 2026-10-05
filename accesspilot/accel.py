@@ -598,7 +598,14 @@ def _handle_client(client: socket.socket, *, verbose: bool = False) -> None:
 def serve(port: int = 7895, *, host: str = "127.0.0.1", verbose: bool = False) -> None:
     """启动 SOCKS5 智能拨号器(阻塞)."""
     srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    # Windows 上 SO_REUSEADDR 的语义和 Linux **完全不同**: Linux 上它只允许复用
+    # 处于 TIME_WAIT 的地址, 而 Windows 上它允许绑定一个**别的进程正在监听的
+    # 端口** —— 也就是把别人的端口抢过来, 之后发给对方的连接会跑到我们这里。
+    # 这是极难排查的故障源。Windows 上正确的做法是显式声明独占。
+    if hasattr(socket, "SO_EXCLUSIVEADDRUSE"):
+        srv.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+    else:
+        srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     srv.bind((host, port))
     srv.listen(128)
     ok(f"免节点直连加速已启动: socks5://{host}:{port}")

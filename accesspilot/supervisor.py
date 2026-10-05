@@ -299,15 +299,31 @@ def wait_healthy(
 
 
 def restore_direct() -> None:
-    """兜底: 保证回到直连状态(关系统代理, 停掉所有后端)."""
+    """兜底: 保证回到直连状态(关系统代理, 停掉所有后端).
+
+    判据必须用**实时注册表**, 不能只看 state.json 的标记。只看标记的话,
+    "注册表指向我们、标记却是 false"的状态永远收不回来 —— 整台机器会一直
+    指着一个已经不存在的端口。而且原来整个函数体套在 `except: pass` 里,
+    连"没恢复成功"都不会说一声。
+    """
+    from .state import load_state, save_state
+
+    st = load_state()
     try:
-        st = __import__("accesspilot.state", fromlist=["load_state"]).load_state()
-        if st.system_proxy_on:
-            sysproxy.disable(st)
-            st.system_proxy_on = False
-            __import__("accesspilot.state", fromlist=["save_state"]).save_state(st)
-    except Exception:
-        pass
+        live_ours, _ = sysproxy.effective(st)
+    except Exception:  # noqa: BLE001
+        live_ours = False
+    if not (st.system_proxy_on or live_ours):
+        return
+    try:
+        sysproxy.disable(st)
+        st.system_proxy_on = False
+        save_state(st)
+    except Exception as e:  # noqa: BLE001
+        warn(
+            f"恢复直连失败: {e} —— 系统代理可能仍指向失效端口, "
+            "请手动执行: accesspilot proxy off"
+        )
 
 
 # --------------------------------------------------------------------------- #
