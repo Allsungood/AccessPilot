@@ -21,6 +21,21 @@ from .util import Fail, ok, run_hidden
 TEST_URL = "https://www.gstatic.com/generate_204"
 TEST_URL_ALT = "https://cp.cloudflare.com/generate_204"
 
+#: 从「自动选择」里剔除的节点名(正则, 匹配节点名)。
+#:
+#: 真实故障(用户报的"GitHub 打不开"): 自动选择的 url-test 目标是
+#: gstatic.com/generate_204, 而**国内节点也能通过这个测试** —— 于是国内节点
+#: 凭延迟最低赢了 url-test, 成为通用流量的出口。可 GitHub 在国内是被墙的,
+#: 让一个国内出口去连 GitHub, 结果就是 TLS 握手 20 秒超时。
+#: 出口是"中国大陆"的节点, 拿去当代理出口在定义上就是错的, 必须排除。
+#:
+#: 为什么用 `中国( ?#\d+)?$` 而不是简单匹配 "中国":
+#: 池子里有 `🇭🇰_HK_中国香港->🇩🇪_DE_德国` 这类**中转链**, 它们名字里有"中国"
+#: 但真正的出口在德国, 是好节点, 不能误杀。而纯国内节点的名字都以 `中国` 或
+#: `中国 #2` 结尾 —— 用结尾锚定就能精确区分。
+#: (Go 的 regexp 是 RE2, 不支持 lookahead, 所以只能靠锚定, 不能靠"不包含"。)
+DOMESTIC_EXCLUDE = "🇨🇳|中国( ?#\\d+)?$|剩余|到期|官网|Traffic|Expire"
+
 FAKE_IP_FILTER = [
     "*.lan",
     "*.local",
@@ -177,6 +192,7 @@ def build_proxy_groups(
                 "interval": 300,
                 "tolerance": 50,
                 "lazy": False,
+                "exclude-filter": DOMESTIC_EXCLUDE,
                 "proxies": auto_pool,
             }
         )
@@ -220,6 +236,9 @@ def build_proxy_groups(
             "interval": 300,
             "tolerance": 50,
             "lazy": False,
+            # 出口在中国大陆的节点不能进自动选择(见 DOMESTIC_EXCLUDE 的说明:
+            # 它会凭延迟赢下 url-test, 然后把 GitHub 这类被墙站点带进死路)。
+            "exclude-filter": DOMESTIC_EXCLUDE,
             "proxies": auto_pool,
         }
     )
@@ -391,6 +410,25 @@ def sanitize_proxies(proxies: list[dict[str, Any]]) -> list[dict[str, Any]]:
             p["alpn"] = [p["alpn"]]
         if t == "wireguard" and not (p.get("private-key") and p.get("public-key")):
             continue
+        # REALITY 的 short-id 必须是**十六进制、偶数长度、不超过 16 个字符**
+        # (xray 的硬性要求)。公开免费源里畸形值很常见 —— 空值是合法的, 但
+        # "abc" 这种奇数长度、或者混进非十六进制字符的, 内核不接受。
+        #
+        # 真实事故(2026-10-07): 池子从 10 个扩到 15360 个之后, 第 7718 个节点的
+        # short-id 非法, mihomo 直接报 "proxy 7718: invalid REALITY short id"
+        # 并**拒绝整份配置** —— 红杏完全起不来(系统代理已按安全设计摘掉, 用户
+        # 处于无代理状态)。一个畸形节点把整个客户端拖垮是不可接受的, 所以这里
+        # 精确摘掉它, 而不是让它陪葬。
+        ro = p.get("reality-opts")
+        if isinstance(ro, dict):
+            sid = str(ro.get("short-id") or "").strip()
+            if len(sid) > 16 or len(sid) % 2 == 1 or any(
+                ch not in "0123456789abcdefABCDEF" for ch in sid
+            ):
+                continue
+            ro = dict(ro)
+            ro["short-id"] = sid
+            p["reality-opts"] = ro
         if t in ("vmess", "ss") and isinstance(p.get("port"), str) and p["port"].isdigit():
             p["port"] = int(p["port"])
         # 清洗控制字符。订阅源把 UTF-8 的 emoji 按 Latin-1 解码时会产出

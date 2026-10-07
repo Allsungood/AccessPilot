@@ -961,6 +961,14 @@ def cmd_warp(args: argparse.Namespace) -> int:
     raise Fail(f"未知操作: {args.action}")
 
 
+#: 剪枝后池子至少保留这么多个候选节点。
+#:
+#: 池子的作用是"候选储备"。原来的剪枝逻辑把它当成"已验证白名单", 而平台验证
+#: 只覆盖最快的几十个节点 —— 于是一次源站限流的刷新就能把七千个候选剪成十个,
+#: 用户再想用的时候几乎无节点可选。这个下限保证池子不会被单次坏刷新掏空。
+POOL_RESERVOIR = 300
+
+
 def cmd_free(args: argparse.Namespace) -> int:
     """公开免费节点: 抓取 -> 并发测速 -> 只保留可用的.
 
@@ -1240,7 +1248,9 @@ def cmd_free(args: argparse.Namespace) -> int:
                        f"(出口 {r.get('chatgpt_loc') or '?'})")
 
         if args.action == "auto" or args.prune:
-            before, after = freenodes.prune_profile("free", keep)
+            # reservoir: 池子是**候选储备**, 不是已验证白名单。只按"这批测通了"
+            # 来剪, 会在源站限流的那一轮把七千个候选剪成十个 —— 实测发生过。
+            before, after = freenodes.prune_profile("free", keep, reservoir=POOL_RESERVOIR)
             ok(f"已清理节点: {before} -> {after}")
 
         # 安全保护: 一个通过平台验证的节点都没有时, 系统代理开着只会拖慢
@@ -1520,7 +1530,7 @@ def cmd_autostart(args: argparse.Namespace) -> int:
             rm = int(args.refresh_minutes)
             code, out = _register_task(
                 refresh_task,
-                arguments=f'/c ""{shim}" free auto --workers 96 --timeout 5 --verify-top 30"',
+                arguments=f'/c ""{shim}" free auto --workers 12 --timeout 6 --verify-top 60"',
                 minutes=rm, limit_hours=3,
                 desc="红杏/AccessPilot 节点池刷新: 重新抓取+测速+平台验证",
             )
@@ -1831,7 +1841,9 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("action", choices=["sources", "fetch", "test", "clean", "auto"])
     sp.add_argument("--use", action="store_true", help="fetch: 设为当前配置档")
     sp.add_argument("--prune", action="store_true", help="test: 顺便清理失效节点")
-    sp.add_argument("--workers", type=int, default=48, help="测速并发数")
+    sp.add_argument("--workers", type=int, default=16,
+                    help="测速并发数(别调太高: 实测 96 并发会被源站限流, "
+                         "反而抓不到节点)")
     sp.add_argument("--timeout", type=float, default=6.0, help="单节点测速超时(秒)")
     sp.add_argument("--top", type=int, default=15, help="显示前 N 个")
     sp.add_argument("--min-ms", type=int, default=4000, help="auto: 只平台验证延迟低于此值的节点")

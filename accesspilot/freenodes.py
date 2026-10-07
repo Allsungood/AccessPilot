@@ -416,25 +416,45 @@ def bulk_test(
     return dict(sorted(alive.items(), key=lambda kv: kv[1]))
 
 
-def prune_profile(name: str, alive: dict[str, int], *, keep_min: int = 1) -> tuple[int, int]:
-    """把配置档里失效的节点删掉, 保留测速通过的(按延迟排序). 返回 (前, 后)."""
+def prune_profile(
+    name: str, alive: dict[str, int], *, keep_min: int = 1, reservoir: int = 0
+) -> tuple[int, int]:
+    """把配置档里失效的节点删掉, 保留测速通过的(按延迟排序). 返回 (前, 后).
+
+    reservoir: 剪完之后如果少于这个数量, 就从**旧节点**里补齐到该数量。
+
+    为什么需要它 —— 这是实测出来的事故形态: 池子本来是"候选储备", 而原来的逻辑
+    把它当成了"已验证白名单"。每小时一次的自动刷新在源站限流时只测得出十来个活
+    节点, 于是七千个候选被剪成十个 —— 用户下次要用的时候几乎没有节点可选, 而且
+    他完全不知道是谁把池子弄空的。储备层保证池子不会被一次坏刷新掏空。
+    """
     if len(alive) < keep_min:
         raise Fail(f"可用节点太少({len(alive)} 个), 拒绝清理以免把配置档清空")
     sub = sub_mod.load_profile(name)
     before = len(sub.proxies)
     ordered = [n for n, _ in sorted(alive.items(), key=lambda kv: kv[1])]
     by_name = {str(p.get("name")): p for p in sub.proxies}
-    sub.proxies = [by_name[n] for n in ordered if n in by_name]
+    kept = [by_name[n] for n in ordered if n in by_name]
     # 绝不写出一份空配置档。上面那道 keep_min 只校验了"测速结果不为空",
     # **没有**校验"结果里真的有节点属于这个配置档"。当 alive 里的名字一个都不在
     # 配置档里时(换了抓取源 / 节点被改名 / 配置档在别处被重建过), 那道守卫会
     # 放行, 而下面这一行会把 sub.proxies 写成 [] —— 用户的节点列表就被清空了,
     # 而且是每小时一次的自动刷新干的, 他根本不会知道是谁干的。
-    if before and not sub.proxies:
+    if before and not kept:
         raise Fail(
             f"清理结果为空({len(alive)} 个测速结果没有一个还在配置档「{name}」里), "
             "拒绝写入以免把节点列表清空"
         )
+    if reservoir and len(kept) < reservoir:
+        have = {str(p.get("name")) for p in kept}
+        for p in sub.proxies:
+            if len(kept) >= reservoir:
+                break
+            nm = str(p.get("name"))
+            if nm not in have:
+                kept.append(p)
+                have.add(nm)
+    sub.proxies = kept
     sub.updated = time.time()
     sub_mod.save_profile(sub)
     return before, len(sub.proxies)
