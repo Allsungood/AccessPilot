@@ -152,5 +152,116 @@ class TestDomesticNodesExcluded(unittest.TestCase):
         self.assertGreaterEqual(src.count('"exclude-filter": DOMESTIC_EXCLUDE'), 2)
 
 
+class TestExitPinnedToDomesticNode(unittest.TestCase):
+    """最后一个、也是最隐蔽的坑。
+
+    `exclude-filter` 只作用于 url-test 组, **管不到 state.json 里显式保存的选择**。
+    实测现场: `♻️ 自动选择` 已经正确落在美国节点, 而 `🚀 节点选择` 却被钉在
+    `🇨🇳_CN_中国` 上 —— 排除规则被整个绕过, GitHub 必然打不开, 而所有检查都
+    显示正常。
+    """
+
+    def setUp(self) -> None:
+        from accesspilot.state import load_state, save_state
+
+        self.st = load_state()
+        self.st.selected = {}
+        save_state(self.st)
+
+    def _pin(self, name: str) -> None:
+        from accesspilot import rules
+        from accesspilot.state import save_state
+
+        self.st.selected = {rules.G_SELECT: name}
+        save_state(self.st)
+
+    def test_detects_domestic_pin(self) -> None:
+        from accesspilot import guard
+
+        for bad in ("🇨🇳_CN_中国", "🇨🇳_CN_中国 #2", "美国直连中国"):
+            self._pin(bad)
+            self.assertIsNotNone(guard.domestic_pinned(self.st), f"{bad!r} 应被识别")
+
+    def test_ignores_overseas_pin(self) -> None:
+        from accesspilot import guard
+
+        for good in ("🇸🇬SG_28|702KB/s|R002-260618 01", "香港|@ripaojiedian",
+                     "🇭🇰_HK_中国香港->🇩🇪_DE_德国"):
+            self._pin(good)
+            self.assertIsNone(guard.domestic_pinned(self.st), f"{good!r} 不该被识别")
+
+    def test_repair_unpins_and_restores_auto(self) -> None:
+        from accesspilot import api, guard, rules
+        from accesspilot.state import load_state
+
+        self._pin("🇨🇳_CN_中国 #2")
+        with mock.patch.object(guard.process, "is_running", return_value=True), \
+             mock.patch.object(guard, "port_serving", return_value=True), \
+             mock.patch.object(guard.sysproxy, "effective",
+                               return_value=(True, "127.0.0.1:7890")), \
+             mock.patch.object(api, "select") as sel:
+            res = guard.repair(self.st, deep=False, quiet=True)
+        sel.assert_called_once_with(self.st, rules.G_SELECT, rules.G_AUTO)
+        self.assertTrue(any("国内节点" in r for r in res["repairs"]), res["repairs"])
+        self.assertIsNone(guard.domestic_pinned(load_state()))
+
+
+class TestProbeCoversTheRealTargets(unittest.TestCase):
+    """回归: 自愈层的探测目标必须覆盖**产品真正要服务的站点**。
+
+    原来只测 gstatic.com/generate_204 —— 而国内节点也能通过它。于是自愈层一直
+    报"健康", 用户却打不开 GitHub。健康判据和目标不一致, 就只是自我安慰。
+    """
+
+    def test_targets_include_github_and_huggingface(self) -> None:
+        from accesspilot import guard
+
+        keys = {k for k, _ in guard.TRAFFIC_TARGETS}
+        self.assertIn("github", keys)
+        self.assertIn("huggingface", keys)
+
+    def test_probe_reports_per_site(self) -> None:
+        """必须逐站报告, 才能区分"链路断了"(重启内核)和"出口选错了"(换节点)。"""
+        from accesspilot import guard
+
+        with mock.patch.object(guard, "http_request") as req:
+            def fake(url, **kw):
+                # 只有 github 失败 —— 这正是"出口选错"的形态
+                if "github.com" in url:
+                    raise OSError("blocked")
+                return 200, {}, b""
+
+            req.side_effect = fake
+            sites = guard.probe_targets(guard.load_state())
+        self.assertFalse(sites["github"])
+        self.assertTrue(sites["huggingface"])
+
+    def test_repin_prefers_already_selected_nodes(self) -> None:
+        """候选顺序: 先把别的组**正在用的**节点排前面。
+
+        只按 profile 顺序取头部节点的话, 拿到的全是没验证过的死节点
+        (实测前 8 个 github.com/freefq 全部 503/504), 于是"换出口"永远失败。
+        """
+        from accesspilot import api, guard, rules
+
+        seen: list[str] = []
+
+        def fake_delay(st, name, *, url, timeout_ms):
+            seen.append(name)
+            return 42 if name == "KNOWN_GOOD" else -1
+
+        with mock.patch.object(api, "proxy",
+                               return_value={"now": "KNOWN_GOOD"}), \
+             mock.patch.object(api, "delay", side_effect=fake_delay), \
+             mock.patch.object(api, "select") as sel, \
+             mock.patch("accesspilot.subscription.load_profile") as lp:
+            lp.return_value = type("S", (), {"proxies": [
+                {"name": f"dead{i}"} for i in range(1, 20)]})()
+            picked = guard.repin_for_sites(guard.load_state(), want="github")
+        self.assertEqual(picked, "KNOWN_GOOD")
+        self.assertEqual(seen[0], "KNOWN_GOOD", "已知能用的节点必须第一个被试")
+        self.assertEqual(sel.call_count, 2, "通用组和 AI 组都要钉上")
+
+
 if __name__ == "__main__":
     unittest.main()

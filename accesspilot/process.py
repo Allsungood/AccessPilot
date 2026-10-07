@@ -186,11 +186,17 @@ def reclaim_ports(st: AppState, *, auto: bool = True) -> None:
 
 
 def running_pid() -> int | None:
+    """内核 pid —— **必须核对身份**, 不能只看 pid 还活着。
+
+    Windows 会复用 PID: 内核崩溃后那个号会被分配给别的进程, 于是
+    `is_running()` 会一直返回 True, 而"内核在跑"是所有判断的前提 ——
+    保活不拉起、自愈不修复、界面显示已连接, 全都建立在这个谎上。
+    """
     data = _read_pid()
     if not data:
         return None
     pid = int(data["pid"])  # type: ignore[arg-type]
-    if _pid_alive(pid):
+    if core_alive(pid):
         return pid
     return None
 
@@ -621,6 +627,20 @@ def accel_log_tail(lines: int = 40) -> str:
 # --------------------------------------------------------------------------- #
 # 守护进程: 防止"内核已死但系统代理还开着"把整台机器搞断网
 # --------------------------------------------------------------------------- #
+
+
+def core_alive(pid: int) -> bool:
+    """这个 pid 现在**还是不是我们的内核**。
+
+    不能只看"pid 还活着"。Windows 会复用 PID: 内核崩溃之后那个号很快会被系统
+    分配给别的进程, 于是看门狗以为自己的内核还在、永远不退出。
+
+    实测后果: 反复重启几次之后攒出了 **3 个看门狗**同时跑着, 它们各自独立地
+    去贴系统代理、互相抢注册表写入 —— 既浪费又难查。
+    """
+    if not _pid_alive(pid):
+        return False
+    return _process_name(pid).lower().startswith(("mihomo", "clash"))
 
 
 def start_watchdog(core_pid: int) -> int | None:

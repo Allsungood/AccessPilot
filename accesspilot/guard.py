@@ -46,9 +46,17 @@ from . import paths, process, sysproxy
 from .state import AppState, load_state, save_state
 from .util import http_request, info, json_dump, json_load, warn
 
-#: 深检查的目标。选它是因为: 直连通常打不开(gstatic 在国内被污染), 走通隧道
-#: 才会返回干净的 204 —— 所以它能区分"代理端口开着"和"代理真的能把流量送出去"。
-TRAFFIC_TARGET = "https://www.gstatic.com/generate_204"
+#: 深检查的目标。**必须包含产品真正要服务的站点** —— 不能只测一个"哪儿都能通"的。
+#:
+#: 血的教训: 原来只测 `gstatic.com/generate_204`, 而**国内节点也能通过它**。
+#: 于是自愈层一直报"健康", 而用户实际打不开 GitHub(TLS 握手 20 秒超时);
+#: 同一个盲区还让一个国内节点凭延迟赢下 url-test、当上了通用出口。
+#: 健康判据如果和用户的目标不一致, 它就只是在自我安慰。
+TRAFFIC_TARGETS: tuple[tuple[str, str], ...] = (
+    ("github", "https://github.com/robots.txt"),
+    ("huggingface", "https://huggingface.co/robots.txt"),
+    ("gstatic", "https://www.gstatic.com/generate_204"),
+)
 
 #: 历史文件。只留最近这么多条, 免得无限增长。
 HISTORY_FILE = "guard-history.json"
@@ -127,27 +135,114 @@ def recommended_interval(default: float = 10.0, under_fire: float = 2.0) -> floa
 
 
 def probe_traffic(st: AppState, *, timeout: float = 6.0) -> tuple[bool, str]:
-    """发一个真实请求, 确认流量真的被送出去了。
+    """发真实请求, 确认流量真的被送出去了。返回 (至少一个通, 逐站详情)。
 
     TUN 模式在网络层接管, 直连请求自然走隧道, 所以不传 proxy;
     系统代理模式则**显式**指定 mihomo 的混合端口 —— 不依赖 urllib 自己去读
     Windows 注册表, 那样判据会和我们正在验证的东西绕成循环。
+
+    判据是"至少一个目标通": 个别站点被墙或抖动不该触发重启内核。但详情里会
+    带上每一站的结果 —— 只有 GitHub 不通, 那是**换节点**的问题(见
+    repin_for_sites), 不是重启内核能解决的。
+    """
+    res = probe_targets(st, timeout=timeout)
+    detail = " ".join(f"{k}={'ok' if v else 'x'}" for k, v in res.items())
+    return any(res.values()), detail
+
+
+def probe_targets(st: AppState, *, timeout: float = 6.0) -> dict[str, bool]:
+    """逐个探测 TRAFFIC_TARGETS, 返回 {名字: 通不通}。
+
+    分站点探测是有意的: "全都不通"是链路断了(该重启内核), 而"只有 GitHub 不通"
+    是**出口节点选错了**(该换节点) —— 两种故障的修法完全不同, 混在一起就只能
+    猜。原来只有一个目标, 连区分都做不到。
     """
     proxy = None if st.tun_enable else f"http://127.0.0.1:{st.mixed_port}"
-    t0 = time.time()
+    out: dict[str, bool] = {}
+    for key, url in TRAFFIC_TARGETS:
+        try:
+            status, _, _ = http_request(
+                url, headers={"User-Agent": "AccessPilot-guard"},
+                timeout=timeout, proxy=proxy,
+            )
+            out[key] = status in (200, 204, 301, 302)
+        except Exception:  # noqa: BLE001
+            out[key] = False
+    return out
+
+
+def repin_for_sites(st: AppState | None = None, *, want: str = "github",
+                    candidates: int = 12) -> str | None:
+    """把通用出口换成一个**真能打开 GitHub** 的节点, 返回选中的节点名。
+
+    为什么需要它: url-test 只按延迟挑, 而"延迟低"完全不保证"能打开被墙的站点";
+    上游节点还会随时失效。所以当 github 探测失败、而链路本身是通的时候, 正确
+    动作是换节点, 不是重启内核。
+
+    探测用的是 mihomo 自己的 delay 接口, 并且**用 GitHub 的地址当目标** ——
+    这才是"这个节点能不能打开 GitHub"的唯一直接答案。
+    """
+    from . import api, intent, rules
+
+    st = st or load_state()
     try:
-        status, _, _ = http_request(
-            TRAFFIC_TARGET,
-            headers={"User-Agent": "AccessPilot-guard"},
-            timeout=timeout,
-            proxy=proxy,
-        )
-        ms = int((time.time() - t0) * 1000)
-        if status in (200, 204):
-            return True, f"{ms}ms"
-        return False, f"HTTP {status}"
-    except Exception as e:  # noqa: BLE001
-        return False, f"{type(e).__name__}: {str(e)[:60]}"
+        from .subscription import load_profile
+
+        names = [str(p.get("name")) for p in load_profile(st.active_profile).proxies]
+    except Exception:  # noqa: BLE001
+        return None
+
+    # 候选顺序是这件事成败的关键。**先把已知能用的排前面**:
+    # 别的策略组当前钉着的节点是"已经被选中用过"的, 大概率还活着。
+    # 而只按 profile 顺序取的话, 拿到的是从没验证过的头部节点 —— 实测前 8 个
+    # 全是死的 github.com/freefq, 于是"换出口"每次都失败(这正是第一版没生效
+    # 的原因: 探测全返回 503/504, 挑不出任何节点)。
+    known: list[str] = []
+    try:
+        for g in (rules.G_AI, rules.G_SOCIAL, rules.G_MEDIA, rules.G_SELECT):
+            cur = str(api.proxy(st, g).get("now") or "")
+            if cur and cur not in known and cur not in (rules.G_AUTO, rules.G_DIRECT):
+                known.append(cur)
+    except Exception:  # noqa: BLE001
+        pass
+    ordered = known + [n for n in names if n not in known]
+
+    url = dict(TRAFFIC_TARGETS).get(want, "https://github.com/robots.txt")
+    # 只从海外的候选里挑: 名字里带中国大陆标记的直接跳过(国内出口连不上 GitHub)
+    bad = ("🇨🇳", "中国 #", "中国#")
+    tried = 0
+    for name in ordered:
+        if tried >= candidates:
+            break
+        if any(b in name for b in bad) or name.rstrip().endswith("中国"):
+            continue
+        tried += 1
+        try:
+            ms = api.delay(st, name, url=url, timeout_ms=6000)
+        except Exception:  # noqa: BLE001
+            continue
+        if ms <= 0:
+            continue
+        # 通用组和 AI 组钉同一个节点 —— 两个出口会让同一站点看到两个来源 IP,
+        # 之前就因为这件事触发过 Google 的"异常流量"判定。
+        for group in (rules.G_SELECT, rules.G_AI):
+            try:
+                api.select(st, group, name)
+            except Exception:  # noqa: BLE001
+                pass
+        st.selected = dict(st.selected or {})
+        st.selected[rules.G_SELECT] = name
+        st.selected[rules.G_AI] = name
+        save_state(st)
+        record("repin_for_sites", f"{want} 不通 -> 换成 {name[:50]} ({ms}ms)")
+        try:
+            intent.mark_on()
+        except Exception:  # noqa: BLE001
+            pass
+        return name
+    record("repin_for_sites_failed",
+           f"{want} 不通, 试了 {tried} 个候选节点都不行")
+    return None
 
 
 # --------------------------------------------------------------------------- #
@@ -212,6 +307,25 @@ def port_serving(st: AppState) -> bool:
         return bool(process._listeners(st.mixed_port))  # noqa: SLF001
     except Exception:  # noqa: BLE001
         return False
+
+
+def domestic_pinned(st: AppState) -> str | None:
+    """通用组是不是被**显式钉**在一个国内节点上? 是就返回那个节点名。
+
+    这是排查到最后才发现的坑, 也是最隐蔽的一个:
+    `exclude-filter` 只作用于 url-test 组, 它**管不到 state.json 里显式保存的
+    选择**。一旦 `🚀 节点选择` 被钉在 `🇨🇳_CN_中国` 上, 排除规则就被整个绕过 ——
+    出口是国内节点, GitHub 必然打不开, 而"自动选择"那边看起来一切正常
+    (实测: G_AUTO 已经正确落在美国节点, G_SELECT 却还是国内节点)。
+    """
+    from . import rules
+
+    name = str((st.selected or {}).get(rules.G_SELECT) or "")
+    if not name:
+        return None
+    if "🇨🇳" in name or name.rstrip().endswith("中国"):
+        return name
+    return None
 
 
 def repair(st: AppState | None = None, *, deep: bool = False, quiet: bool = True,
@@ -280,21 +394,55 @@ def repair(st: AppState | None = None, *, deep: bool = False, quiet: bool = True
             if not quiet:
                 warn(f"系统代理被外部改掉了({res['reason']}), 已自动恢复")
 
-    # 3) 深检查: 设置对但流量不通 -> 内核可能是僵死的, 重启一次。
+    # 2.5) 通用组被显式钉在国内节点上 -> 改回自动选择。
+    #      这一条是浅检查(只读 state.json), 但要放在深检查之前 —— 否则
+    #      "GitHub 不通"会被误判成节点质量问题, 而真正的原因是钉错了出口。
+    if res["kernel"] and not st.tun_enable:
+        bad_pin = domestic_pinned(st)
+        if bad_pin:
+            from . import api, rules
+
+            try:
+                api.select(st, rules.G_SELECT, rules.G_AUTO)
+            except Exception:  # noqa: BLE001
+                pass
+            st.selected = dict(st.selected or {})
+            st.selected.pop(rules.G_SELECT, None)
+            save_state(st)
+            reps.append(f"通用出口原钉在国内节点({bad_pin[:20]}), 已改回自动选择")
+            record("unpin_domestic",
+                   f"🚀 节点选择 原来固定在 {bad_pin[:50]} —— 国内出口连不上 GitHub")
+            if not quiet:
+                warn(f"通用出口原来固定在国内节点 {bad_pin[:30]}, 已改回自动选择")
+
+    # 3) 深检查。这里要区分两种完全不同的故障:
+    #      * 全都不通   -> 链路断了, 重启内核
+    #      * 只有 GitHub 不通 -> 链路是好的, 是**出口节点选错了**, 换节点
+    #    混在一起就只能猜, 而原来只有一个探测目标, 连区分都做不到。
     if deep and res["effective"]:
-        ok_t, why = probe_traffic(st, timeout=traffic_timeout)
-        res["traffic"] = ok_t
-        res["traffic_detail"] = why
-        if not ok_t and res["kernel"] and allow_restart:
+        sites = probe_targets(st, timeout=traffic_timeout)
+        res["sites"] = sites
+        res["traffic"] = any(sites.values())
+        res["traffic_detail"] = " ".join(f"{k}={'ok' if v else 'x'}" for k, v in sites.items())
+        if not res["traffic"] and res["kernel"] and allow_restart:
             try:
                 process.restart(st=st, tun=st.tun_enable, system_proxy=st.system_proxy_on)
                 reps.append("重启内核(流量不通)")
-                record("kernel_restart_dead_traffic", f"流量探测失败: {why}")
-                ok_t2, why2 = probe_traffic(st, timeout=traffic_timeout)
-                res["traffic"] = ok_t2
-                res["traffic_detail"] = why2
+                record("kernel_restart_dead_traffic", f"流量探测失败: {res['traffic_detail']}")
+                sites = probe_targets(st, timeout=traffic_timeout)
+                res["sites"] = sites
+                res["traffic"] = any(sites.values())
+                res["traffic_detail"] = " ".join(
+                    f"{k}={'ok' if v else 'x'}" for k, v in sites.items()
+                )
             except Exception as e:  # noqa: BLE001
-                res["traffic_detail"] = f"{why}; 重启失败: {e}"
+                res["traffic_detail"] += f"; 重启失败: {e}"
+        elif res["traffic"] and not sites.get("github", True) and st.system_proxy_on:
+            picked = repin_for_sites(st, want="github")
+            if picked:
+                reps.append(f"换出口 -> {picked[:28]}")
+                if not quiet:
+                    warn(f"GitHub 不通而链路正常 —— 已把出口换成 {picked[:40]}")
         res["healthy"] = bool(res["traffic"])
     else:
         res["healthy"] = bool(res["effective"])

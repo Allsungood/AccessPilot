@@ -1988,7 +1988,7 @@ def cmd_watchdog(args: argparse.Namespace) -> int:
         # 只是读一个注册表键, 开销可以忽略。这让"被改掉"到"贴回去"的窗口
         # 从 1.1 秒缩到 0.4 秒左右, 用户基本感觉不到。
         time.sleep(guard.recommended_interval(default=2.0, under_fire=0.5))
-        if not process._pid_alive(core_pid):  # noqa: SLF001
+        if not process.core_alive(core_pid):
             # 内核没了: 先把系统代理收回来, 绝不让它指向死端口
             st = load_state()
             if st.system_proxy_on:
